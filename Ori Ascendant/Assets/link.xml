@@ -1,0 +1,14 @@
+<!--
+  IL2CPP link preservation. Apple.GameKit 3.0.x's GKSavedGame default
+  constructor is stripped at Low+ managed stripping, which crashes at runtime
+  when fetching saves (Apple Developer Forums, thread 768441 — see the
+  unity-impl research lens). Preserving the assembly fixes it without forcing
+  Managed Stripping Level to Minimal project-wide.
+
+  This file is inert until the Apple.GameKit package is committed (Phase D
+  checklist); an absent assembly name here is simply ignored by the linker.
+-->
+<linker>
+  <assembly fullname="Apple.GameKit" preserve="all" />
+  <assembly fullname="Apple.Core" preserve="all" />
+</linker>

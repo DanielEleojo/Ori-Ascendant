@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c61febeccd4b480cbf1940c3cebafc4, type: 3}
+  m_Name: TribulationConfig
+  m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.TribulationConfig
+  baseAscendChance: 0.6
+  aseThresholdMantissa: 25
+  aseThresholdExponent: 6
+  ambientFractions:
+  - 0.5
+  - 0.8
+  - 1
+  holdToConfirmSeconds: 0.8
+  transitionSeconds: 2
+  stormWaveCount: 3
+  stormWaveIntervalSeconds: 1
+  silenceHoldSeconds: 1.5
+  revealSeconds: 2.5
+  ancestorCardSeconds: 2.5
+  finalBeatSeconds: 2

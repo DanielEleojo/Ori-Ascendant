@@ -1,0 +1,83 @@
+using NUnit.Framework;
+using OriAscendant.Core;
+using OriAscendant.Systems;
+
+namespace OriAscendant.Tests.EditMode
+{
+    /// <summary>
+    /// Gate A: composition of the GAMEPLAY §2.1 rate formula, including the
+    /// councilBonusModifier wrap (Osun) and the retirement-neutrality property
+    /// the wrap exists to protect.
+    /// </summary>
+    public class RateCalculatorTests
+    {
+        [Test]
+        public void NeutralEverything_ReturnsBaseRate()
+        {
+            var rate = RateCalculator.ComputeRate(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+            Assert.AreEqual(BigNumber.One, rate);
+        }
+
+        [Test]
+        public void StageAndPath_MultiplyThrough()
+        {
+            // Stage 6 (×1250) on Sango (×2): 1 × 1250 × 2 = 2500/s.
+            var rate = RateCalculator.ComputeRate(1.0, 1250.0, 2.0, 1.0, 0.0, 0.0);
+            Assert.AreEqual(BigNumber.FromDouble(2500.0), rate);
+        }
+
+        [Test]
+        public void OneAscendedAncestor_Gives1Point25Factor()
+        {
+            // GAMEPLAY §2.4 gen-2 example: stage 5 (×320), no path, one ascended
+            // ancestor (W×1.0 = 0.25): 320 × 1.25 = 400/s.
+            var rate = RateCalculator.ComputeRate(1.0, 320.0, 1.0, 1.0, 0.0, 0.25);
+            Assert.AreEqual(BigNumber.FromDouble(400.0), rate);
+        }
+
+        [Test]
+        public void FallenAncestor_Gives1Point10Factor()
+        {
+            // W × 0.4 = 0.10 → factor 1.10.
+            var rate = RateCalculator.ComputeRate(1.0, 1.0, 1.0, 1.0, 0.0, 0.10);
+            Assert.AreEqual(BigNumber.FromDouble(1.10), rate);
+        }
+
+        [Test]
+        public void OsunWrap_DoublesPermanentAndActiveTogether()
+        {
+            // Osun (councilBonusModifier 2): permanent 0.25 + active 0.25 →
+            // 1 + 2 × 0.5 = 2.0.
+            var rate = RateCalculator.ComputeRate(1.0, 1.0, 1.0, 2.0, 0.25, 0.25);
+            Assert.AreEqual(BigNumber.FromDouble(2.0), rate);
+        }
+
+        [TestCase(1.0)]
+        [TestCase(2.0)] // Osun — the case the joint wrap exists for
+        public void Retirement_IsAseNeutral_UnderAnyCouncilModifier(double councilModifier)
+        {
+            // Retiring moves W×bonus from the active sum into permanentAseBonus.
+            // Because the modifier wraps BOTH terms, the rate must not change.
+            const double w = 0.25;
+            const double retiringBonus = w * 1.0; // an ascended ancestor retires
+
+            var before = RateCalculator.ComputeRate(1.0, 80.0, 1.0, councilModifier,
+                permanentAseBonus: 0.0,
+                activeCouncilSum: retiringBonus + 0.35);
+            var after = RateCalculator.ComputeRate(1.0, 80.0, 1.0, councilModifier,
+                permanentAseBonus: retiringBonus,
+                activeCouncilSum: 0.35);
+
+            Assert.AreEqual(before, after,
+                $"retirement changed the rate at councilModifier={councilModifier}");
+        }
+
+        [Test]
+        public void FullCouncil_FiveAscended_Gives2Point25()
+        {
+            // 5 × (0.25 × 1.0) = 1.25 → factor 2.25 (GAMEPLAY long-run table).
+            var rate = RateCalculator.ComputeRate(1.0, 1.0, 1.0, 1.0, 0.0, 1.25);
+            Assert.AreEqual(BigNumber.FromDouble(2.25), rate);
+        }
+    }
+}

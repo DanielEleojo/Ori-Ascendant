@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d12ae651798c0780a99104c0760c0ce, type: 3}
+  m_Name: Ane
+  m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.PathConfig
+  pathName: "Ane \u2014 Path of Earth"
+  pathDescription: "Patience and rootedness \u2014 the land grows while you sleep."
+  identityLine: "The Mountain Endures \u2014 \xC0\u1E63\u1EB9 gathers while you rest:
+    \xD71.5 offline"
+  traditionLabel: "Igala earth deity (An\u1EB9\u0300)"
+  hookBadge: "OFFLINE \xD71.5"
+  offlineBonusLabel: Earth's Patience
+  aseGenerationModifier: 1
+  offlineRateModifier: 1.5
+  councilBonusModifier: 1
+  tribulationType: 1
+  musicTheme: {fileID: 0}
