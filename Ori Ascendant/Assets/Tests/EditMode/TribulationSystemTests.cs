@@ -94,6 +94,10 @@ namespace OriAscendant.Tests.EditMode
         {
             ArmAtPeak(path: 1);
             _save.currentOri = 2; // a virtue vowed this life — must reset to -1
+            _save.oriHeld = 3;
+            _save.oriTrials = 5;
+            _save.pendingCrossroads = 1;
+            _save.deeds.Add(new DeedData { crossroadsIndex = 0, chosenOri = 1, stage = 4, aligned = false });
             _tribulation.SetRandomSource(new FakeRandom(0.0)); // < 0.60 → ascend
             long before = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -107,6 +111,10 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0, _save.currentStage, "currentStage → 0");
             Assert.AreEqual(-1, _save.currentPath, "currentPath → -1 (re-chosen each generation)");
             Assert.AreEqual(-1, _save.currentOri, "currentOri → -1 (re-vowed each generation)");
+            Assert.AreEqual(0, _save.oriHeld, "steadfastness tally → 0");
+            Assert.AreEqual(0, _save.oriTrials);
+            Assert.AreEqual(-1, _save.pendingCrossroads, "pending crossroads cleared");
+            Assert.IsEmpty(_save.deeds, "deeds cleared for the new life");
             Assert.GreaterOrEqual(_save.generationStartTimestamp, before, "generationStartTimestamp → now");
             Assert.AreEqual(1, _save.lineage.generationCount, "generationCount++");
             Assert.AreEqual(1, _save.council.Count, "ancestor appended");

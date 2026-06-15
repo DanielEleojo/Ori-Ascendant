@@ -25,6 +25,11 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0, save.currentStage);
             Assert.AreEqual(-1, save.currentPath, "path not chosen at start");
             Assert.AreEqual(-1, save.currentOri, "Ori not chosen at birth");
+            Assert.AreEqual(0, save.oriHeld);
+            Assert.AreEqual(0, save.oriTrials);
+            Assert.AreEqual(-1, save.pendingCrossroads, "no crossroads pending at birth");
+            Assert.IsNotNull(save.deeds);
+            Assert.IsEmpty(save.deeds);
             Assert.AreEqual(0, save.lastSaveTimestamp, "0 = never saved (fresh-install guard)");
             Assert.AreEqual(0, save.generationStartTimestamp);
             Assert.AreEqual(0, save.seenFlags);
@@ -59,6 +64,9 @@ namespace OriAscendant.Tests.EditMode
                 currentStage = 4,
                 currentPath = 2,
                 currentOri = 1,
+                oriHeld = 2,
+                oriTrials = 4,
+                pendingCrossroads = 1,
                 lastSaveTimestamp = 1781136000,
                 generationStartTimestamp = 1781100000,
                 seenFlags = SeenFlags.ChannelHint | SeenFlags.FallCeremony,
@@ -75,6 +83,7 @@ namespace OriAscendant.Tests.EditMode
                 bonusMultiplier = 0.4,
                 completedTimestamp = 1781000000,
             });
+            save.deeds.Add(new DeedData { crossroadsIndex = 2, chosenOri = 3, stage = 4, aligned = true });
 
             var restored = RoundTrip(save);
 
@@ -85,6 +94,12 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(4, restored.currentStage);
             Assert.AreEqual(2, restored.currentPath);
             Assert.AreEqual(1, restored.currentOri);
+            Assert.AreEqual(2, restored.oriHeld);
+            Assert.AreEqual(4, restored.oriTrials);
+            Assert.AreEqual(1, restored.pendingCrossroads);
+            Assert.AreEqual(1, restored.deeds.Count);
+            Assert.AreEqual(3, restored.deeds[0].chosenOri);
+            Assert.IsTrue(restored.deeds[0].aligned);
             Assert.AreEqual(1781136000, restored.lastSaveTimestamp);
             Assert.AreEqual(1781100000, restored.generationStartTimestamp);
             Assert.IsTrue(restored.HasSeen(SeenFlags.ChannelHint));

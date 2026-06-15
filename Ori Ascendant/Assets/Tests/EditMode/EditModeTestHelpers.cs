@@ -100,6 +100,27 @@ namespace OriAscendant.Tests.EditMode
             MakeOri("Devotion"),
         };
 
+        private static CrossroadsBeat MakeBeat(string id) => new CrossroadsBeat
+        {
+            id = id,
+            prompt = id + " prompt",
+            options = new[]
+            {
+                new CrossroadsOption { oriIndex = 0, text = "mercy" },
+                new CrossroadsOption { oriIndex = 1, text = "resolve" },
+                new CrossroadsOption { oriIndex = 2, text = "cunning" },
+                new CrossroadsOption { oriIndex = 3, text = "devotion" },
+            },
+        };
+
+        /// <summary>A small deck where every beat offers one option per Ori.</summary>
+        public static CrossroadsDeckConfig MakeCrossroadsDeck()
+        {
+            var deck = ScriptableObject.CreateInstance<CrossroadsDeckConfig>();
+            deck.beats = new[] { MakeBeat("c0"), MakeBeat("c1"), MakeBeat("c2") };
+            return deck;
+        }
+
         public static TribulationConfig MakeTribulationConfig()
         {
             var config = ScriptableObject.CreateInstance<TribulationConfig>();

@@ -42,6 +42,15 @@ namespace OriAscendant.Save
         /// See docs/DYNASTY_REDESIGN.md, ADR-0004.</summary>
         public int currentOri = -1;
 
+        /// <summary>Steadfastness tally for this life — "held N of M" crossroads kept
+        /// true to the Ori. Reset every generation (DYNASTY_REDESIGN, ADR-0004).</summary>
+        public int oriHeld = 0;
+        public int oriTrials = 0;
+
+        /// <summary>Index of the crossroads awaiting a choice; -1 = none. Reset every
+        /// generation.</summary>
+        public int pendingCrossroads = -1;
+
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>
         public long lastSaveTimestamp = 0;
@@ -54,6 +63,10 @@ namespace OriAscendant.Save
 
         /// <summary>Active Ancestral Council, max 5 (CouncilConfig.maxCouncil).</summary>
         public List<AncestorData> council = new List<AncestorData>();
+
+        /// <summary>Crossroads choices recorded this life — the raw material the
+        /// Title/Nickname and the Chronicle draw from. Reset every generation.</summary>
+        public List<DeedData> deeds = new List<DeedData>();
 
         public LineageData lineage = new LineageData();
 
@@ -101,6 +114,17 @@ namespace OriAscendant.Save
         public bool didAscend;          // true = full power, false = lesser
         public double bonusMultiplier;  // 1.0 if ascended, 0.4 if fallen (locked)
         public long completedTimestamp; // Unix seconds UTC; retirement order key
+    }
+
+    /// <summary>One recorded Crossroads choice (DYNASTY_REDESIGN). The per-life list
+    /// of these is the raw material a fallen Nickname and the Chronicle draw from.</summary>
+    [Serializable]
+    public class DeedData
+    {
+        public int crossroadsIndex; // which beat in the deck
+        public int chosenOri;       // the virtue of the option taken
+        public int stage;           // stage index when chosen
+        public bool aligned;        // did it hold to the life's Ori?
     }
 
     [Serializable]
