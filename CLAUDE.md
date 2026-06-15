@@ -52,6 +52,8 @@ Service-oriented with ServiceLocator as central registry. ScriptableObjects for 
 
 **4. Goal-driven execution, verified.** Turn each task into a checkable success criterion and loop until it passes — don't stop at "make it work." Default verification is the headless test gate (docs/BUILD_PLAN.md): write/extend EditMode (and PlayMode for runtime) tests first, then make them pass — and trust the parsed results XML, never the batch exit code. For multi-step work, state a short plan with a verify step per item.
 
+**5. Plan before non-trivial work.** Reach shared understanding before coding: grill the open design forks (`/grill-me` or `/grill-with-docs`), then express the plan of action as a braid Mermaid-flowchart-first (the `braid` skill) before implementing. This is faster, not slower — it front-loads the decisions that otherwise cause rework. Trivial edits skip it. Chains with principle 4: grill → braid plan → TDD → verify.
+
 ## Agent skills
 
 ### Issue tracker
