@@ -36,6 +36,7 @@ namespace OriAscendant.EditorTools
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string OriFolder = "Assets/Resources/OriConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
+        private const string PlaceholderArtFolder = "Assets/Art/Placeholder";
         private const string TmpSettingsPath = "Assets/TextMesh Pro/Resources/TMP Settings.asset";
         private const string TmpEssentialsPackage =
             "Packages/com.unity.ugui/Package Resources/TMP Essential Resources.unitypackage";
@@ -482,6 +483,12 @@ namespace OriAscendant.EditorTools
 
         private static void BuildUi(GameplayConfig config, TribulationConfig tribulation)
         {
+            // Placeholder art (dev-grade; finals come from the funded Gemini run).
+            // Imported before the scene is constructed so AssetDatabase work doesn't
+            // run mid-build. Null when the probes aren't present — the scene still builds.
+            Sprite backgroundSprite = LoadPlaceholderSprite("bg_main_idle__nano_banana_pro__KEEP.png", "MainBackground.png");
+            Sprite cultivatorSprite = LoadPlaceholderSprite("cultivator__nano_banana_pro__KEEP.png", "Cultivator.png");
+
             // ---- root canvas ----
             var canvasGo = new GameObject("MainCanvas");
             var canvas = canvasGo.AddComponent<Canvas>();
@@ -499,6 +506,15 @@ namespace OriAscendant.EditorTools
             // driven by MainScreenController per the ambient fractions.
             var vignette = MakeImage(root, "StormVignette", new Color(0.06f, 0.09f, 0.16f, 0f));
             Stretch(vignette.rectTransform);
+
+            // Painted background behind the vignette and every zone (placeholder).
+            if (backgroundSprite != null)
+            {
+                var background = MakeImage(root, "MainBackground", Color.white);
+                Stretch(background.rectTransform);
+                background.sprite = backgroundSprite;
+                background.rectTransform.SetSiblingIndex(0); // behind the storm vignette
+            }
 
             // Zone 1 — header.
             var header = Zone(root, "HeaderZone", 0.055f, 0.105f);
@@ -546,6 +562,11 @@ namespace OriAscendant.EditorTools
             var portraitButton = portrait.gameObject.AddComponent<Button>();
             portraitButton.targetGraphic = portrait;
             portraitButton.transition = Selectable.Transition.ColorTint;
+            if (cultivatorSprite != null)
+            {
+                portrait.sprite = cultivatorSprite; // placeholder cultivator art
+                portrait.color = Color.white;       // show it true; ColorTint still darkens on press
+            }
 
             // One-time channel hint (seenFlags bit 0).
             var hint = MakeText(portraitZone, "ChannelHint", "Touch your cultivator to channel àṣẹ", 14f,
@@ -1535,6 +1556,45 @@ namespace OriAscendant.EditorTools
             text.raycastTarget = false;
             return button;
         }
+
+        /// <summary>Dev-grade placeholder art (the funded Gemini run produces finals).
+        /// Copies a red-line-clean probe out of docs/art-probes/ into the project,
+        /// imports it as a Sprite, and returns it; null (with a warning) if the source
+        /// is absent, so a clean checkout without the probes still builds.</summary>
+        private static Sprite LoadPlaceholderSprite(string sourceFileName, string destFileName)
+        {
+            EnsureFolder(PlaceholderArtFolder);
+            string destPath = $"{PlaceholderArtFolder}/{destFileName}";
+            if (!File.Exists(destPath))
+            {
+                string srcPath = Path.Combine(ArtProbesDir, sourceFileName);
+                if (!File.Exists(srcPath))
+                {
+                    Debug.LogWarning($"SceneBuilder: placeholder art missing, skipping: {srcPath}");
+                    return null;
+                }
+                File.Copy(srcPath, destPath);
+            }
+            EnsureSpriteImported(destPath);
+            return AssetDatabase.LoadAssetAtPath<Sprite>(destPath);
+        }
+
+        private static void EnsureSpriteImported(string assetPath)
+        {
+            // Register the copied PNG, then ensure it's a Sprite so a UI Image can use
+            // it. Idempotent: a re-run early-outs once the type is already Sprite.
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+            var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            if (importer == null || importer.textureType == TextureImporterType.Sprite) return;
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.SaveAndReimport();
+        }
+
+        /// <summary>Absolute path to the repo's art-probe folder (one level above the
+        /// Unity project), robust to the working directory.</summary>
+        private static string ArtProbesDir =>
+            Path.Combine(Directory.GetParent(Application.dataPath).Parent.FullName, "docs", "art-probes");
 
         private static Sprite WhiteSprite()
         {
