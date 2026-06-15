@@ -32,6 +32,7 @@ namespace OriAscendant.EditorTools
         private const string TribulationConfigPath = ConfigFolder + "/TribulationConfig.asset";
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
         private const string CrossroadsDeckPath = ConfigFolder + "/CrossroadsDeck.asset";
+        private const string RemembranceConfigPath = ConfigFolder + "/RemembranceConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string OriFolder = "Assets/Resources/OriConfigs";
@@ -107,7 +108,7 @@ namespace OriAscendant.EditorTools
             PathConfig[] paths = BuildPathConfigs();
             BuildMainScene(gameplay, tribulation, councilConfig, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 12 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 13 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -241,11 +242,12 @@ namespace OriAscendant.EditorTools
         //      deck is authored. Every beat offers one option per Ori so the life's vow
         //      is always on the table — temptation, not a trap. ----
         private static CrossroadsBeat Beat(string id, string prompt,
-            string mercy, string resolve, string cunning, string devotion) =>
+            string mercy, string resolve, string cunning, string devotion, string fallenEpithet) =>
             new CrossroadsBeat
             {
                 id = id,
                 prompt = prompt,
+                fallenEpithet = fallenEpithet, // the Nickname when THIS beat is the Defining Deed; PLACEHOLDER pre-§7.10
                 options = new[]
                 {
                     new CrossroadsOption { oriIndex = 0, text = mercy },    // 0 = Mercy
@@ -265,34 +267,55 @@ namespace OriAscendant.EditorTools
                     "Wade in and pull them free, whatever the current costs you.",
                     "Brace on the bank and hold a line out to them until the water tires.",
                     "Read the eddies and talk them to a footing only you can see.",
-                    "Call your kin to make a chain — no one crosses this water alone."),
+                    "Call your kin to make a chain — no one crosses this water alone.",
+                    "the one who turned back at the ford"),
                 Beat("market",
                     "In the crowded market a hungry child is caught taking bread, and the seller raises a hand.",
                     "Pay for the loaf and let the child go.",
                     "Step between the blow and the child, and do not move.",
                     "Turn the seller's anger into a bargain that feeds them both.",
-                    "Take the child home and answer for them as your own."),
+                    "Take the child home and answer for them as your own.",
+                    "the one who looked away in the market"),
                 Beat("rival",
                     "A rival who once wronged you stumbles on the climb and asks you, quietly, for help.",
                     "Lift them up; the old wound need not be theirs to carry.",
                     "Help them stand, then hold them to finishing what they began.",
                     "Trade your help for what only they can teach you in return.",
-                    "Help for the sake of the line you both serve, not for them."),
+                    "Help for the sake of the line you both serve, not for them.",
+                    "the one who would not lift a rival"),
                 Beat("inheritance",
                     "An elder dies and leaves to you alone a gift that was meant for the whole village.",
                     "Give it to those who need it more than you do.",
                     "Keep it, and prove by your climb that the trust was earned.",
                     "Place it where it quietly grows into far more for everyone.",
-                    "Lay it before your ancestors, in the name of the line."),
+                    "Lay it before your ancestors, in the name of the line.",
+                    "the one who kept what the village was owed"),
                 Beat("oath",
                     "An oath you swore at dawn would, by dusk, cost an innocent dearly to keep.",
                     "Break the oath; mercy outweighs your pride.",
                     "Keep the oath — your word, once given, is iron.",
                     "Find the third path that honours the oath and spares the innocent.",
-                    "Keep faith with those it was sworn to, and bear the cost yourself."),
+                    "Keep faith with those it was sworn to, and bear the cost yourself.",
+                    "the one who let the dawn oath fall"),
             };
             EditorUtility.SetDirty(deck);
             return deck;
+        }
+
+        // ---- Remembrance words — PLACEHOLDER content, pre-§7.10 review (slice #10).
+        //      The ascend Title pairs the peak-stage honorific with a personal name drawn
+        //      from this pool; a faithful fall (a life that never strayed) shares the one
+        //      line. The per-Crossroads fallen epithet lives on the deck beat, not here. ----
+        private static RemembranceConfig BuildRemembranceConfig()
+        {
+            var config = EnsureAsset<RemembranceConfig>(RemembranceConfigPath);
+            config.personalNames = new[]
+            {
+                "Adé", "Olú", "Ìfẹ́", "Táyé", "Kẹ́hìndé", "Bólú", "Délé", "Túndé",
+            };
+            config.faithfulFallLine = "the one who kept faith to the last";
+            EditorUtility.SetDirty(config);
+            return config;
         }
 
         private static void EnsureTmpEssentials()
@@ -467,9 +490,11 @@ namespace OriAscendant.EditorTools
             AssignArray(cultivation, "_oris", BuildOriConfigs()); // virtue-vow set (Àkùnlẹ̀yàn); placeholder content pre-§7.10
             Assign(cultivation, "_tribulationConfig", tribulation);
 
+            var deck = BuildCrossroadsDeck(); // shared: the CrossroadsSystem fires beats, the Crossing reads epithets
+
             var crossroads = go.AddComponent<CrossroadsSystem>();
-            Assign(crossroads, "_deck", BuildCrossroadsDeck()); // climb-tied dilemmas; placeholder deck pre-§7.10
-            AssignArray(crossroads, "_stages", stages);         // Àṣẹ-milestone schedule = advance thresholds
+            Assign(crossroads, "_deck", deck);          // climb-tied dilemmas; placeholder deck pre-§7.10
+            AssignArray(crossroads, "_stages", stages); // Àṣẹ-milestone schedule = advance thresholds
 
             var council = go.AddComponent<AncestralCouncilSystem>();
             Assign(council, "_config", councilConfig);
@@ -477,6 +502,8 @@ namespace OriAscendant.EditorTools
             var tribulationSystem = go.AddComponent<TribulationSystem>();
             Assign(tribulationSystem, "_config", tribulation);
             Assign(tribulationSystem, "_gameplayConfig", gameplay);
+            Assign(tribulationSystem, "_remembranceConfig", BuildRemembranceConfig()); // ascend Title pool + faithful-fall line
+            Assign(tribulationSystem, "_deck", deck);                                  // read for the fallen epithet (Defining Deed)
 
             go.AddComponent<OriAscendant.Save.CloudSaveManager>();
             go.AddComponent<OriAscendant.Audio.AudioManager>();

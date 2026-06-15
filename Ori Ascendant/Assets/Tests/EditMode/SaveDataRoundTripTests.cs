@@ -84,6 +84,7 @@ namespace OriAscendant.Tests.EditMode
                 didAscend = false,
                 bonusMultiplier = 0.4,
                 completedTimestamp = 1781000000,
+                remembrance = "the one who turned back at the ford",
             });
             save.deeds.Add(new DeedData { crossroadsIndex = 2, chosenOri = 3, stage = 4, aligned = true });
             save.crossroadsQueue.Add(2);
@@ -118,6 +119,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsFalse(restored.council[0].didAscend);
             Assert.AreEqual(0.4, restored.council[0].bonusMultiplier);
             Assert.AreEqual(1781000000, restored.council[0].completedTimestamp);
+            Assert.AreEqual("the one who turned back at the ford", restored.council[0].remembrance,
+                "remembrance survives save/load so the Chronicle can read it back");
             Assert.AreEqual(0.35, restored.lineage.permanentAseBonus);
             Assert.AreEqual(7, restored.lineage.generationCount);
         }

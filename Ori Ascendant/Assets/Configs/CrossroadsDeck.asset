@@ -25,6 +25,7 @@ MonoBehaviour:
       text: Read the eddies and talk them to a footing only you can see.
     - oriIndex: 3
       text: "Call your kin to make a chain \u2014 no one crosses this water alone."
+    fallenEpithet: the one who turned back at the ford
   - id: market
     prompt: In the crowded market a hungry child is caught taking bread, and the
       seller raises a hand.
@@ -37,6 +38,7 @@ MonoBehaviour:
       text: Turn the seller's anger into a bargain that feeds them both.
     - oriIndex: 3
       text: Take the child home and answer for them as your own.
+    fallenEpithet: the one who looked away in the market
   - id: rival
     prompt: A rival who once wronged you stumbles on the climb and asks you, quietly,
       for help.
@@ -49,6 +51,7 @@ MonoBehaviour:
       text: Trade your help for what only they can teach you in return.
     - oriIndex: 3
       text: Help for the sake of the line you both serve, not for them.
+    fallenEpithet: the one who would not lift a rival
   - id: inheritance
     prompt: An elder dies and leaves to you alone a gift that was meant for the whole
       village.
@@ -61,6 +64,7 @@ MonoBehaviour:
       text: Place it where it quietly grows into far more for everyone.
     - oriIndex: 3
       text: Lay it before your ancestors, in the name of the line.
+    fallenEpithet: the one who kept what the village was owed
   - id: oath
     prompt: An oath you swore at dawn would, by dusk, cost an innocent dearly to
       keep.
@@ -73,3 +77,4 @@ MonoBehaviour:
       text: Find the third path that honours the oath and spares the innocent.
     - oriIndex: 3
       text: Keep faith with those it was sworn to, and bear the cost yourself.
+    fallenEpithet: the one who let the dawn oath fall

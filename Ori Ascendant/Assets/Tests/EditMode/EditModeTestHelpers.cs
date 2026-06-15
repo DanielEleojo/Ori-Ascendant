@@ -104,6 +104,7 @@ namespace OriAscendant.Tests.EditMode
         {
             id = id,
             prompt = id + " prompt",
+            fallenEpithet = "the one who strayed at " + id,
             options = new[]
             {
                 new CrossroadsOption { oriIndex = 0, text = "mercy" },
@@ -113,12 +114,23 @@ namespace OriAscendant.Tests.EditMode
             },
         };
 
-        /// <summary>A small deck where every beat offers one option per Ori.</summary>
+        /// <summary>A small deck where every beat offers one option per Ori and carries a
+        /// distinct fallen epithet (the Nickname for a life whose Defining Deed is that beat).</summary>
         public static CrossroadsDeckConfig MakeCrossroadsDeck()
         {
             var deck = ScriptableObject.CreateInstance<CrossroadsDeckConfig>();
             deck.beats = new[] { MakeBeat("c0"), MakeBeat("c1"), MakeBeat("c2") };
             return deck;
+        }
+
+        /// <summary>Curated remembrance words for tests: a small distinct name pool plus the
+        /// single faithful-fall line (placeholder, mirrors the seeded RemembranceConfig).</summary>
+        public static RemembranceConfig MakeRemembranceConfig()
+        {
+            var config = ScriptableObject.CreateInstance<RemembranceConfig>();
+            config.personalNames = new[] { "Adé", "Olú", "Ìfẹ́" };
+            config.faithfulFallLine = "the one who kept faith to the last";
+            return config;
         }
 
         public static TribulationConfig MakeTribulationConfig()

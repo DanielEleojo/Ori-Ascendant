@@ -37,6 +37,8 @@ namespace OriAscendant.Systems
     {
         [SerializeField] private TribulationConfig _config;
         [SerializeField] private GameplayConfig _gameplayConfig;
+        [SerializeField] private RemembranceConfig _remembranceConfig;
+        [SerializeField] private CrossroadsDeckConfig _deck; // the CrossroadsSystem's deck; read for the fallen epithet
 
         /// <summary>Locked signature (TECH_DESIGN §4). Notification-only: all
         /// state is already written and saved when this fires.</summary>
@@ -108,6 +110,23 @@ namespace OriAscendant.Systems
                 bonusMultiplier = ascended ? 1.0 : 0.4, // locked: a fall still produces an ancestor
                 completedTimestamp = now,
             };
+
+            // Remembrance is derived HERE — before the atomic reset clears _save.deeds —
+            // so the Defining Deed (the first stray) is still readable. Ascend draws a
+            // personal name (a SECOND roll of the same injectable randomness); a fall
+            // draws nothing new. Honorific = the peak stage's name.
+            int nameIndex = 0;
+            if (ascended)
+            {
+                int poolCount = _remembranceConfig != null && _remembranceConfig.personalNames != null
+                    ? _remembranceConfig.personalNames.Length : 0;
+                double nameRoll = _random.NextDouble();
+                nameIndex = poolCount > 0 ? (int)(nameRoll * poolCount) : 0;
+            }
+            ancestor.remembrance = Remembrance.Derive(
+                ascended,
+                cultivation != null ? cultivation.PeekStageName(ancestor.peakStage) : null,
+                _save.deeds, _deck, _remembranceConfig, nameIndex);
 
             double w = council != null ? council.W : 0.25;
             double sumBefore = council?.ActiveCouncilSum ?? 0.0;

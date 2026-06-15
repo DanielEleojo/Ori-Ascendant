@@ -121,6 +121,12 @@ namespace OriAscendant.Save
         public bool didAscend;          // true = full power, false = lesser
         public double bonusMultiplier;  // 1.0 if ascended, 0.4 if fallen (locked)
         public long completedTimestamp; // Unix seconds UTC; retirement order key
+
+        /// <summary>How this cultivator is remembered, derived at the Crossing
+        /// (CONTEXT.md: Title if ascended, Nickname if fallen — didAscend
+        /// disambiguates). The Chronicle (slice 4b) reads it back. Add-only field
+        /// (no schema bump; see SaveData header + ADR-0001).</summary>
+        public string remembrance;
     }
 
     /// <summary>One recorded Crossroads choice (DYNASTY_REDESIGN). The per-life list

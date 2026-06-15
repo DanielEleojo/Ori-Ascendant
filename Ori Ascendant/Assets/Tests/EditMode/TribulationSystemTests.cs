@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using OriAscendant.Core;
+using OriAscendant.Data;
 using OriAscendant.Save;
 using OriAscendant.Systems;
 using UnityEngine;
@@ -45,6 +46,8 @@ namespace OriAscendant.Tests.EditMode
         private CultivationSystem _cultivation;
         private AncestralCouncilSystem _council;
         private TribulationSystem _tribulation;
+        private RemembranceConfig _remembrance;
+        private CrossroadsDeckConfig _deck;
         private SaveData _save;
 
         [SetUp]
@@ -67,6 +70,10 @@ namespace OriAscendant.Tests.EditMode
             _tribulation = _host.AddComponent<TribulationSystem>();
             EditModeTestHelpers.Inject(_tribulation, "_config", EditModeTestHelpers.MakeTribulationConfig());
             EditModeTestHelpers.Inject(_tribulation, "_gameplayConfig", EditModeTestHelpers.MakeGameplayConfig());
+            _remembrance = EditModeTestHelpers.MakeRemembranceConfig();
+            _deck = EditModeTestHelpers.MakeCrossroadsDeck();
+            EditModeTestHelpers.Inject(_tribulation, "_remembranceConfig", _remembrance);
+            EditModeTestHelpers.Inject(_tribulation, "_deck", _deck);
 
             // EditMode: Awake doesn't run — register manually (see memory note).
             ServiceLocator.Register(_aseGen);
@@ -269,6 +276,91 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsTrue(eventAscend.HasValue && eventAscend.Value);
             Assert.IsNotNull(eventAncestor);
             Assert.AreEqual(0, saveStageAtEvent, "event is notification-only — fired AFTER the atomic write");
+        }
+
+        // ---- Remembrance (slice 4a, #6): a Title on ascend, a Nickname on fall ----
+
+        [Test]
+        public void Resolve_Ascend_RemembersByTitle_HonorificPlusPooledName()
+        {
+            ArmAtPeak();
+            // The first roll ascends (0.0 < floor 0.25); the SECOND roll picks the name.
+            _tribulation.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            var result = _tribulation.Resolve();
+
+            Assert.IsTrue(result.DidAscend);
+            string honorific = _cultivation.PeekStageName(5); // the peak stage borne as an honorific
+            int nameIndex = (int)(0.5 * _remembrance.personalNames.Length);
+            Assert.AreEqual($"{honorific} {_remembrance.personalNames[nameIndex]}", result.Ancestor.remembrance,
+                "an ascended cultivator is remembered by the peak-stage honorific + a pooled personal name");
+        }
+
+        [Test]
+        public void Resolve_Fall_RemembersByNickname_OfTheFirstStray()
+        {
+            ArmAtPeak(path: 2);
+            _save.deeds.Add(new DeedData { crossroadsIndex = 2, chosenOri = 2, stage = 1, aligned = true });  // held the vow
+            _save.deeds.Add(new DeedData { crossroadsIndex = 0, chosenOri = 1, stage = 2, aligned = false }); // FIRST stray → the Defining Deed
+            _save.deeds.Add(new DeedData { crossroadsIndex = 1, chosenOri = 3, stage = 3, aligned = false }); // a later stray, must be ignored
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall — a fall draws no second roll
+
+            var result = _tribulation.Resolve();
+
+            Assert.IsFalse(result.DidAscend);
+            Assert.AreEqual(_deck.beats[0].fallenEpithet, result.Ancestor.remembrance,
+                "the Nickname is the Defining Deed — the FIRST strayed choice (beat 0), never a later one");
+        }
+
+        [Test]
+        public void Resolve_FaithfulFall_RemembersByTheSharedDignifiedLine()
+        {
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { crossroadsIndex = 0, chosenOri = 0, stage = 1, aligned = true });
+            _save.deeds.Add(new DeedData { crossroadsIndex = 1, chosenOri = 0, stage = 2, aligned = true });
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // held every vow, yet still fell
+
+            var result = _tribulation.Resolve();
+
+            Assert.IsFalse(result.DidAscend);
+            Assert.AreEqual(_remembrance.faithfulFallLine, result.Ancestor.remembrance,
+                "a life that never strayed yet fell shares one dignified line, not a stray epithet");
+        }
+
+        [Test]
+        public void Remembrance_IgnoresDeityPath()
+        {
+            var strayedAtFord = new DeedData { crossroadsIndex = 0, chosenOri = 1, stage = 2, aligned = false };
+            string earth = FallNicknameForPath(0, strayedAtFord); // Ane
+            string river = FallNicknameForPath(2, strayedAtFord); // Osun
+
+            Assert.AreEqual(earth, river, "deity-Path never touches how a life is remembered (ADR-0004)");
+            Assert.AreEqual(_deck.beats[0].fallenEpithet, earth, "and the Nickname is still the first stray's epithet");
+        }
+
+        /// <summary>Resolve a fresh fallen life on the given path with one strayed deed and
+        /// return the Nickname it earned — for asserting the deity-Path has no bearing.</summary>
+        private string FallNicknameForPath(int path, DeedData deed)
+        {
+            var save = new SaveData();
+            _cultivation.Begin(save);
+            _council.Begin(save);
+            _tribulation.Begin(save);
+            _aseGen.Begin(save);
+            save.currentStage = 5;
+            save.currentPath = path;
+            save.generationStartTimestamp = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 3600;
+            save.SetAse(BigNumber.FromDouble(25_000_000));
+            save.deeds.Add(new DeedData
+            {
+                crossroadsIndex = deed.crossroadsIndex,
+                chosenOri = deed.chosenOri,
+                stage = deed.stage,
+                aligned = deed.aligned,
+            });
+            _aseGen.RecalculateRate();
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall (floor 0.25; 0.99 ≥ 0.25)
+            return _tribulation.Resolve().Ancestor.remembrance;
         }
     }
 }

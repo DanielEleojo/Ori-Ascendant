@@ -130,6 +130,8 @@ namespace OriAscendant.Tests.EditMode
                 var beat = deck.beats[i];
                 Assert.IsNotEmpty(beat.id, $"beat {i}: id");
                 Assert.IsNotEmpty(beat.prompt, $"beat {i}: prompt");
+                Assert.IsNotEmpty(beat.fallenEpithet,
+                    $"beat {i}: fallen epithet (the Nickname for a life whose Defining Deed is this beat)");
                 Assert.AreEqual(4, beat.options.Length, $"beat {i}: one option per Ori");
 
                 var oriIndices = new List<int>();
@@ -141,6 +143,21 @@ namespace OriAscendant.Tests.EditMode
                 CollectionAssert.AreEquivalent(new[] { 0, 1, 2, 3 }, oriIndices,
                     $"beat {i}: every Ori must be on the table (the vow is always a choice)");
             }
+        }
+
+        [Test]
+        public void RemembranceConfig_HasSeedContent()
+        {
+            // Slice 4a seed: the ascend Title draws a personal name from the pool; a
+            // faithful fall shares the single line. PLACEHOLDER copy, pre-§7.10 (slice #10).
+            var config = Load<RemembranceConfig>("Assets/Configs/RemembranceConfig.asset");
+            Assert.IsNotNull(config.personalNames);
+            Assert.IsNotEmpty(config.personalNames, "the ascend Title needs a personal-name pool");
+            foreach (var name in config.personalNames)
+            {
+                Assert.IsNotEmpty(name, "every pooled personal name must be non-empty");
+            }
+            Assert.IsNotEmpty(config.faithfulFallLine, "a faithful fall needs its shared dignified line");
         }
     }
 }

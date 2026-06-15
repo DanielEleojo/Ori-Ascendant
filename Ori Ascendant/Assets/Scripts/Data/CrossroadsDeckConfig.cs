@@ -28,6 +28,12 @@ namespace OriAscendant.Data
         public string prompt;
 
         public CrossroadsOption[] options;
+
+        [Tooltip("The Nickname a fallen Cultivator earns when THIS beat is their Defining " +
+                 "Deed — the first Crossroads where they strayed from their vow. Lives with " +
+                 "the deck so one §7.10 review covers all Crossroads content. PLACEHOLDER pre-§7.10.")]
+        [TextArea]
+        public string fallenEpithet;
     }
 
     /// <summary>
