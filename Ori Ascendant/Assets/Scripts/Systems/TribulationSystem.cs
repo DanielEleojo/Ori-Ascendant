@@ -29,8 +29,9 @@ namespace OriAscendant.Systems
     /// next-generation state is written and saved before any ceremony frame
     /// plays — if the app dies mid-animation, the outcome survives. The ceremony
     /// is replayable theater driven by the returned <see cref="TribulationResult"/>.
-    /// Odds come from TribulationConfig.baseAscendChance (locked 0.60, identical
-    /// on every path; PathConfig.tribulationType is presentation-only).
+    /// Odds derive from steadfastness (held/trials) via the config floor→ceiling
+    /// curve (ADR-0004), shown on the confirm sheet exactly as rolled; identical on
+    /// every path (PathConfig.tribulationType is presentation-only).
     /// </summary>
     public class TribulationSystem : MonoBehaviour
     {
@@ -57,6 +58,22 @@ namespace OriAscendant.Systems
         public void SetRandomSource(IRandomSource random) =>
             _random = random ?? throw new ArgumentNullException(nameof(random));
 
+        /// <summary>Ascend probability for the current life, derived from steadfastness
+        /// (held/trials) via the config floor→ceiling curve. trials==0 → floor (a life
+        /// that faced no resolved crossroads earns no steadfastness credit). Reads ONLY
+        /// the tally + config — never the deity-Path (ADR-0004 orthogonality). The
+        /// confirm sheet shows this exact value, and Resolve rolls against it.</summary>
+        public double AscendChance
+        {
+            get
+            {
+                if (_save == null || _config == null) return 0.0;
+                if (_save.oriTrials <= 0) return _config.ascendFloor;
+                double rate = (double)_save.oriHeld / _save.oriTrials;
+                return _config.ascendFloor + (_config.ascendCeiling - _config.ascendFloor) * rate;
+            }
+        }
+
         /// <summary>Re-checks eligibility from state — never trusts the UI.</summary>
         public bool CanResolve()
         {
@@ -81,7 +98,7 @@ namespace OriAscendant.Systems
             ServiceLocator.TryGet(out AseGenerationSystem aseGen);
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            bool ascended = _random.NextDouble() < _config.baseAscendChance;
+            bool ascended = _random.NextDouble() < AscendChance;
 
             var ancestor = new AncestorData
             {

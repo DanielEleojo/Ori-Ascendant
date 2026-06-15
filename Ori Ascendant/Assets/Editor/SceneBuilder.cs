@@ -152,6 +152,8 @@ namespace OriAscendant.EditorTools
         {
             var config = EnsureAsset<TribulationConfig>(TribulationConfigPath);
             config.baseAscendChance = 0.60;
+            config.ascendFloor = 0.25;   // ADR-0004 steadfastness floor (balance-sim tuned, #12)
+            config.ascendCeiling = 0.90; // ADR-0004 steadfastness ceiling
             config.aseThresholdMantissa = 25.0;
             config.aseThresholdExponent = 6;
             config.ambientFractions = new[] { 0.5f, 0.8f, 1.0f };

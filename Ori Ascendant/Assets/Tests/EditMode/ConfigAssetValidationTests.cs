@@ -93,7 +93,9 @@ namespace OriAscendant.Tests.EditMode
         public void TribulationConfig_MatchesGameplaySpec()
         {
             var config = Load<TribulationConfig>("Assets/Configs/TribulationConfig.asset");
-            Assert.AreEqual(0.60, config.baseAscendChance, "LOCKED 60/40 coin");
+            Assert.AreEqual(0.60, config.baseAscendChance, "retained as the documented midpoint anchor (ADR-0004)");
+            Assert.AreEqual(0.25, config.ascendFloor, "ADR-0004 steadfastness floor");
+            Assert.AreEqual(0.90, config.ascendCeiling, "ADR-0004 steadfastness ceiling");
             Assert.AreEqual(new BigNumber(25.0, 6), config.GetAseThreshold(), "25M capstone gate");
             CollectionAssert.AreEqual(new[] { 0.5f, 0.8f, 1.0f }, config.ambientFractions);
             Assert.AreEqual(0.8, config.holdToConfirmSeconds);
