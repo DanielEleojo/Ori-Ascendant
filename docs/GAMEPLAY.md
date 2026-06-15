@@ -1,7 +1,7 @@
 # Gameplay Design: Ori Ascendant
 **Version:** 1.0
-**Last Updated:** 2026-06-12
-**Status:** Locked for MVP (research-backed; balance numbers adversarially simulated)
+**Last Updated:** 2026-06-14
+**Status:** Partially superseded — the MVP has been rescoped to a dynasty-narrative idle game (ADR-0002, `docs/DYNASTY_REDESIGN.md`). The *engine* described here (rate formula, Stages, Paths, offline, Council) largely survives; the *prestige experience* — flat-60/40 Crossing (§2.3/§3.5), "no names" (§5.4), fixed-odds honesty (§8) — is amended by ADR-0004 and the redesign. Where they conflict, the redesign brief is the north star.
 
 This document is the detail layer between PRD.md (what/why) and TECH_DESIGN.md (how). It specifies how the game actually plays, screen by screen, with final numbers. Where this doc and older prose in TECH_DESIGN conflict, this doc wins; the locked decisions log lives in §10.
 
@@ -193,10 +193,15 @@ Primary hook `OnApplicationPause(true)` (iOS never reliably fires Quit) + autosa
 Tap the portrait: `aseAmount += asePerSecond × tapChannelSeconds (5.0)`. Floating "+N" text, portrait pulse, light haptic. ~2 taps/s ≈ 11× idle — active play clearly wins, bounded by thumb fatigue, no cooldown state, no cap code, strictly optional. Because it reuses the full rate formula, channeling as Sango (×2) feels different from Ane — paths differ even while tapping. Discoverability: one-time hint at ~10s of play (seenFlags bit 0) + portrait idle pulse every ~10s untouched. **Safest cut if scope demands — nothing depends on it** (but gen-2's visceral acceleration partly rides on it; passive gen-2 stage 1 is 80s vs prestige-UX's <30s ideal — channeling closes that gap).
 
 ### 5.4 Ancestor identity (no names in MVP)
+> **Amended by the dynasty redesign (ADR-0002; `docs/DYNASTY_REDESIGN.md`):** names are now *in scope* — an ascended ancestor bears a Title (Stage-name + a personal name) and a fallen one a deed-tied Nickname, both drawn from a **curated, §7.10-reviewed pool** (still never player-typed, never generated). The custom-naming-is-a-non-goal and abstract-visuals stances below still stand; the *no-names* stance does not.
+
 No name pools (custom naming is a non-goal; names are a cultural-sensitivity asset requiring native-speaker review — post-MVP with AncestorTemplate). Cards derive entirely from AncestorData: title "Gen N — Aṣẹ́gun of [Thunder/Earth/the River]"; frame = radiance (ascend) / ember (fall); motif = path (Ane earth/stars, Sango lightning/flame, Osun river/light). Abstract visuals only — never masks/regalia.
 
 ### 5.5 Number formatting
 Suffix abbreviation everywhere (1.24K/M/B/T, 3 sig figs) via `BigNumber.ToDisplayString()`. Rate always paired with the counter. Tribulation bar: one-decimal percent.
+
+### 5.6 Cosmetic Appearance (per generation) — Phase D
+The active Cultivator is rendered with one **Appearance** from a small fixed pool (initially three — see CONTEXT.md). The Appearance is rolled once when a new generation begins at the Crossing, persisted in the same atomic write as the rest of the generation reset (§4.4), and is **purely cosmetic** — never affecting Stage, Path, Àṣẹ rates, or the Council; it only selects which set of per-stage portraits (§3.2 item 4) the generation shows. Generation 1 is fixed to the first appearance (the lean humble man, the only one with reference art); the roll takes effect from generation 2. Deferred to Phase D alongside the portrait pipeline and art — full rationale and the SaveData/schemaVersion consequence in `docs/adr/0001-per-generation-appearance.md`.
 
 ---
 
