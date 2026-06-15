@@ -131,9 +131,11 @@ it only afterward, as the steadfastness tally moves.
 _Avoid_: event, encounter, quest, card
 
 **Chronicle**:
-The accreting, per-player record of the Lineage — each Cultivator's Ori, deeds, and
-how the Crossing remembered them. The dynasty's story, assembled from vetted
-authored parts; unique to each player by the choices and outcomes that fill it.
+The accreting, per-player record of the Lineage — each Cultivator's Ori, Deeds, and
+how the Crossing remembered them. A life in progress keeps a running ledger of its
+Deeds; at that life's Crossing they are distilled into the remembrance — Title or
+Nickname — that accretes into the Chronicle. The dynasty's story, assembled from
+vetted authored parts; unique to each player by the choices and outcomes that fill it.
 _Avoid_: log, history, journal, save file
 
 **Deed**:

@@ -176,12 +176,15 @@ namespace OriAscendant.Tests.EditMode
         [Test]
         public void AscendChance_IsLinearAcrossTheBand()
         {
-            _save.oriTrials = 5;
-            _save.oriHeld = 0;
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 0);
             Assert.AreEqual(0.25, _tribulation.AscendChance, 1e-12, "full waver → floor");
-            _save.oriHeld = 5;
+
+            _save.deeds.Clear();
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 5);
             Assert.AreEqual(0.90, _tribulation.AscendChance, 1e-12, "full faith → ceiling");
-            _save.oriHeld = 3;
+
+            _save.deeds.Clear();
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 3);
             Assert.AreEqual(0.64, _tribulation.AscendChance, 1e-12, "3/5 → floor + (ceiling − floor) × 0.6");
         }
 
@@ -197,8 +200,7 @@ namespace OriAscendant.Tests.EditMode
         [Test]
         public void AscendChance_IgnoresDeityPath()
         {
-            _save.oriHeld = 3;
-            _save.oriTrials = 5;
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 3);
             _save.currentPath = 0; // Ane
             double earth = _tribulation.AscendChance;
             _save.currentPath = 2; // Osun
@@ -211,8 +213,7 @@ namespace OriAscendant.Tests.EditMode
         public void Resolve_RollUnderDerivedChance_Ascends()
         {
             ArmAtPeak();
-            _save.oriHeld = 5; // steadfast → ceiling 0.90
-            _save.oriTrials = 5;
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 5); // steadfast → ceiling 0.90
             _tribulation.SetRandomSource(new FakeRandom(0.89));
             Assert.IsTrue(_tribulation.Resolve().DidAscend, "a roll under the derived chance ascends");
         }
@@ -221,8 +222,7 @@ namespace OriAscendant.Tests.EditMode
         public void Resolve_RollAtDerivedChance_Falls()
         {
             ArmAtPeak();
-            _save.oriHeld = 5; // steadfast → ceiling 0.90
-            _save.oriTrials = 5;
+            EditModeTestHelpers.AddDeeds(_save, trials: 5, held: 5); // steadfast → ceiling 0.90
             _tribulation.SetRandomSource(new FakeRandom(0.90));
             Assert.IsFalse(_tribulation.Resolve().DidAscend,
                 "even the steadfast can fall — roll == chance is not < chance");

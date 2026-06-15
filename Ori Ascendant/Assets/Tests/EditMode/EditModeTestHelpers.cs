@@ -1,4 +1,5 @@
 using OriAscendant.Data;
+using OriAscendant.Save;
 using UnityEditor;
 using UnityEngine;
 
@@ -131,6 +132,26 @@ namespace OriAscendant.Tests.EditMode
             config.personalNames = new[] { "Adé", "Olú", "Ìfẹ́" };
             config.faithfulFallLine = "the one who kept faith to the last";
             return config;
+        }
+
+        /// <summary>Appends <paramref name="trials"/> Deeds (the first <paramref name="held"/>
+        /// aligned), advancing the steadfastness cache in lockstep — the deeds-as-source
+        /// stand-in for the old "oriHeld = N; oriTrials = M". Steadfastness counts alignment,
+        /// not which beat, so every Deed uses crossroadsIndex 0.</summary>
+        public static void AddDeeds(SaveData save, int trials, int held)
+        {
+            for (int i = 0; i < trials; i++)
+            {
+                save.deeds.Add(new DeedData
+                {
+                    crossroadsIndex = 0,
+                    chosenOri = 0,
+                    stage = 0,
+                    aligned = i < held,
+                });
+            }
+            save.oriTrials += trials;
+            save.oriHeld += held;
         }
 
         public static TribulationConfig MakeTribulationConfig()

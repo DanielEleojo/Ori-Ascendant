@@ -63,16 +63,15 @@ namespace OriAscendant.Systems
         /// <summary>Ascend probability for the current life, derived from steadfastness
         /// (held/trials) via the config floor→ceiling curve. trials==0 → floor (a life
         /// that faced no resolved crossroads earns no steadfastness credit). Reads ONLY
-        /// the tally + config — never the deity-Path (ADR-0004 orthogonality). The
+        /// steadfastness + config — never the deity-Path (ADR-0004 orthogonality). The
         /// confirm sheet shows this exact value, and Resolve rolls against it.</summary>
         public double AscendChance
         {
             get
             {
                 if (_save == null || _config == null) return 0.0;
-                if (_save.oriTrials <= 0) return _config.ascendFloor;
-                double rate = (double)_save.oriHeld / _save.oriTrials;
-                return _config.ascendFloor + (_config.ascendCeiling - _config.ascendFloor) * rate;
+                return _config.ascendFloor
+                    + (_config.ascendCeiling - _config.ascendFloor) * Chronicle.SteadfastnessRate(_save);
             }
         }
 
@@ -111,22 +110,14 @@ namespace OriAscendant.Systems
                 completedTimestamp = now,
             };
 
-            // Remembrance is derived HERE — before the atomic reset clears _save.deeds —
-            // so the Defining Deed (the first stray) is still readable. Ascend draws a
-            // personal name (a SECOND roll of the same injectable randomness); a fall
-            // draws nothing new. Honorific = the peak stage's name.
-            int nameIndex = 0;
-            if (ascended)
-            {
-                int poolCount = _remembranceConfig != null && _remembranceConfig.personalNames != null
-                    ? _remembranceConfig.personalNames.Length : 0;
-                double nameRoll = _random.NextDouble();
-                nameIndex = poolCount > 0 ? (int)(nameRoll * poolCount) : 0;
-            }
-            ancestor.remembrance = Remembrance.Derive(
-                ascended,
+            // Remembrance is derived HERE — before the atomic reset clears the Deeds — so
+            // the Defining Deed (the first stray) is still readable. The Chronicle owns the
+            // ascended personal-name roll (a SECOND draw of the same injected randomness;
+            // a fall draws nothing). Honorific = the peak stage's name.
+            ancestor.remembrance = Chronicle.Remember(
+                _save, ascended,
                 cultivation != null ? cultivation.PeekStageName(ancestor.peakStage) : null,
-                _save.deeds, _deck, _remembranceConfig, nameIndex);
+                _deck, _remembranceConfig, _random);
 
             double w = council != null ? council.W : 0.25;
             double sumBefore = council?.ActiveCouncilSum ?? 0.0;
@@ -154,11 +145,9 @@ namespace OriAscendant.Systems
             _save.currentStage = 0;
             _save.currentPath = -1;
             _save.currentOri = -1;
-            _save.oriHeld = 0;
-            _save.oriTrials = 0;
+            Chronicle.ResetForNewGeneration(_save); // Deeds + steadfastness cache
             _save.pendingCrossroads = -1;
             _save.crossroadsQueue.Clear();
-            _save.deeds.Clear();
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
 

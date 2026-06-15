@@ -43,8 +43,8 @@ namespace OriAscendant.Systems
             _save.crossroadsQueue[0] < _deck.beats.Length
                 ? _deck.beats[_save.crossroadsQueue[0]] : null;
 
-        public int Held => _save?.oriHeld ?? 0;
-        public int Trials => _save?.oriTrials ?? 0;
+        public int Held => Chronicle.Held(_save);
+        public int Trials => Chronicle.Trials(_save);
 
         private void Awake() => ServiceLocator.Register(this);
 
@@ -113,7 +113,7 @@ namespace OriAscendant.Systems
             if (_save == null || _deck == null || _deck.beats == null || _milestones == null) return;
 
             bool drew = false;
-            int drawn = _save.oriTrials + _save.crossroadsQueue.Count;
+            int drawn = Chronicle.Trials(_save) + _save.crossroadsQueue.Count;
             while (drawn < _milestones.Length && drawn < _deck.beats.Length &&
                    _save.GetAse() >= _milestones[drawn])
             {
@@ -136,18 +136,7 @@ namespace OriAscendant.Systems
             CrossroadsBeat beat = _deck.beats[beatIndex];
             if (beat.options == null || optionIndex < 0 || optionIndex >= beat.options.Length) return false;
 
-            CrossroadsOption option = beat.options[optionIndex];
-            bool aligned = option.oriIndex == _save.currentOri;
-
-            _save.oriTrials++;
-            if (aligned) _save.oriHeld++;
-            _save.deeds.Add(new DeedData
-            {
-                crossroadsIndex = beatIndex,
-                chosenOri = option.oriIndex,
-                stage = _save.currentStage,
-                aligned = aligned,
-            });
+            Chronicle.RecordChoice(_save, beat, beatIndex, optionIndex);
             _save.crossroadsQueue.RemoveAt(0);
 
             if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save(); // progression event
