@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -7,33 +8,40 @@ using UnityEngine;
 namespace OriAscendant.Systems
 {
     /// <summary>
-    /// Climb-tied Crossroads (DYNASTY_REDESIGN). On each stage advance a dilemma is
-    /// drawn from the deck and held pending until the player chooses; the choice
-    /// records a Deed and moves the steadfastness tally ("held N of M") toward or
-    /// away from the vowed Ori. There is no timer — a pending crossroads waits (slice
-    /// 2b adds the multi-beat queue across check-ins). UI never writes state: it
-    /// calls Choose. Dependencies resolve via ServiceLocator so the pure flows stay
-    /// testable on bare hosts.
+    /// Climb-tied Crossroads (DYNASTY_REDESIGN, slices 2a/2b). Dilemmas are drawn at
+    /// Àṣẹ milestones (each non-final stage's advance threshold, so they are detected
+    /// from accrued Àṣẹ rather than the manual Advance tap — a long absence that banks
+    /// past several thresholds queues several at once). They are held in a patient
+    /// queue that never expires and survives save/load, and are resolved front-first;
+    /// each choice records a Deed and moves the steadfastness tally ("held N of M")
+    /// toward or away from the vowed Ori. UI never writes state: it calls Choose.
+    /// Dependencies resolve via ServiceLocator so the pure flows stay testable on bare
+    /// hosts.
     /// </summary>
     public class CrossroadsSystem : MonoBehaviour
     {
         [SerializeField] private CrossroadsDeckConfig _deck;
+        [SerializeField] private CultivationStageConfig[] _stages; // milestone schedule = advance thresholds
 
-        /// <summary>Raised when a crossroads is drawn and becomes pending.</summary>
+        /// <summary>Raised when a crossroads is drawn and enqueued.</summary>
         public event Action<CrossroadsBeat> OnCrossroadsPresented;
 
         /// <summary>Raised after a pending crossroads is resolved by a choice.</summary>
         public event Action OnCrossroadsResolved;
 
         private SaveData _save;
-        private CultivationSystem _cultivation;
+        private AseGenerationSystem _aseGen;
+        private BigNumber[] _milestones; // cumulative Àṣẹ at which each crossroads is drawn
 
-        public bool HasPending => _save != null && _save.pendingCrossroads >= 0;
+        public bool HasPending => _save != null && _save.crossroadsQueue.Count > 0;
+
+        /// <summary>How many crossroads are waiting in the patient queue.</summary>
+        public int PendingCount => _save?.crossroadsQueue.Count ?? 0;
 
         public CrossroadsBeat PendingBeat =>
             HasPending && _deck != null && _deck.beats != null &&
-            _save.pendingCrossroads < _deck.beats.Length
-                ? _deck.beats[_save.pendingCrossroads] : null;
+            _save.crossroadsQueue[0] < _deck.beats.Length
+                ? _deck.beats[_save.crossroadsQueue[0]] : null;
 
         public int Held => _save?.oriHeld ?? 0;
         public int Trials => _save?.oriTrials ?? 0;
@@ -46,48 +54,86 @@ namespace OriAscendant.Systems
             ServiceLocator.Unregister(this);
         }
 
-        /// <summary>Called by GameManager after the save is loaded (subscribes to the
-        /// climb so a crossroads is drawn on each advance).</summary>
+        /// <summary>Called by GameManager after the save is loaded. Migrates any
+        /// slice-2a single-pending crossroads into the queue, derives the milestone
+        /// schedule, subscribes to Àṣẹ changes, and catches up any milestones the
+        /// loaded total already crosses.</summary>
         public void Begin(SaveData save)
         {
             _save = save ?? throw new ArgumentNullException(nameof(save));
+            if (_save.crossroadsQueue == null) _save.crossroadsQueue = new List<int>();
+
+            // Migrate the deprecated slice-2a single-pending field.
+            if (_save.pendingCrossroads >= 0)
+            {
+                if (!_save.crossroadsQueue.Contains(_save.pendingCrossroads))
+                    _save.crossroadsQueue.Add(_save.pendingCrossroads);
+                _save.pendingCrossroads = -1;
+            }
+
+            _milestones = BuildMilestones();
             Subscribe();
+            CheckMilestones(); // a loaded save may already sit past undrawn milestones
+        }
+
+        /// <summary>Milestone schedule = each non-final stage's advance threshold
+        /// (cumulative Àṣẹ); the final stage is Tribulation-gated, not a milestone.
+        /// Placeholder reuse pre balance-sim (DYNASTY_REDESIGN "density is a rate").</summary>
+        private BigNumber[] BuildMilestones()
+        {
+            if (_stages == null || _stages.Length < 2) return Array.Empty<BigNumber>();
+            int count = _stages.Length - 1;
+            var milestones = new BigNumber[count];
+            for (int i = 0; i < count; i++) milestones[i] = _stages[i].GetAdvanceThreshold();
+            return milestones;
         }
 
         private void Subscribe()
         {
-            if (ServiceLocator.TryGet(out _cultivation))
+            if (ServiceLocator.TryGet(out _aseGen))
             {
-                _cultivation.OnStageAdvanced -= HandleStageAdvanced; // defensive against double-Begin
-                _cultivation.OnStageAdvanced += HandleStageAdvanced;
+                _aseGen.OnAseChanged -= HandleAseChanged; // defensive against double-Begin
+                _aseGen.OnAseChanged += HandleAseChanged;
             }
         }
 
         private void Unsubscribe()
         {
-            if (_cultivation != null) _cultivation.OnStageAdvanced -= HandleStageAdvanced;
+            if (_aseGen != null) _aseGen.OnAseChanged -= HandleAseChanged;
         }
 
-        private void HandleStageAdvanced(int _) => TryPresentNext();
+        private void HandleAseChanged(BigNumber _) => CheckMilestones();
 
-        /// <summary>Draws the next beat (sequential) and holds it pending — unless one
-        /// is already pending or the deck is exhausted for this life.</summary>
-        public void TryPresentNext()
+        /// <summary>Draws a crossroads for every milestone the accrued Àṣẹ has crossed
+        /// but not yet drawn, appending to the patient queue (sequential: the next beat
+        /// index is resolved + queued). Caps at the deck length. Idempotent — safe to
+        /// call on every Àṣẹ change.</summary>
+        public void CheckMilestones()
         {
-            if (_save == null || _deck == null || _deck.beats == null || HasPending) return;
-            int next = _save.oriTrials; // sequential: one beat per resolution this life
-            if (next < 0 || next >= _deck.beats.Length) return;
+            if (_save == null || _deck == null || _deck.beats == null || _milestones == null) return;
 
-            _save.pendingCrossroads = next;
-            OnCrossroadsPresented?.Invoke(_deck.beats[next]);
+            bool drew = false;
+            int drawn = _save.oriTrials + _save.crossroadsQueue.Count;
+            while (drawn < _milestones.Length && drawn < _deck.beats.Length &&
+                   _save.GetAse() >= _milestones[drawn])
+            {
+                _save.crossroadsQueue.Add(drawn);
+                OnCrossroadsPresented?.Invoke(_deck.beats[drawn]);
+                drawn++;
+                drew = true;
+            }
+
+            if (drew && ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save(); // progression event
         }
 
-        /// <summary>Resolves the pending crossroads with the chosen option: records a
-        /// Deed, moves the steadfastness tally, and clears the pending state.</summary>
+        /// <summary>Resolves the front crossroads with the chosen option: records a
+        /// Deed, moves the steadfastness tally, and dequeues it.</summary>
         public bool Choose(int optionIndex)
         {
-            if (!HasPending || _deck == null) return false;
-            CrossroadsBeat beat = _deck.beats[_save.pendingCrossroads];
+            if (!HasPending || _deck == null || _deck.beats == null) return false;
+            int beatIndex = _save.crossroadsQueue[0];
+            if (beatIndex < 0 || beatIndex >= _deck.beats.Length) return false;
+            CrossroadsBeat beat = _deck.beats[beatIndex];
             if (beat.options == null || optionIndex < 0 || optionIndex >= beat.options.Length) return false;
 
             CrossroadsOption option = beat.options[optionIndex];
@@ -97,12 +143,12 @@ namespace OriAscendant.Systems
             if (aligned) _save.oriHeld++;
             _save.deeds.Add(new DeedData
             {
-                crossroadsIndex = _save.pendingCrossroads,
+                crossroadsIndex = beatIndex,
                 chosenOri = option.oriIndex,
                 stage = _save.currentStage,
                 aligned = aligned,
             });
-            _save.pendingCrossroads = -1;
+            _save.crossroadsQueue.RemoveAt(0);
 
             if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save(); // progression event
             OnCrossroadsResolved?.Invoke();

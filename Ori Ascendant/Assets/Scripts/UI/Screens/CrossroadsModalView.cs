@@ -58,10 +58,9 @@ namespace OriAscendant.UI.Screens
 
         private void Choose(int optionIndex)
         {
-            if (_crossroads != null && _crossroads.Choose(optionIndex) && _root != null)
-            {
-                _root.SetActive(false);
-            }
+            if (_crossroads == null || !_crossroads.Choose(optionIndex)) return;
+            if (_crossroads.HasPending) Show();              // present the next queued crossroads
+            else if (_root != null) _root.SetActive(false);  // queue drained — close
         }
     }
 }

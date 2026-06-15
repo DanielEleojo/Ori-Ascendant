@@ -467,6 +467,7 @@ namespace OriAscendant.EditorTools
 
             var crossroads = go.AddComponent<CrossroadsSystem>();
             Assign(crossroads, "_deck", BuildCrossroadsDeck()); // climb-tied dilemmas; placeholder deck pre-§7.10
+            AssignArray(crossroads, "_stages", stages);         // Àṣẹ-milestone schedule = advance thresholds
 
             var council = go.AddComponent<AncestralCouncilSystem>();
             Assign(council, "_config", councilConfig);

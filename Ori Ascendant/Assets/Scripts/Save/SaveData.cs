@@ -47,9 +47,16 @@ namespace OriAscendant.Save
         public int oriHeld = 0;
         public int oriTrials = 0;
 
-        /// <summary>Index of the crossroads awaiting a choice; -1 = none. Reset every
-        /// generation.</summary>
+        /// <summary>DEPRECATED (slice 2a): the single pending crossroads index, -1 =
+        /// none. Slice 2b migrates this into <see cref="crossroadsQueue"/> on load and
+        /// clears it; kept only for back-compat with old saves. Do not write in new code.</summary>
         public int pendingCrossroads = -1;
+
+        /// <summary>The patient queue of crossroads awaiting a choice — beat indices in
+        /// draw order (FIFO). Crossroads queue at Àṣẹ milestones (including ones crossed
+        /// offline), never expire, and are resolved front-first. Reset every generation.
+        /// Add-only field (no schema bump; see header + ADR-0001).</summary>
+        public List<int> crossroadsQueue = new List<int>();
 
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>

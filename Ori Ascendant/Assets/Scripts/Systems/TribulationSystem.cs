@@ -121,6 +121,7 @@ namespace OriAscendant.Systems
             _save.oriHeld = 0;
             _save.oriTrials = 0;
             _save.pendingCrossroads = -1;
+            _save.crossroadsQueue.Clear();
             _save.deeds.Clear();
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;

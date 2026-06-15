@@ -28,6 +28,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0, save.oriHeld);
             Assert.AreEqual(0, save.oriTrials);
             Assert.AreEqual(-1, save.pendingCrossroads, "no crossroads pending at birth");
+            Assert.IsNotNull(save.crossroadsQueue);
+            Assert.IsEmpty(save.crossroadsQueue, "no crossroads queued at birth");
             Assert.IsNotNull(save.deeds);
             Assert.IsEmpty(save.deeds);
             Assert.AreEqual(0, save.lastSaveTimestamp, "0 = never saved (fresh-install guard)");
@@ -84,6 +86,8 @@ namespace OriAscendant.Tests.EditMode
                 completedTimestamp = 1781000000,
             });
             save.deeds.Add(new DeedData { crossroadsIndex = 2, chosenOri = 3, stage = 4, aligned = true });
+            save.crossroadsQueue.Add(2);
+            save.crossroadsQueue.Add(3);
 
             var restored = RoundTrip(save);
 
@@ -100,6 +104,9 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1, restored.deeds.Count);
             Assert.AreEqual(3, restored.deeds[0].chosenOri);
             Assert.IsTrue(restored.deeds[0].aligned);
+            Assert.AreEqual(2, restored.crossroadsQueue.Count, "the patient queue round-trips");
+            Assert.AreEqual(2, restored.crossroadsQueue[0]);
+            Assert.AreEqual(3, restored.crossroadsQueue[1]);
             Assert.AreEqual(1781136000, restored.lastSaveTimestamp);
             Assert.AreEqual(1781100000, restored.generationStartTimestamp);
             Assert.IsTrue(restored.HasSeen(SeenFlags.ChannelHint));
