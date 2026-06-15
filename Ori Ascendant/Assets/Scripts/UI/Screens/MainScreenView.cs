@@ -19,6 +19,7 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _stageText;
         [SerializeField] private TMP_Text _generationText;
         [SerializeField] private TMP_Text _pathBadge;
+        [SerializeField] private TMP_Text _oriBadge;
 
         private AseGenerationSystem _aseGeneration;
         private SaveManagerHandle _saveHandle;
@@ -78,6 +79,13 @@ namespace OriAscendant.UI.Screens
                 bool show = path != null && !string.IsNullOrEmpty(path.hookBadge);
                 if (_pathBadge.gameObject.activeSelf != show) _pathBadge.gameObject.SetActive(show);
                 if (show && _pathBadge.text != path.hookBadge) _pathBadge.text = path.hookBadge;
+            }
+            if (_oriBadge != null)
+            {
+                var ori = cultivation?.CurrentOriConfig;
+                bool show = ori != null && !string.IsNullOrEmpty(ori.oriName);
+                if (_oriBadge.gameObject.activeSelf != show) _oriBadge.gameObject.SetActive(show);
+                if (show && _oriBadge.text != ori.oriName) _oriBadge.text = ori.oriName;
             }
         }
 

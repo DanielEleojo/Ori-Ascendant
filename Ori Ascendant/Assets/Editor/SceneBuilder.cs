@@ -33,6 +33,7 @@ namespace OriAscendant.EditorTools
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
+        private const string OriFolder = "Assets/Resources/OriConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
         private const string TmpSettingsPath = "Assets/TextMesh Pro/Resources/TMP Settings.asset";
         private const string TmpEssentialsPackage =
@@ -77,6 +78,18 @@ namespace OriAscendant.EditorTools
             new PathRow { File = "Ane", Name = "Ane — Path of Earth", Tradition = "Igala earth deity (Anẹ̀)", Identity = "The Mountain Endures — Àṣẹ gathers while you rest: ×1.5 offline", Badge = "OFFLINE ×1.5", OfflineBonusLabel = "Earth's Patience", Description = "Patience and rootedness — the land grows while you sleep.", Online = 1.0, Offline = 1.5, Council = 1.0, Type = TribulationType.Earth },
             new PathRow { File = "Sango", Name = "Sango — Path of Thunder", Tradition = "Yoruba thunder orisha (Ṣàngó)", Identity = "The Storm Strikes Now — ×2 Àṣẹ while you cultivate", Badge = "ACTIVE ×2", OfflineBonusLabel = "", Description = "Sudden, overwhelming force while you are present; the storm sleeps when you are away.", Online = 2.0, Offline = 0.5, Council = 1.0, Type = TribulationType.Storm },
             new PathRow { File = "Osun", Name = "Osun — Path of the River", Tradition = "Yoruba river orisha (Ọ̀ṣun)", Identity = "The River Remembers — ancestors' blessings flow twice as strong: council bonuses ×2", Badge = "COUNCIL ×2", OfflineBonusLabel = "", Description = "Flow and continuity — the mother of generations strengthens the bloodline.", Online = 1.0, Offline = 1.0, Council = 2.0, Type = TribulationType.River },
+        };
+
+        // ---- Ori (virtue-vow) seed set — PLACEHOLDER content, pre-§7.10 review (slice #10).
+        //      Universal virtues only (no culture-specific claims) until the real deck is authored. ----
+        private struct OriRow { public string File, Name, Description; }
+
+        private static readonly OriRow[] Oris =
+        {
+            new OriRow { File = "Mercy",    Name = "The Path of Mercy",    Description = "To spare, to forgive, to lift the fallen — held even when the world counsels otherwise." },
+            new OriRow { File = "Resolve",  Name = "The Path of Resolve",  Description = "To finish what is begun; to bend without breaking; to outlast the storm." },
+            new OriRow { File = "Cunning",  Name = "The Path of Cunning",  Description = "To win by wit and angle where strength alone would fail." },
+            new OriRow { File = "Devotion", Name = "The Path of Devotion", Description = "To give oneself wholly — to kin, to vow, to the line that comes after." },
         };
 
         [MenuItem("Ori Ascendant/Build Main Scene")]
@@ -198,6 +211,21 @@ namespace OriAscendant.EditorTools
                 config.offlineRateModifier = row.Offline;
                 config.councilBonusModifier = row.Council;
                 config.tribulationType = row.Type;
+                EditorUtility.SetDirty(config);
+                configs[i] = config;
+            }
+            return configs;
+        }
+
+        private static OriConfig[] BuildOriConfigs()
+        {
+            var configs = new OriConfig[Oris.Length];
+            for (int i = 0; i < Oris.Length; i++)
+            {
+                OriRow row = Oris[i];
+                var config = EnsureAsset<OriConfig>($"{OriFolder}/{row.File}.asset");
+                config.oriName = row.Name;
+                config.oriDescription = row.Description;
                 EditorUtility.SetDirty(config);
                 configs[i] = config;
             }
@@ -373,6 +401,7 @@ namespace OriAscendant.EditorTools
             var cultivation = go.AddComponent<CultivationSystem>();
             AssignArray(cultivation, "_stages", stages);
             AssignArray(cultivation, "_paths", paths);
+            AssignArray(cultivation, "_oris", BuildOriConfigs()); // virtue-vow set (Àkùnlẹ̀yàn); placeholder content pre-§7.10
             Assign(cultivation, "_tribulationConfig", tribulation);
 
             var council = go.AddComponent<AncestralCouncilSystem>();
@@ -439,6 +468,9 @@ namespace OriAscendant.EditorTools
             var pathBadge = MakeText(identity, "PathBadge", "", 14f, TextAlignmentOptions.MidlineRight, Gold);
             Inset(pathBadge.rectTransform, right: 20f);
             pathBadge.gameObject.SetActive(false); // shown once a path is chosen
+            var oriBadge = MakeText(identity, "OriBadge", "", 14f, TextAlignmentOptions.MidlineLeft, Gold);
+            Inset(oriBadge.rectTransform, left: 20f);
+            oriBadge.gameObject.SetActive(false); // shown once an Ori is vowed
 
             // Zone 4 — portrait = the channel-tap target (GAMEPLAY §5.3).
             var portraitZone = Zone(root, "PortraitZone", 0.24f, 0.58f);
@@ -559,6 +591,58 @@ namespace OriAscendant.EditorTools
             Assign(pathScreen, "_confirmButton", confirm);
             Assign(pathScreen, "_confirmLabel", confirmLabel);
 
+            // ---- Ori vow gate (Àkùnlẹ̀yàn, the birth of a life) ----
+            var oriController = new GameObject("OriScreen", typeof(RectTransform));
+            var oriControllerRt = (RectTransform)oriController.transform;
+            oriControllerRt.SetParent(root, false);
+            Stretch(oriControllerRt);
+
+            var oriRoot = new GameObject("OriRoot", typeof(RectTransform));
+            var oriRootRt = (RectTransform)oriRoot.transform;
+            oriRootRt.SetParent(oriControllerRt, false);
+            Stretch(oriRootRt);
+            var oriDim = MakeImage(oriRootRt, "Dim", new Color(0f, 0f, 0f, 0.75f));
+            Stretch(oriDim.rectTransform);
+            oriDim.raycastTarget = true;
+
+            var oriPanel = MakeImage(oriRootRt, "Panel", Panel);
+            var oriPanelRt = oriPanel.rectTransform;
+            oriPanelRt.anchorMin = new Vector2(0.05f, 0.10f);
+            oriPanelRt.anchorMax = new Vector2(0.95f, 0.90f);
+            oriPanelRt.offsetMin = Vector2.zero;
+            oriPanelRt.offsetMax = Vector2.zero;
+
+            var oriTitle = MakeText(oriPanelRt, "Title", "Kneel, and choose your Ori", 20f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(oriTitle.rectTransform, 0.91f, 0.99f);
+
+            var oriCards = new OriCardView[4];
+            float[][] oriBands =
+            {
+                new[] { 0.72f, 0.90f }, new[] { 0.52f, 0.70f },
+                new[] { 0.32f, 0.50f }, new[] { 0.12f, 0.30f },
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                oriCards[i] = BuildOriCard(oriPanelRt, $"OriCard{i}", oriBands[i][0], oriBands[i][1]);
+            }
+
+            var oriConfirm = MakeButton(oriPanelRt, "ConfirmButton", "Choose your Ori", Gold, 18f);
+            var oriConfirmRt = (RectTransform)oriConfirm.transform;
+            oriConfirmRt.anchorMin = new Vector2(0.10f, 0.02f);
+            oriConfirmRt.anchorMax = new Vector2(0.90f, 0.10f);
+            oriConfirmRt.offsetMin = Vector2.zero;
+            oriConfirmRt.offsetMax = Vector2.zero;
+            oriConfirm.interactable = false;
+            var oriConfirmLabel = oriConfirm.GetComponentInChildren<TMP_Text>();
+            oriRoot.SetActive(false);
+
+            var oriScreen = oriController.AddComponent<OriScreenView>();
+            Assign(oriScreen, "_root", oriRoot);
+            AssignArray(oriScreen, "_cards", oriCards);
+            Assign(oriScreen, "_confirmButton", oriConfirm);
+            Assign(oriScreen, "_confirmLabel", oriConfirmLabel);
+
             // ---- Phase C screens ----
             TribulationScreen tribulationScreen = BuildTribulationScreenUi(root, tribulation);
             CouncilScreenView councilScreen = BuildCouncilScreenUi(root);
@@ -643,6 +727,7 @@ namespace OriAscendant.EditorTools
             Assign(view, "_stageText", stageText);
             Assign(view, "_generationText", genText);
             Assign(view, "_pathBadge", pathBadge);
+            Assign(view, "_oriBadge", oriBadge);
 
             var controller = canvasGo.AddComponent<MainScreenController>();
             Assign(controller, "_config", config);
@@ -659,6 +744,7 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_floatingTextAnchor", portraitZone);
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);
+            Assign(controller, "_oriScreen", oriScreen);
             Assign(controller, "_settingsButton", settingsBtn);
             Assign(controller, "_settingsScreen", settingsScreen);
 
@@ -706,6 +792,35 @@ namespace OriAscendant.EditorTools
             Assign(view, "_nameText", nameText);
             Assign(view, "_traditionText", tradition);
             Assign(view, "_identityText", identityText);
+            return view;
+        }
+
+        private static OriCardView BuildOriCard(RectTransform parent, string name, float bottomFrac, float topFrac)
+        {
+            var cardBg = MakeImage(parent, name, Panel);
+            SetBand(cardBg.rectTransform, bottomFrac, topFrac);
+            var inner = cardBg.rectTransform;
+            inner.offsetMin = new Vector2(12f, 0f);
+            inner.offsetMax = new Vector2(-12f, 0f);
+            cardBg.raycastTarget = true;
+            cardBg.color = Panel;
+
+            var button = cardBg.gameObject.AddComponent<Button>();
+            button.targetGraphic = cardBg;
+
+            var nameText = MakeText(inner, "Name", "", 17f, TextAlignmentOptions.TopLeft, Text);
+            SetBand(nameText.rectTransform, 0.55f, 0.95f);
+            InsetX(nameText.rectTransform, 14f);
+            var descText = MakeText(inner, "Description", "", 12f, TextAlignmentOptions.TopLeft, TextDim);
+            SetBand(descText.rectTransform, 0.06f, 0.55f);
+            InsetX(descText.rectTransform, 14f);
+            descText.enableWordWrapping = true;
+
+            var view = cardBg.gameObject.AddComponent<OriCardView>();
+            Assign(view, "_button", button);
+            Assign(view, "_background", cardBg);
+            Assign(view, "_nameText", nameText);
+            Assign(view, "_descriptionText", descText);
             return view;
         }
 

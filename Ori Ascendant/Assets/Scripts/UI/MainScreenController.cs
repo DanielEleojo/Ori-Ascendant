@@ -32,6 +32,7 @@ namespace OriAscendant.UI
         [SerializeField] private RectTransform _floatingTextAnchor;
         [SerializeField] private GameObject _hintRoot;
         [SerializeField] private PathScreenView _pathScreen;
+        [SerializeField] private OriScreenView _oriScreen;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
 
@@ -46,6 +47,7 @@ namespace OriAscendant.UI
         private float _hintShownAt;
         private string _lastProgressText;
         private string _lastCtaText;
+        private bool _oriPromptActive;
 
         private const float HintAppearSeconds = 10f;
         private const float HintLifetimeSeconds = 6f;
@@ -80,6 +82,18 @@ namespace OriAscendant.UI
         private void Update()
         {
             if (_cultivation == null || _aseGeneration == null) return;
+
+            // Birth-of-life vow gate (Àkùnlẹ̀yàn): prompt once whenever an Ori is
+            // unvowed — fresh game and each new generation. The modal's dim blocks
+            // the climb beneath until a vow is taken.
+            if (_oriScreen != null)
+            {
+                if (_cultivation.NeedsOriChoice)
+                {
+                    if (!_oriPromptActive) { _oriScreen.Show(); _oriPromptActive = true; }
+                }
+                else _oriPromptActive = false;
+            }
 
             RefreshProgress();
             RefreshCta();
