@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39b5aab54e8c62517ba11eb87f519f4e, type: 3}
+  m_Name: CrossroadsDeck
+  m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.CrossroadsDeckConfig
+  beats:
+  - id: ford
+    prompt: A swollen river bars the road, and a stranger clings to a branch midstream,
+      calling out.
+    options:
+    - oriIndex: 0
+      text: Wade in and pull them free, whatever the current costs you.
+    - oriIndex: 1
+      text: Brace on the bank and hold a line out to them until the water tires.
+    - oriIndex: 2
+      text: Read the eddies and talk them to a footing only you can see.
+    - oriIndex: 3
+      text: "Call your kin to make a chain \u2014 no one crosses this water alone."
+  - id: market
+    prompt: In the crowded market a hungry child is caught taking bread, and the
+      seller raises a hand.
+    options:
+    - oriIndex: 0
+      text: Pay for the loaf and let the child go.
+    - oriIndex: 1
+      text: Step between the blow and the child, and do not move.
+    - oriIndex: 2
+      text: Turn the seller's anger into a bargain that feeds them both.
+    - oriIndex: 3
+      text: Take the child home and answer for them as your own.
+  - id: rival
+    prompt: A rival who once wronged you stumbles on the climb and asks you, quietly,
+      for help.
+    options:
+    - oriIndex: 0
+      text: Lift them up; the old wound need not be theirs to carry.
+    - oriIndex: 1
+      text: Help them stand, then hold them to finishing what they began.
+    - oriIndex: 2
+      text: Trade your help for what only they can teach you in return.
+    - oriIndex: 3
+      text: Help for the sake of the line you both serve, not for them.
+  - id: inheritance
+    prompt: An elder dies and leaves to you alone a gift that was meant for the whole
+      village.
+    options:
+    - oriIndex: 0
+      text: Give it to those who need it more than you do.
+    - oriIndex: 1
+      text: Keep it, and prove by your climb that the trust was earned.
+    - oriIndex: 2
+      text: Place it where it quietly grows into far more for everyone.
+    - oriIndex: 3
+      text: Lay it before your ancestors, in the name of the line.
+  - id: oath
+    prompt: An oath you swore at dawn would, by dusk, cost an innocent dearly to
+      keep.
+    options:
+    - oriIndex: 0
+      text: Break the oath; mercy outweighs your pride.
+    - oriIndex: 1
+      text: "Keep the oath \u2014 your word, once given, is iron."
+    - oriIndex: 2
+      text: Find the third path that honours the oath and spares the innocent.
+    - oriIndex: 3
+      text: Keep faith with those it was sworn to, and bear the cost yourself.

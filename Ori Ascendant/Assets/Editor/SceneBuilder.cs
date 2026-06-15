@@ -31,6 +31,7 @@ namespace OriAscendant.EditorTools
         private const string GameplayConfigPath = ConfigFolder + "/GameplayConfig.asset";
         private const string TribulationConfigPath = ConfigFolder + "/TribulationConfig.asset";
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
+        private const string CrossroadsDeckPath = ConfigFolder + "/CrossroadsDeck.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string OriFolder = "Assets/Resources/OriConfigs";
@@ -105,7 +106,7 @@ namespace OriAscendant.EditorTools
             PathConfig[] paths = BuildPathConfigs();
             BuildMainScene(gameplay, tribulation, councilConfig, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 11 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 12 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -230,6 +231,65 @@ namespace OriAscendant.EditorTools
                 configs[i] = config;
             }
             return configs;
+        }
+
+        // ---- Crossroads seed deck — PLACEHOLDER content, pre-§7.10 review (slice #10).
+        //      Universal moral dilemmas only (no culture-specific claims) until the real
+        //      deck is authored. Every beat offers one option per Ori so the life's vow
+        //      is always on the table — temptation, not a trap. ----
+        private static CrossroadsBeat Beat(string id, string prompt,
+            string mercy, string resolve, string cunning, string devotion) =>
+            new CrossroadsBeat
+            {
+                id = id,
+                prompt = prompt,
+                options = new[]
+                {
+                    new CrossroadsOption { oriIndex = 0, text = mercy },    // 0 = Mercy
+                    new CrossroadsOption { oriIndex = 1, text = resolve },  // 1 = Resolve
+                    new CrossroadsOption { oriIndex = 2, text = cunning },  // 2 = Cunning
+                    new CrossroadsOption { oriIndex = 3, text = devotion }, // 3 = Devotion
+                },
+            };
+
+        private static CrossroadsDeckConfig BuildCrossroadsDeck()
+        {
+            var deck = EnsureAsset<CrossroadsDeckConfig>(CrossroadsDeckPath);
+            deck.beats = new[]
+            {
+                Beat("ford",
+                    "A swollen river bars the road, and a stranger clings to a branch midstream, calling out.",
+                    "Wade in and pull them free, whatever the current costs you.",
+                    "Brace on the bank and hold a line out to them until the water tires.",
+                    "Read the eddies and talk them to a footing only you can see.",
+                    "Call your kin to make a chain — no one crosses this water alone."),
+                Beat("market",
+                    "In the crowded market a hungry child is caught taking bread, and the seller raises a hand.",
+                    "Pay for the loaf and let the child go.",
+                    "Step between the blow and the child, and do not move.",
+                    "Turn the seller's anger into a bargain that feeds them both.",
+                    "Take the child home and answer for them as your own."),
+                Beat("rival",
+                    "A rival who once wronged you stumbles on the climb and asks you, quietly, for help.",
+                    "Lift them up; the old wound need not be theirs to carry.",
+                    "Help them stand, then hold them to finishing what they began.",
+                    "Trade your help for what only they can teach you in return.",
+                    "Help for the sake of the line you both serve, not for them."),
+                Beat("inheritance",
+                    "An elder dies and leaves to you alone a gift that was meant for the whole village.",
+                    "Give it to those who need it more than you do.",
+                    "Keep it, and prove by your climb that the trust was earned.",
+                    "Place it where it quietly grows into far more for everyone.",
+                    "Lay it before your ancestors, in the name of the line."),
+                Beat("oath",
+                    "An oath you swore at dawn would, by dusk, cost an innocent dearly to keep.",
+                    "Break the oath; mercy outweighs your pride.",
+                    "Keep the oath — your word, once given, is iron.",
+                    "Find the third path that honours the oath and spares the innocent.",
+                    "Keep faith with those it was sworn to, and bear the cost yourself."),
+            };
+            EditorUtility.SetDirty(deck);
+            return deck;
         }
 
         private static void EnsureTmpEssentials()
@@ -404,6 +464,9 @@ namespace OriAscendant.EditorTools
             AssignArray(cultivation, "_oris", BuildOriConfigs()); // virtue-vow set (Àkùnlẹ̀yàn); placeholder content pre-§7.10
             Assign(cultivation, "_tribulationConfig", tribulation);
 
+            var crossroads = go.AddComponent<CrossroadsSystem>();
+            Assign(crossroads, "_deck", BuildCrossroadsDeck()); // climb-tied dilemmas; placeholder deck pre-§7.10
+
             var council = go.AddComponent<AncestralCouncilSystem>();
             Assign(council, "_config", councilConfig);
 
@@ -489,6 +552,13 @@ namespace OriAscendant.EditorTools
                 TextAlignmentOptions.Center, Gold);
             SetBand(hint.rectTransform, 0.00f, 0.12f);
             hint.gameObject.SetActive(false);
+
+            // Steadfastness readout — "Held N of M" crossroads kept true to the vow.
+            // Top of the portrait zone; hidden until the first crossroads (Trials > 0).
+            var steadfastness = MakeText(portraitZone, "SteadfastnessLine", "", 13f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(steadfastness.rectTransform, 0.88f, 1.00f);
+            steadfastness.gameObject.SetActive(false);
 
             // Zone 5 — progress bar (ACTIVE from Phase B).
             var progressZone = Zone(root, "ProgressZone", 0.58f, 0.64f);
@@ -643,6 +713,52 @@ namespace OriAscendant.EditorTools
             Assign(oriScreen, "_confirmButton", oriConfirm);
             Assign(oriScreen, "_confirmLabel", oriConfirmLabel);
 
+            // ---- Crossroads modal (DYNASTY_REDESIGN slice 2a: blocking, one-tap dilemma) ----
+            var crossController = new GameObject("CrossroadsScreen", typeof(RectTransform));
+            var crossControllerRt = (RectTransform)crossController.transform;
+            crossControllerRt.SetParent(root, false);
+            Stretch(crossControllerRt);
+
+            var crossRoot = new GameObject("CrossroadsRoot", typeof(RectTransform));
+            var crossRootRt = (RectTransform)crossRoot.transform;
+            crossRootRt.SetParent(crossControllerRt, false);
+            Stretch(crossRootRt);
+            var crossDim = MakeImage(crossRootRt, "Dim", new Color(0f, 0f, 0f, 0.75f));
+            Stretch(crossDim.rectTransform);
+            crossDim.raycastTarget = true;
+
+            var crossPanel = MakeImage(crossRootRt, "Panel", Panel);
+            var crossPanelRt = crossPanel.rectTransform;
+            crossPanelRt.anchorMin = new Vector2(0.05f, 0.10f);
+            crossPanelRt.anchorMax = new Vector2(0.95f, 0.90f);
+            crossPanelRt.offsetMin = Vector2.zero;
+            crossPanelRt.offsetMax = Vector2.zero;
+
+            var crossPrompt = MakeText(crossPanelRt, "Prompt", "", 18f, TextAlignmentOptions.Center, Text);
+            SetBand(crossPrompt.rectTransform, 0.74f, 0.98f);
+            InsetX(crossPrompt.rectTransform, 18f);
+            crossPrompt.enableWordWrapping = true;
+
+            var crossOptions = new Button[4];
+            var crossLabels = new TMP_Text[4];
+            float[][] crossBands =
+            {
+                new[] { 0.57f, 0.70f }, new[] { 0.42f, 0.55f },
+                new[] { 0.27f, 0.40f }, new[] { 0.12f, 0.25f },
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                crossOptions[i] = BuildCrossroadsOption(crossPanelRt, $"Option{i}", crossBands[i][0], crossBands[i][1]);
+                crossLabels[i] = crossOptions[i].GetComponentInChildren<TMP_Text>();
+            }
+            crossRoot.SetActive(false);
+
+            var crossroadsModal = crossController.AddComponent<CrossroadsModalView>();
+            Assign(crossroadsModal, "_root", crossRoot);
+            Assign(crossroadsModal, "_promptText", crossPrompt);
+            AssignArray(crossroadsModal, "_optionButtons", crossOptions);
+            AssignArray(crossroadsModal, "_optionLabels", crossLabels);
+
             // ---- Phase C screens ----
             TribulationScreen tribulationScreen = BuildTribulationScreenUi(root, tribulation);
             CouncilScreenView councilScreen = BuildCouncilScreenUi(root);
@@ -728,6 +844,7 @@ namespace OriAscendant.EditorTools
             Assign(view, "_generationText", genText);
             Assign(view, "_pathBadge", pathBadge);
             Assign(view, "_oriBadge", oriBadge);
+            Assign(view, "_steadfastnessText", steadfastness);
 
             var controller = canvasGo.AddComponent<MainScreenController>();
             Assign(controller, "_config", config);
@@ -745,6 +862,7 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);
             Assign(controller, "_oriScreen", oriScreen);
+            Assign(controller, "_crossroadsModal", crossroadsModal);
             Assign(controller, "_settingsButton", settingsBtn);
             Assign(controller, "_settingsScreen", settingsScreen);
 
@@ -822,6 +940,27 @@ namespace OriAscendant.EditorTools
             Assign(view, "_nameText", nameText);
             Assign(view, "_descriptionText", descText);
             return view;
+        }
+
+        /// <summary>One Crossroads option — a full-width card-button with a wrapping
+        /// label (one-tap commit, no selection state). The modal binds text + click
+        /// per beat; the caller reads the label via GetComponentInChildren.</summary>
+        private static Button BuildCrossroadsOption(RectTransform parent, string name, float bottomFrac, float topFrac)
+        {
+            var cardBg = MakeImage(parent, name, Panel);
+            SetBand(cardBg.rectTransform, bottomFrac, topFrac);
+            var inner = cardBg.rectTransform;
+            inner.offsetMin = new Vector2(12f, 0f);
+            inner.offsetMax = new Vector2(-12f, 0f);
+            cardBg.raycastTarget = true;
+
+            var button = cardBg.gameObject.AddComponent<Button>();
+            button.targetGraphic = cardBg;
+
+            var label = MakeText(inner, "Label", "", 14f, TextAlignmentOptions.Center, Text);
+            InsetX(label.rectTransform, 14f);
+            label.enableWordWrapping = true;
+            return button;
         }
 
         private static TribulationScreen BuildTribulationScreenUi(RectTransform root, TribulationConfig tribulation)

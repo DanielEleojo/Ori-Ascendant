@@ -20,6 +20,7 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _generationText;
         [SerializeField] private TMP_Text _pathBadge;
         [SerializeField] private TMP_Text _oriBadge;
+        [SerializeField] private TMP_Text _steadfastnessText;
 
         private AseGenerationSystem _aseGeneration;
         private SaveManagerHandle _saveHandle;
@@ -86,6 +87,19 @@ namespace OriAscendant.UI.Screens
                 bool show = ori != null && !string.IsNullOrEmpty(ori.oriName);
                 if (_oriBadge.gameObject.activeSelf != show) _oriBadge.gameObject.SetActive(show);
                 if (show && _oriBadge.text != ori.oriName) _oriBadge.text = ori.oriName;
+            }
+            if (_steadfastnessText != null)
+            {
+                // "Held N of M" crossroads kept true to the vow. Hidden until the
+                // first crossroads is faced (Trials > 0). Rides the ~1Hz tick.
+                ServiceLocator.TryGet(out CrossroadsSystem crossroads);
+                bool show = crossroads != null && crossroads.Trials > 0;
+                if (_steadfastnessText.gameObject.activeSelf != show) _steadfastnessText.gameObject.SetActive(show);
+                if (show)
+                {
+                    string line = $"Held {crossroads.Held} of {crossroads.Trials}";
+                    if (_steadfastnessText.text != line) _steadfastnessText.text = line;
+                }
             }
         }
 

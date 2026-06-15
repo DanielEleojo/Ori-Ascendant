@@ -33,6 +33,7 @@ namespace OriAscendant.UI
         [SerializeField] private GameObject _hintRoot;
         [SerializeField] private PathScreenView _pathScreen;
         [SerializeField] private OriScreenView _oriScreen;
+        [SerializeField] private CrossroadsModalView _crossroadsModal;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
 
@@ -41,6 +42,7 @@ namespace OriAscendant.UI
         private AseGenerationSystem _aseGeneration;
         private CultivationSystem _cultivation;
         private SaveManager _saveManager;
+        private CrossroadsSystem _crossroads;
 
         private float _secondsSinceLaunch;
         private bool _hintShown;
@@ -48,6 +50,7 @@ namespace OriAscendant.UI
         private string _lastProgressText;
         private string _lastCtaText;
         private bool _oriPromptActive;
+        private bool _crossroadsPromptActive;
 
         private const float HintAppearSeconds = 10f;
         private const float HintLifetimeSeconds = 6f;
@@ -74,6 +77,7 @@ namespace OriAscendant.UI
             _aseGeneration = ServiceLocator.Get<AseGenerationSystem>();
             _cultivation = ServiceLocator.Get<CultivationSystem>();
             ServiceLocator.TryGet(out _saveManager);
+            ServiceLocator.TryGet(out _crossroads);
 
             if (_progressRoot != null) _progressRoot.SetActive(true);
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
@@ -93,6 +97,18 @@ namespace OriAscendant.UI
                     if (!_oriPromptActive) { _oriScreen.Show(); _oriPromptActive = true; }
                 }
                 else _oriPromptActive = false;
+            }
+
+            // Climb-tied Crossroads (DYNASTY_REDESIGN): a blocking dilemma drawn on
+            // each stage-advance. Gated behind the birth vow so the two modals never
+            // contend; the modal hides itself on resolve.
+            if (_crossroadsModal != null && _crossroads != null && !_cultivation.NeedsOriChoice)
+            {
+                if (_crossroads.HasPending)
+                {
+                    if (!_crossroadsPromptActive) { _crossroadsModal.Show(); _crossroadsPromptActive = true; }
+                }
+                else _crossroadsPromptActive = false;
             }
 
             RefreshProgress();

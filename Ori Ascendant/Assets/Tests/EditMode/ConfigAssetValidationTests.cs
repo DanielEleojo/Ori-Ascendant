@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using OriAscendant.Core;
 using OriAscendant.Data;
@@ -112,6 +113,32 @@ namespace OriAscendant.Tests.EditMode
             var config = Load<CouncilConfig>("Assets/Configs/CouncilConfig.asset");
             Assert.AreEqual(0.25, config.ancestorBaseBonus, "W");
             Assert.AreEqual(5, config.maxCouncil);
+        }
+
+        [Test]
+        public void CrossroadsDeck_MatchesSeedSpec()
+        {
+            // Slice 2a seed: 5 beats (one per stage-advance), each offering one option
+            // per Ori so the life's vow is always a choice. PLACEHOLDER copy, pre-§7.10.
+            var deck = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeck.asset");
+            Assert.AreEqual(5, deck.beats.Length, "seed deck is 5 beats");
+
+            for (int i = 0; i < deck.beats.Length; i++)
+            {
+                var beat = deck.beats[i];
+                Assert.IsNotEmpty(beat.id, $"beat {i}: id");
+                Assert.IsNotEmpty(beat.prompt, $"beat {i}: prompt");
+                Assert.AreEqual(4, beat.options.Length, $"beat {i}: one option per Ori");
+
+                var oriIndices = new List<int>();
+                foreach (var option in beat.options)
+                {
+                    Assert.IsNotEmpty(option.text, $"beat {i}: option text");
+                    oriIndices.Add(option.oriIndex);
+                }
+                CollectionAssert.AreEquivalent(new[] { 0, 1, 2, 3 }, oriIndices,
+                    $"beat {i}: every Ori must be on the table (the vow is always a choice)");
+            }
         }
     }
 }

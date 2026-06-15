@@ -80,6 +80,8 @@ namespace OriAscendant.Tests.PlayMode
             Assert.IsTrue(ServiceLocator.TryGet(out AncestralCouncilSystem _), "AncestralCouncilSystem not wired");
             Assert.IsTrue(ServiceLocator.TryGet(out SaveManager _), "SaveManager not wired");
             Assert.IsTrue(ServiceLocator.TryGet(out CloudSaveManager _), "CloudSaveManager not wired");
+            Assert.IsTrue(ServiceLocator.TryGet(out CrossroadsSystem crossroads), "CrossroadsSystem not wired");
+            Assert.IsFalse(crossroads.HasPending, "a fresh boot has no pending crossroads");
 
             // Fresh save → Stage 1, rate 1.0/s (no path, no council).
             Assert.AreEqual(BigNumber.One, aseGen.CurrentRate,
