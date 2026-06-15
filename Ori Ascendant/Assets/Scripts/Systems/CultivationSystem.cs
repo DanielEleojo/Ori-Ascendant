@@ -29,6 +29,7 @@ namespace OriAscendant.Systems
     {
         [SerializeField] private CultivationStageConfig[] _stages; // index = stage index, 6 for MVP
         [SerializeField] private PathConfig[] _paths;              // 0=Ane, 1=Sango, 2=Osun
+        [SerializeField] private OriConfig[] _oris;                // virtue-vows (Àkùnlẹ̀yàn); index = ori index
         [SerializeField] private TribulationConfig _tribulationConfig;
 
         /// <summary>Raised after currentStage changes (new stage index).</summary>
@@ -36,6 +37,9 @@ namespace OriAscendant.Systems
 
         /// <summary>Raised after a path is chosen (path index).</summary>
         public event Action<int> OnPathChosen;
+
+        /// <summary>Raised after the Ori (virtue-vow) is chosen at birth (ori index).</summary>
+        public event Action<int> OnOriChosen;
 
         /// <summary>Raised once per generation when the Tribulation becomes available.</summary>
         public event Action OnTribulationAvailable;
@@ -53,6 +57,17 @@ namespace OriAscendant.Systems
         public PathConfig CurrentPathConfig =>
             _save != null && _paths != null && _save.currentPath >= 0 && _save.currentPath < _paths.Length
                 ? _paths[_save.currentPath] : null;
+
+        /// <summary>The virtue vowed this life, or null until it is chosen at birth.</summary>
+        public OriConfig CurrentOriConfig =>
+            _save != null && _oris != null && _save.currentOri >= 0 && _save.currentOri < _oris.Length
+                ? _oris[_save.currentOri] : null;
+
+        /// <summary>The Ori set offered at birth (UI).</summary>
+        public OriConfig[] Oris => _oris;
+
+        /// <summary>True until an Ori has been vowed for the current life (Àkùnlẹ̀yàn).</summary>
+        public bool NeedsOriChoice => _save != null && _save.currentOri < 0;
 
         public PathConfig[] Paths => _paths;
 
@@ -145,6 +160,20 @@ namespace OriAscendant.Systems
             _save.currentPath = pathIndex;
             OnPathChosen?.Invoke(pathIndex);
             DoAdvance();
+            return true;
+        }
+
+        /// <summary>Vows the Ori (virtue) for this life — chosen once at birth
+        /// (Àkùnlẹ̀yàn) and held until the next generation. Unlike ChoosePath this
+        /// does NOT advance a stage; the climb proceeds normally afterward.</summary>
+        public bool ChooseOri(int oriIndex)
+        {
+            if (_save == null || !NeedsOriChoice) return false;
+            if (_oris == null || oriIndex < 0 || oriIndex >= _oris.Length) return false;
+
+            _save.currentOri = oriIndex;
+            OnOriChosen?.Invoke(oriIndex);
+            if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save(); // birth-of-life event
             return true;
         }
 

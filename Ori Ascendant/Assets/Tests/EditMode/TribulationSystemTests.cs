@@ -93,6 +93,7 @@ namespace OriAscendant.Tests.EditMode
         public void Resolve_Ascend_WritesTheCompleteGenerationReset()
         {
             ArmAtPeak(path: 1);
+            _save.currentOri = 2; // a virtue vowed this life — must reset to -1
             _tribulation.SetRandomSource(new FakeRandom(0.0)); // < 0.60 → ascend
             long before = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -105,6 +106,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsTrue(_save.GetAse().IsZero, "aseAmount → 0");
             Assert.AreEqual(0, _save.currentStage, "currentStage → 0");
             Assert.AreEqual(-1, _save.currentPath, "currentPath → -1 (re-chosen each generation)");
+            Assert.AreEqual(-1, _save.currentOri, "currentOri → -1 (re-vowed each generation)");
             Assert.GreaterOrEqual(_save.generationStartTimestamp, before, "generationStartTimestamp → now");
             Assert.AreEqual(1, _save.lineage.generationCount, "generationCount++");
             Assert.AreEqual(1, _save.council.Count, "ancestor appended");

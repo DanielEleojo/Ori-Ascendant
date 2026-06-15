@@ -84,6 +84,22 @@ namespace OriAscendant.Tests.EditMode
             MakePath("Osun", 1.0, 1.0, 2.0),
         };
 
+        public static OriConfig MakeOri(string name)
+        {
+            var ori = ScriptableObject.CreateInstance<OriConfig>();
+            ori.oriName = name;
+            return ori;
+        }
+
+        /// <summary>Placeholder virtue-vows (pre-§7.10 content review).</summary>
+        public static OriConfig[] MakeOriTable() => new[]
+        {
+            MakeOri("Mercy"),
+            MakeOri("Resolve"),
+            MakeOri("Cunning"),
+            MakeOri("Devotion"),
+        };
+
         public static TribulationConfig MakeTribulationConfig()
         {
             var config = ScriptableObject.CreateInstance<TribulationConfig>();

@@ -36,6 +36,12 @@ namespace OriAscendant.Save
         /// Reset to -1 every generation (path is re-chosen at the Tier 1 gate).</summary>
         public int currentPath = -1;
 
+        /// <summary>-1 = not chosen; the virtue (Ori) vowed at the start of this
+        /// life — Àkùnlẹ̀yàn — as an index into the Ori set. Reset to -1 every
+        /// generation (re-chosen at birth). Add-only field (no schema bump).
+        /// See docs/DYNASTY_REDESIGN.md, ADR-0004.</summary>
+        public int currentOri = -1;
+
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>
         public long lastSaveTimestamp = 0;

@@ -32,6 +32,7 @@ namespace OriAscendant.Tests.EditMode
             _cultivation = _host.AddComponent<CultivationSystem>();
             EditModeTestHelpers.InjectArray(_cultivation, "_stages", EditModeTestHelpers.MakeStageTable());
             EditModeTestHelpers.InjectArray(_cultivation, "_paths", EditModeTestHelpers.MakePathTable());
+            EditModeTestHelpers.InjectArray(_cultivation, "_oris", EditModeTestHelpers.MakeOriTable());
             EditModeTestHelpers.Inject(_cultivation, "_tribulationConfig", EditModeTestHelpers.MakeTribulationConfig());
 
             // AddComponent does NOT invoke Awake() in EditMode (no ExecuteAlways),
@@ -180,6 +181,45 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1.0, _cultivation.PathOnlineMultiplier);
             Assert.AreEqual(1.0, _cultivation.PathOfflineRateModifier);
             Assert.AreEqual(1.0, _cultivation.CouncilBonusModifier);
+        }
+
+        // ---- the Ori vow (Àkùnlẹ̀yàn, the birth of a life) ----
+
+        [Test]
+        public void NewLife_NeedsOriChoice()
+        {
+            Assert.IsTrue(_cultivation.NeedsOriChoice, "a fresh life has no Ori vowed");
+            Assert.AreEqual(-1, _save.currentOri);
+            Assert.IsNull(_cultivation.CurrentOriConfig);
+        }
+
+        [Test]
+        public void ChooseOri_SetsTheVow_FiresEvent_AndIsRemembered()
+        {
+            int chosen = -99;
+            _cultivation.OnOriChosen += o => chosen = o;
+
+            Assert.IsTrue(_cultivation.ChooseOri(0)); // Mercy
+            Assert.AreEqual(0, _save.currentOri);
+            Assert.AreEqual(0, chosen, "OnOriChosen carries the index");
+            Assert.IsFalse(_cultivation.NeedsOriChoice, "the vow is made");
+            Assert.AreEqual("Mercy", _cultivation.CurrentOriConfig.oriName);
+        }
+
+        [Test]
+        public void ChooseOri_RejectsOutOfRange_AndLeavesTheVowUnset()
+        {
+            Assert.IsFalse(_cultivation.ChooseOri(-1));
+            Assert.IsFalse(_cultivation.ChooseOri(99));
+            Assert.AreEqual(-1, _save.currentOri);
+        }
+
+        [Test]
+        public void ChooseOri_RefusedOnceVowed_NoMidLifeReChoice()
+        {
+            Assert.IsTrue(_cultivation.ChooseOri(0));
+            Assert.IsFalse(_cultivation.ChooseOri(1), "the Ori is held for the life — no re-choice");
+            Assert.AreEqual(0, _save.currentOri, "the original vow stands");
         }
 
         // ---- tap-to-channel (GAMEPLAY §5.3) ----

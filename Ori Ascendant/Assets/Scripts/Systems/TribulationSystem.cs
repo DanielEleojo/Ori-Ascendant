@@ -117,6 +117,7 @@ namespace OriAscendant.Systems
             _save.SetAse(BigNumber.Zero);
             _save.currentStage = 0;
             _save.currentPath = -1;
+            _save.currentOri = -1;
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
 
