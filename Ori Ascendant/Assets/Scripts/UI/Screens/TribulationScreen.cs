@@ -26,6 +26,7 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private GameObject _confirmRoot;
         [SerializeField] private TMP_Text _ascendLine;
         [SerializeField] private TMP_Text _fallLine;
+        [SerializeField] private TMP_Text _chanceToAscendText;
         [SerializeField] private GameObject _oddsPanel;
         [SerializeField] private Button _oddsToggle;
         [SerializeField] private Button _notYetButton;
@@ -109,6 +110,11 @@ namespace OriAscendant.UI.Screens
                 _ascendLine.text = "Ascend — radiant Ancestor, " + BonusCopy(w * 1.0, mod);
             if (_fallLine != null)
                 _fallLine.text = "Fall — ember Ancestor, " + BonusCopy(w * 0.4, mod);
+
+            // ADR-0004: the steadfastness→chance mapping is always on screen, and the
+            // value shown here is the exact value Resolve rolls against.
+            if (_chanceToAscendText != null)
+                _chanceToAscendText.text = $"Chance to ascend: {_tribulation.AscendChance:P0}";
 
             if (_oddsPanel != null) _oddsPanel.SetActive(false);
             _holdTimer = 0f;

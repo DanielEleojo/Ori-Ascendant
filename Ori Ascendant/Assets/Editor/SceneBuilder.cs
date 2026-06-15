@@ -1007,20 +1007,25 @@ namespace OriAscendant.EditorTools
             sheetRt.offsetMax = Vector2.zero;
 
             var sheetTitle = MakeText(sheetRt, "Title", "Ìrékọjá — The Crossing", 22f, TextAlignmentOptions.Center, Gold);
-            SetBand(sheetTitle.rectTransform, 0.88f, 0.98f);
+            SetBand(sheetTitle.rectTransform, 0.90f, 0.99f);
+            // Foregrounded steadfastness odds — ADR-0004 "always on screen" (the value
+            // shown is the value rolled). Populated by TribulationScreen.ShowConfirm.
+            var chanceToAscend = MakeText(sheetRt, "ChanceToAscend", "", 17f, TextAlignmentOptions.Center, Gold);
+            SetBand(chanceToAscend.rectTransform, 0.81f, 0.89f);
+            InsetX(chanceToAscend.rectTransform, 14f);
             var ascendLine = MakeText(sheetRt, "AscendLine", "", 15f, TextAlignmentOptions.Center, Text);
-            SetBand(ascendLine.rectTransform, 0.74f, 0.86f);
+            SetBand(ascendLine.rectTransform, 0.72f, 0.80f);
             InsetX(ascendLine.rectTransform, 14f);
             var fallLine = MakeText(sheetRt, "FallLine", "", 15f, TextAlignmentOptions.Center, Text);
-            SetBand(fallLine.rectTransform, 0.62f, 0.74f);
+            SetBand(fallLine.rectTransform, 0.63f, 0.71f);
             InsetX(fallLine.rectTransform, 14f);
             var eitherWay = MakeText(sheetRt, "EitherWay", "Either way, your lineage grows stronger.", 14f,
                 TextAlignmentOptions.Center, Gold);
-            SetBand(eitherWay.rectTransform, 0.54f, 0.62f);
+            SetBand(eitherWay.rectTransform, 0.56f, 0.62f);
             var mythic = MakeText(sheetRt, "MythicLine",
                 "<i>Most who are ready ascend; those who fall are honored among the ancestors.</i>",
                 13f, TextAlignmentOptions.Center, TextDim);
-            SetBand(mythic.rectTransform, 0.44f, 0.54f);
+            SetBand(mythic.rectTransform, 0.46f, 0.55f);
             InsetX(mythic.rectTransform, 14f);
 
             var oddsToggle = MakeButton(sheetRt, "OddsToggle", "?", PanelLine, 14f);
@@ -1035,7 +1040,9 @@ namespace OriAscendant.EditorTools
             SetBand(oddsPanel.rectTransform, 0.28f, 0.44f);
             InsetX(oddsPanel.rectTransform, 12f);
             var oddsText = MakeText(oddsPanel.rectTransform, "OddsText",
-                "Ascend: 60%. Fall: 40%.\nEvery Tribulation, every generation, same odds.\nBoth outcomes grant an Ancestor.",
+                "Your chance to ascend rises with steadfastness — how truly you held your Ori " +
+                "(shown above). The steadfast are favored but never certain; the wavering keep " +
+                "a sliver of hope. Both outcomes grant an Ancestor.",
                 12f, TextAlignmentOptions.Center, Text);
             Stretch(oddsText.rectTransform);
             oddsPanel.gameObject.SetActive(false);
@@ -1156,6 +1163,7 @@ namespace OriAscendant.EditorTools
             Assign(screen, "_confirmRoot", confirmRoot.gameObject);
             Assign(screen, "_ascendLine", ascendLine);
             Assign(screen, "_fallLine", fallLine);
+            Assign(screen, "_chanceToAscendText", chanceToAscend);
             Assign(screen, "_oddsPanel", oddsPanel.gameObject);
             Assign(screen, "_oddsToggle", oddsToggle);
             Assign(screen, "_notYetButton", notYet);
