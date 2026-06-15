@@ -124,7 +124,10 @@ _Avoid_: power form, god form, prime form
 A choice the player meets along the climb — drawn from an authored, culture-vetted
 deck and queued so it waits patiently for the next check-in (never timed). The
 choice tests steadfastness to the Ori and is inked into the Chronicle. A player
-authors the line's story by the crossroads they take.
+authors the line's story by the crossroads they take. The option that keeps the vow
+is never labelled or obvious — recognising it is the test (ADR-0006); the faithful
+path always exists (temptation, not a trap), but the player learns whether they held
+it only afterward, as the steadfastness tally moves.
 _Avoid_: event, encounter, quest, card
 
 **Chronicle**:
@@ -137,6 +140,12 @@ _Avoid_: log, history, journal, save file
 A consequential choice, recorded — the unit the Chronicle is built from, and the
 material an ascended Title or a fallen Nickname is drawn from.
 _Avoid_: action, achievement, quest
+
+**Defining Deed**:
+The single Deed a *fallen* Cultivator's Nickname is drawn from — the first time their
+choices turned from their vowed Ori. A life that never strayed yet still fell at the
+Crossing has no such Deed, and shares one dignified line instead.
+_Avoid_: worst moment, final mistake
 
 **Title**:
 How an *ascended* Cultivator is remembered in the Chronicle — their final Stage
