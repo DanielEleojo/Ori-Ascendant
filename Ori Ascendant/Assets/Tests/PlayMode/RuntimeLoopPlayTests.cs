@@ -91,5 +91,34 @@ namespace OriAscendant.Tests.PlayMode
             yield return new WaitForSecondsRealtime(1.4f);
             Assert.IsTrue(aseGen.CurrentAse > before, "Àṣẹ must tick up in the live scene");
         }
+
+        [UnityTest]
+        public IEnumerator MainScene_CrossroadsDrawsAtAseMilestone()
+        {
+            // The full live trigger chain, in the real scene: banking Àṣẹ past the first
+            // stage advance-threshold (100) must draw a crossroads via OnAseChanged →
+            // CheckMilestones. This is the one path the boot/EditMode gates can't reach —
+            // it proves both the OnAseChanged subscription AND the scene-wired _stages
+            // milestone schedule (an unwired/empty _stages would silently never draw).
+            string savePath = Path.Combine(Application.persistentDataPath, "save.json");
+            if (File.Exists(savePath)) File.Delete(savePath);
+            ServiceLocator.Clear();
+
+            yield return SceneManager.LoadSceneAsync("Main", LoadSceneMode.Single);
+            yield return null; // Awake
+            yield return null; // Start
+
+            Assert.IsTrue(ServiceLocator.TryGet(out CrossroadsSystem crossroads), "CrossroadsSystem not wired");
+            Assert.IsTrue(ServiceLocator.TryGet(out SaveManager saveManager), "SaveManager not wired");
+            Assert.IsFalse(crossroads.HasPending, "no crossroads before any Àṣẹ is banked");
+
+            // Bank past the Stage-1 advance threshold (100 Àṣẹ); the next tick raises
+            // OnAseChanged on the shared save, which the crossroads system catches.
+            saveManager.Current.SetAse(BigNumber.FromDouble(150));
+            yield return new WaitForSecondsRealtime(1.2f);
+
+            Assert.IsTrue(crossroads.HasPending,
+                "crossing an Àṣẹ milestone draws a crossroads via the live subscription + scene-wired _stages");
+        }
     }
 }

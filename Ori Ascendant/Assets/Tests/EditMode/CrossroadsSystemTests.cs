@@ -11,9 +11,10 @@ namespace OriAscendant.Tests.EditMode
     /// so they accrue from banked Àṣẹ — including offline — not the manual Advance
     /// tap), held in a patient queue that never expires, and resolved front-first;
     /// each choice records a Deed and moves the steadfastness tally for or against the
-    /// vowed Ori. Hosts on a bare GameObject; the ServiceLocator wiring is exercised
-    /// for real. Milestone thresholds (MakeStageTable): 100, 1500, 5500, 100000,
-    /// 750000; the seed deck has 3 beats (c0, c1, c2).
+    /// vowed Ori. Hosts on a bare GameObject; the live OnAseChanged subscription is
+    /// exercised for real (AnAseChange_DrawsViaTheLiveSubscription), not only via direct
+    /// CheckMilestones calls. Milestone thresholds (MakeStageTable): 100, 1500, 5500,
+    /// 100000, 750000; the seed deck has 3 beats (c0, c1, c2).
     /// </summary>
     public class CrossroadsSystemTests
     {
@@ -161,6 +162,42 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsFalse(_crossroads.HasPending);
             Assert.IsFalse(_crossroads.Choose(0));
             Assert.AreEqual(0, _crossroads.Trials);
+        }
+
+        [Test]
+        public void AnAseChange_DrawsViaTheLiveSubscription()
+        {
+            // Drive Àṣẹ through the real system (ChannelTap raises OnAseChanged) instead
+            // of calling CheckMilestones directly — proves the subscription wiring fires.
+            _save.SetAse(BigNumber.FromDouble(95));
+            Assert.IsFalse(_crossroads.HasPending);
+            _aseGen.ChannelTap(); // grants rate × tapChannelSeconds (1 × 5 = 5) → 100, crossing milestone 0
+            Assert.IsTrue(_crossroads.HasPending,
+                "an Àṣẹ change draws via the OnAseChanged subscription, not only direct calls");
+        }
+
+        [Test]
+        public void LoadingASavePastMilestones_QueuesThemOnBegin()
+        {
+            // A save loaded already past undrawn milestones (Àṣẹ banked while away) queues
+            // them during Begin — the offline catch-up path, and proof the queue is live
+            // after a reload (AC: "survives save/load and restart").
+            _save.SetAse(BigNumber.FromDouble(5500));
+            _crossroads.Begin(_save);
+            Assert.AreEqual(3, _crossroads.PendingCount,
+                "every milestone the loaded total has crossed is queued on Begin");
+        }
+
+        [Test]
+        public void Begin_MigratesLegacyPendingCrossroads_IntoTheQueue()
+        {
+            // A slice-2a save carried a single pendingCrossroads int; Begin folds it into
+            // the queue and clears the deprecated field.
+            _save.pendingCrossroads = 2;
+            _crossroads.Begin(_save);
+            Assert.AreEqual(-1, _save.pendingCrossroads, "the deprecated field is cleared after migration");
+            Assert.IsTrue(_crossroads.HasPending);
+            Assert.AreEqual(2, _save.crossroadsQueue[0], "the legacy pending crossroads moved to the queue front");
         }
     }
 }
