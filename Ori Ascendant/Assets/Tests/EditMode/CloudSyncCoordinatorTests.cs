@@ -174,7 +174,7 @@ namespace OriAscendant.Tests.EditMode
         {
             // The locked CLAUDE.md rule — a push that throws must never surface.
             // The coordinator's catch is the structural guarantee CloudSaveManager
-            // relies on (issue #15: the coordinator is the single owner).
+            // relies on (the coordinator is the single owner of the swallow rule).
             var provider = new FakeCloudProvider { AuthResult = true, ThrowOnSave = true };
             var coord = new CloudSyncCoordinator(provider);
             Run(coord.AuthenticateAndReconcileAsync(Local(1, 1)));

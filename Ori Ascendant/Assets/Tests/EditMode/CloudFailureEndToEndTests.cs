@@ -6,11 +6,11 @@ using UnityEngine;
 namespace OriAscendant.Tests.EditMode
 {
     /// <summary>
-    /// Issue #15 — the missing end-to-end proof for the locked CLAUDE.md rule
-    /// "cloud auth/load/push failure → fall through to local, never block
-    /// gameplay." Drives the failure modes through the real
-    /// <see cref="CloudSaveManager"/> (not the coordinator in isolation), so a
-    /// regression in either the manager OR the coordinator trips the gate.
+    /// End-to-end proof for the locked CLAUDE.md rule "cloud auth/load/push
+    /// failure → fall through to local, never block gameplay." Drives the
+    /// failure modes through the real <see cref="CloudSaveManager"/> (not the
+    /// coordinator in isolation), so a regression in either the manager OR
+    /// the coordinator trips the gate.
     ///
     /// The FakeCloudProvider completes every async call synchronously, so the
     /// manager's async-void reconcile and fire-and-forget push both run inline

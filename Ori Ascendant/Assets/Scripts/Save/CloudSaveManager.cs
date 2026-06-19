@@ -14,11 +14,10 @@ namespace OriAscendant.Save
     /// background and only raises <see cref="OnCloudSaveAdopted"/> in the rare
     /// case the cloud strictly wins (device swap / reinstall). All pushes are
     /// opportunistic and silent. The "any cloud failure → local, never throw"
-    /// invariant is owned by <see cref="CloudSyncCoordinator"/> (the single
-    /// seam, issue #15) — this manager calls into it and trusts the contract,
-    /// no re-asserted try/catch in the reconcile or push paths. In the editor
-    /// / on Linux the provider is <see cref="NullCloudSaveProvider"/>, so every
-    /// path is inert.
+    /// invariant is owned by <see cref="CloudSyncCoordinator"/> — this manager
+    /// defers to that contract, with no defensive try/catch in the reconcile
+    /// or push paths. In the editor / on Linux the provider is
+    /// <see cref="NullCloudSaveProvider"/>, so every path is inert.
     /// </summary>
     public class CloudSaveManager : MonoBehaviour
     {
@@ -62,9 +61,9 @@ namespace OriAscendant.Save
         }
 
         /// <summary>Fire-and-forget launch reconcile. Never awaited by the caller;
-        /// gameplay is already running on the local save when this starts. The
-        /// coordinator's <see cref="CloudSyncCoordinator.AuthenticateAndReconcileAsync"/>
-        /// owns the never-throws guarantee — this method defers to it.</summary>
+        /// gameplay is already running on the local save when this starts.
+        /// <see cref="CloudSyncCoordinator.AuthenticateAndReconcileAsync"/> owns
+        /// the never-throws guarantee — this method defers to it.</summary>
         public async void BeginBackgroundReconcile(SaveData local)
         {
             if (Coordinator == null) return;
@@ -78,8 +77,8 @@ namespace OriAscendant.Save
         /// <summary>Opportunistic push of the current in-memory save (serialized
         /// fresh, so it is correct regardless of the local file write order).
         /// Hooked from Tribulation completion (a locked business rule) and app
-        /// suspend. The coordinator's <see cref="CloudSyncCoordinator.PushAsync"/>
-        /// is silent on failure (the single owner of that rule) — no double-catch here.</summary>
+        /// suspend. <see cref="CloudSyncCoordinator.PushAsync"/> is silent on
+        /// failure — this method defers to that contract.</summary>
         public void PushLatest()
         {
             PushRequestCount++; // synchronous: the "hook fired" signal for tests
