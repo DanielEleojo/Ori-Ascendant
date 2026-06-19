@@ -10,9 +10,18 @@ namespace OriAscendant.Data
     [CreateAssetMenu(fileName = "TribulationConfig", menuName = "Ori Ascendant/Tribulation Config")]
     public class TribulationConfig : ScriptableObject
     {
-        [Tooltip("Flat ascend probability — LOCKED at 0.60, identical on every path, " +
-                 "every generation. Disclosed to the player in the odds panel.")]
+        [Tooltip("Documented midpoint anchor (ADR-0004): the steadfastness curve's " +
+                 "floor/ceiling bracket this. Retained from the old flat 0.60; NOT a " +
+                 "direct input to the linear curve.")]
         public double baseAscendChance = 0.60;
+
+        [Tooltip("Ascend chance for a fully-wavering life (steadfastness 0) and the " +
+                 "trials==0 default — ADR-0004 floor. Balance-sim tuned (#12).")]
+        public double ascendFloor = 0.25;
+
+        [Tooltip("Ascend chance for a fully-steadfast life (steadfastness 1) — ADR-0004 " +
+                 "ceiling; the steadfast are rewarded but never certain. Balance-sim tuned (#12).")]
+        public double ascendCeiling = 0.90;
 
         [Tooltip("Àṣẹ required at the final stage to face the Tribulation " +
                  "(mantissa × 10^exponent). 25M per the verified balance table.")]

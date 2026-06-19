@@ -24,6 +24,7 @@ namespace OriAscendant.UI.Screens
 
         [Header("Confirm sheet")]
         [SerializeField] private GameObject _confirmRoot;
+        [SerializeField] private TMP_Text _chanceToAscendText;
         [SerializeField] private TMP_Text _ascendLine;
         [SerializeField] private TMP_Text _fallLine;
         [SerializeField] private GameObject _oddsPanel;
@@ -109,6 +110,11 @@ namespace OriAscendant.UI.Screens
                 _ascendLine.text = "Ascend — radiant Ancestor, " + BonusCopy(w * 1.0, mod);
             if (_fallLine != null)
                 _fallLine.text = "Fall — ember Ancestor, " + BonusCopy(w * 0.4, mod);
+
+            // ADR-0004: the chance is foregrounded (not hidden behind the ?), and
+            // it's the SAME value Resolve rolls against (displayed == rolled).
+            if (_chanceToAscendText != null && _tribulation != null)
+                _chanceToAscendText.text = $"Chance to ascend: {_tribulation.AscendChance:P0}";
 
             if (_oddsPanel != null) _oddsPanel.SetActive(false);
             _holdTimer = 0f;
