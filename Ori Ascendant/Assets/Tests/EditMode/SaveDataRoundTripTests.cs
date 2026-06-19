@@ -138,6 +138,40 @@ namespace OriAscendant.Tests.EditMode
                 "legacy save without chosenOri must default to -1 so the modal surfaces");
         }
 
+        [Test]
+        public void ChannelHintShownAt_RoundTrips()
+        {
+            var save = new SaveData { channelHintShownAt = 1_781_200_000L };
+            var restored = RoundTrip(save);
+            Assert.AreEqual(1_781_200_000L, restored.channelHintShownAt,
+                "channelHintShownAt must survive JSON round-trip");
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithChannelHintShownAtDefaultedToZero()
+        {
+            // A save written before issue #18 has no channelHintShownAt field.
+            // Newtonsoft must leave it at 0 (never shown) — the hint will surface
+            // after the appear delay on first resume, consistent with a fresh install.
+            string legacyJson = "{\"schemaVersion\":1," +
+                                "\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1," +
+                                "\"lastSaveTimestamp\":1781136000," +
+                                "\"generationStartTimestamp\":1781100000," +
+                                "\"seenFlags\":0," +
+                                "\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(1, restored.schemaVersion,
+                "schema version stays at 1 (add-only field, ADR-0001)");
+            Assert.AreEqual(0L, restored.channelHintShownAt,
+                "legacy save without channelHintShownAt must default to 0 (never shown)");
+        }
+
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]

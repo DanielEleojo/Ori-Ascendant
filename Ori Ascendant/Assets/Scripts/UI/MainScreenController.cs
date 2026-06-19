@@ -1,3 +1,4 @@
+using System;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -13,8 +14,9 @@ namespace OriAscendant.UI
     /// Interactive MainScreen surfaces (GAMEPLAY §3.2 zones 4–6): the Advance
     /// CTA, the stage/tribulation progress bar, tap-to-channel on the portrait,
     /// and the one-time channel hint. Reads state every frame (cheap struct
-    /// compares, strings rebuilt only on change); the ONLY writes go through
-    /// system APIs (TryAdvance / ChoosePath / ChannelTap) — never to SaveData.
+    /// compares, strings rebuilt only on change). Writes go through system APIs
+    /// (TryAdvance / ChoosePath / ChannelTap) and, for the hint lifetime, directly
+    /// to the add-only channelHintShownAt / seenFlags fields on SaveData.
     /// </summary>
     public class MainScreenController : MonoBehaviour
     {
@@ -44,13 +46,11 @@ namespace OriAscendant.UI
         private OriSystem _oriSystem;
 
         private float _secondsSinceLaunch;
-        private bool _hintShown;
-        private float _hintShownAt;
         private string _lastProgressText;
         private string _lastCtaText;
 
         private const float HintAppearSeconds = 10f;
-        private const float HintLifetimeSeconds = 6f;
+        private const long HintLifetimeSeconds = 6L;
 
         private void Awake()
         {
@@ -245,22 +245,29 @@ namespace OriAscendant.UI
             var save = _saveManager?.Current;
             if (save == null || _hintRoot == null) return;
 
+            // seenFlags.ChannelHint is the "never show again" authority — set on
+            // auto-expiry or user-tap. Once set, nothing below can re-show the hint.
+            if (save.HasSeen(SeenFlags.ChannelHint))
+            {
+                if (_hintRoot.activeSelf) _hintRoot.SetActive(false);
+                return;
+            }
+
             _secondsSinceLaunch += Time.unscaledDeltaTime;
 
-            if (!_hintShown && !save.HasSeen(SeenFlags.ChannelHint) &&
-                _secondsSinceLaunch >= HintAppearSeconds)
-            {
-                _hintShown = true;
-                _hintShownAt = _secondsSinceLaunch;
-                _hintRoot.SetActive(true);
-                save.MarkSeen(SeenFlags.ChannelHint);
-            }
+            // Write the appear timestamp once, after the appear delay.
+            if (save.channelHintShownAt == 0 && _secondsSinceLaunch >= HintAppearSeconds)
+                save.channelHintShownAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            if (_hintShown && _hintRoot.activeSelf &&
-                _secondsSinceLaunch - _hintShownAt > HintLifetimeSeconds)
-            {
-                _hintRoot.SetActive(false);
-            }
+            // Derive visibility from persisted state — survives resume and scene reload.
+            long nowUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var state = ChannelHintDecision.Evaluate(save.channelHintShownAt, nowUtc, HintLifetimeSeconds);
+            bool shouldShow = state == ChannelHintState.Active;
+            if (_hintRoot.activeSelf != shouldShow) _hintRoot.SetActive(shouldShow);
+
+            // Mark seen on auto-expiry so the hint never reappears.
+            if (state == ChannelHintState.Expired)
+                save.MarkSeen(SeenFlags.ChannelHint);
         }
     }
 }
