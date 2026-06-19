@@ -9,6 +9,11 @@ namespace OriAscendant.Systems
     /// (TECH_DESIGN §4). OFF-LIMITS CONSTRAINTS: pure math only — no
     /// Time.timeScale, no coroutines, no simulation. Reads the CACHED rate from
     /// SaveData (never recomputes it; AseGenerationSystem owns the rate).
+    ///
+    /// The two save-mutating entrypoints encode the two distinct intents
+    /// (issue #17 / PRD #13 ⑥): first-launch initialization (no Àṣẹ credit;
+    /// stamps generationStartTimestamp) and resume accrual (credits earned
+    /// Àṣẹ; never touches generationStartTimestamp).
     /// </summary>
     public static class OfflineProgressCalculator
     {
@@ -19,8 +24,9 @@ namespace OriAscendant.Systems
         /// </summary>
         public const long MaxOfflineSeconds = 28800;
 
-        /// <summary>Fired by <see cref="Apply"/> after offline progress lands, so the
-        /// UI can show the Welcome Back collect screen. (earned, countedSeconds)</summary>
+        /// <summary>Fired by <see cref="ApplyAccrual"/> after offline progress
+        /// lands, so the UI can show the Welcome Back collect screen.
+        /// First-launch initialization does NOT fire this. (earned, countedSeconds)</summary>
         public static event Action<BigNumber, long> OnOfflineProgressApplied;
 
         public readonly struct OfflineResult
@@ -66,11 +72,29 @@ namespace OriAscendant.Systems
         }
 
         /// <summary>
-        /// Computes and writes the result into the save: credits earned Àṣẹ,
-        /// stamps lastSaveTimestamp (and generationStartTimestamp on first
-        /// launch), then raises <see cref="OnOfflineProgressApplied"/>.
+        /// Cold-launch on a brand-new save: stamps both timestamps (lastSave
+        /// AND generationStart) without crediting any Àṣẹ. Does NOT raise
+        /// <see cref="OnOfflineProgressApplied"/> — there is no offline
+        /// progress to welcome the player back to. The caller (game-lifecycle
+        /// owner) is responsible for routing fresh saves here.
         /// </summary>
-        public static OfflineResult Apply(SaveData save, long nowUnix, double offlineRateModifier)
+        public static void InitializeFirstLaunch(SaveData save, long nowUnix)
+        {
+            if (save == null) throw new ArgumentNullException(nameof(save));
+
+            save.lastSaveTimestamp = nowUnix;
+            save.generationStartTimestamp = nowUnix;
+        }
+
+        /// <summary>
+        /// Resume / cold-launch on an existing save: credits earned offline
+        /// Àṣẹ, stamps lastSaveTimestamp ONLY (never generationStartTimestamp
+        /// — the generation clock is owned by first-launch and the Tribulation
+        /// resolve). Raises <see cref="OnOfflineProgressApplied"/> on success.
+        /// Safe no-op on a fresh save: returns IsFirstLaunch=true and writes
+        /// nothing, leaving routing to the caller.
+        /// </summary>
+        public static OfflineResult ApplyAccrual(SaveData save, long nowUnix, double offlineRateModifier)
         {
             if (save == null) throw new ArgumentNullException(nameof(save));
 
@@ -79,17 +103,14 @@ namespace OriAscendant.Systems
 
             if (result.IsFirstLaunch)
             {
-                save.lastSaveTimestamp = nowUnix;
-                save.generationStartTimestamp = nowUnix;
+                return result;
             }
-            else
+
+            if (!result.Earned.IsZero)
             {
-                if (!result.Earned.IsZero)
-                {
-                    save.SetAse(save.GetAse() + result.Earned);
-                }
-                save.lastSaveTimestamp = nowUnix;
+                save.SetAse(save.GetAse() + result.Earned);
             }
+            save.lastSaveTimestamp = nowUnix;
 
             OnOfflineProgressApplied?.Invoke(result.Earned, result.CountedSeconds);
             return result;
