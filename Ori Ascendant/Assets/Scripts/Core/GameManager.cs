@@ -42,7 +42,16 @@ namespace OriAscendant.Core
             if (ServiceLocator.TryGet(out OriSystem ori)) ori.Begin(save);
             _aseGeneration.Begin(save);
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            OfflineProgressCalculator.Apply(save, now, _cultivation.PathOfflineRateModifier);
+            // Two intents (issue #17): a fresh save STAMPS the timestamps with
+            // zero Àṣẹ credited; any existing save runs resume accrual.
+            if (save.lastSaveTimestamp == 0)
+            {
+                OfflineProgressCalculator.InitializeFirstLaunch(save, now);
+            }
+            else
+            {
+                OfflineProgressCalculator.ApplyAccrual(save, now, _cultivation.PathOfflineRateModifier);
+            }
             _aseGeneration.RecalculateRate();
 
             // Persist immediately so a fresh install has a save file (and its
@@ -82,7 +91,10 @@ namespace OriAscendant.Core
             if (paused || _saveManager?.Current == null) return;
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            OfflineProgressCalculator.Apply(_saveManager.Current, now,
+            // Resume always means accrual — Start() has already stamped the
+            // timestamps via InitializeFirstLaunch for a fresh save, so this
+            // path can never see lastSaveTimestamp == 0.
+            OfflineProgressCalculator.ApplyAccrual(_saveManager.Current, now,
                 _cultivation != null ? _cultivation.PathOfflineRateModifier : 1.0);
             _aseGeneration.ResyncAfterResume();
         }
