@@ -31,6 +31,7 @@ namespace OriAscendant.EditorTools
         private const string GameplayConfigPath = ConfigFolder + "/GameplayConfig.asset";
         private const string TribulationConfigPath = ConfigFolder + "/TribulationConfig.asset";
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
+        private const string OriConfigPath = ConfigFolder + "/OriConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
@@ -88,11 +89,12 @@ namespace OriAscendant.EditorTools
             GameplayConfig gameplay = BuildGameplayConfig();
             TribulationConfig tribulation = BuildTribulationConfig();
             CouncilConfig councilConfig = BuildCouncilConfig();
+            OriConfig oriConfig = BuildOriConfig();
             CultivationStageConfig[] stages = BuildStageConfigs();
             PathConfig[] paths = BuildPathConfigs();
-            BuildMainScene(gameplay, tribulation, councilConfig, stages, paths);
+            BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 11 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 12 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -158,6 +160,22 @@ namespace OriAscendant.EditorTools
             var config = EnsureAsset<CouncilConfig>(CouncilConfigPath);
             config.ancestorBaseBonus = 0.25;
             config.maxCouncil = 5;
+            EditorUtility.SetDirty(config);
+            return config;
+        }
+
+        // Dynasty PRD Phase 1 (slice 1): placeholder virtue seed set. Final names
+        // and vow lines land via the §7.10 native-speaker review (Phase 5); the
+        // field shape is the contract, the copy is not.
+        private static OriConfig BuildOriConfig()
+        {
+            var config = EnsureAsset<OriConfig>(OriConfigPath);
+            config.virtues = new[]
+            {
+                new OriVirtue { virtueName = "Patience", vowLine = "I will hold the long road; haste is not my master." },
+                new OriVirtue { virtueName = "Courage",  vowLine = "I will not turn from what stands before me." },
+                new OriVirtue { virtueName = "Mercy",    vowLine = "I will spare what I could strike, when sparing is true." },
+            };
             EditorUtility.SetDirty(config);
             return config;
         }
@@ -326,13 +344,14 @@ namespace OriAscendant.EditorTools
         // ================= scene =================
 
         private static void BuildMainScene(GameplayConfig gameplay, TribulationConfig tribulation,
-            CouncilConfig councilConfig, CultivationStageConfig[] stages, PathConfig[] paths)
+            CouncilConfig councilConfig, OriConfig oriConfig,
+            CultivationStageConfig[] stages, PathConfig[] paths)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             BuildCamera();
             BuildEventSystem();
-            BuildSystems(gameplay, tribulation, councilConfig, stages, paths);
+            BuildSystems(gameplay, tribulation, councilConfig, oriConfig, stages, paths);
             BuildUi(gameplay, tribulation);
 
             Directory.CreateDirectory("Assets/Scenes");
@@ -364,7 +383,8 @@ namespace OriAscendant.EditorTools
         }
 
         private static void BuildSystems(GameplayConfig gameplay, TribulationConfig tribulation,
-            CouncilConfig councilConfig, CultivationStageConfig[] stages, PathConfig[] paths)
+            CouncilConfig councilConfig, OriConfig oriConfig,
+            CultivationStageConfig[] stages, PathConfig[] paths)
         {
             var go = new GameObject("Systems");
             AssignConfig(go.AddComponent<SaveManager>(), gameplay);
@@ -381,6 +401,9 @@ namespace OriAscendant.EditorTools
             var tribulationSystem = go.AddComponent<TribulationSystem>();
             Assign(tribulationSystem, "_config", tribulation);
             Assign(tribulationSystem, "_gameplayConfig", gameplay);
+
+            var oriSystem = go.AddComponent<OriSystem>();
+            Assign(oriSystem, "_config", oriConfig);
 
             go.AddComponent<OriAscendant.Save.CloudSaveManager>();
             go.AddComponent<OriAscendant.Audio.AudioManager>();
@@ -432,13 +455,16 @@ namespace OriAscendant.EditorTools
             var rateText = MakeText(counterCanvasRt, "RateText", "+0 Àṣẹ/s", 17f, TextAlignmentOptions.Top, Gold);
             SetBand(rateText.rectTransform, 0.00f, 0.30f);
 
-            // Zone 3 — identity line + path badge.
+            // Zone 3 — identity line + path badge + Ori badge.
             var identity = Zone(root, "IdentityZone", 0.20f, 0.24f);
             var stageText = MakeText(identity, "StageText", "Stage 1", 20f, TextAlignmentOptions.Center, Text);
             Stretch(stageText.rectTransform);
             var pathBadge = MakeText(identity, "PathBadge", "", 14f, TextAlignmentOptions.MidlineRight, Gold);
             Inset(pathBadge.rectTransform, right: 20f);
             pathBadge.gameObject.SetActive(false); // shown once a path is chosen
+            var oriBadge = MakeText(identity, "OriBadge", "", 14f, TextAlignmentOptions.MidlineLeft, Gold);
+            Inset(oriBadge.rectTransform, left: 20f);
+            oriBadge.gameObject.SetActive(false); // shown once an Ori is vowed
 
             // Zone 4 — portrait = the channel-tap target (GAMEPLAY §5.3).
             var portraitZone = Zone(root, "PortraitZone", 0.24f, 0.58f);
@@ -559,6 +585,9 @@ namespace OriAscendant.EditorTools
             Assign(pathScreen, "_confirmButton", confirm);
             Assign(pathScreen, "_confirmLabel", confirmLabel);
 
+            // ---- Ori choice modal (Dynasty PRD Phase 1, slice 1) ----
+            OriScreenView oriScreen = BuildOriScreenUi(root);
+
             // ---- Phase C screens ----
             TribulationScreen tribulationScreen = BuildTribulationScreenUi(root, tribulation);
             CouncilScreenView councilScreen = BuildCouncilScreenUi(root);
@@ -643,6 +672,7 @@ namespace OriAscendant.EditorTools
             Assign(view, "_stageText", stageText);
             Assign(view, "_generationText", genText);
             Assign(view, "_pathBadge", pathBadge);
+            Assign(view, "_oriBadge", oriBadge);
 
             var controller = canvasGo.AddComponent<MainScreenController>();
             Assign(controller, "_config", config);
@@ -659,6 +689,7 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_floatingTextAnchor", portraitZone);
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);
+            Assign(controller, "_oriScreen", oriScreen);
             Assign(controller, "_settingsButton", settingsBtn);
             Assign(controller, "_settingsScreen", settingsScreen);
 
@@ -706,6 +737,86 @@ namespace OriAscendant.EditorTools
             Assign(view, "_nameText", nameText);
             Assign(view, "_traditionText", tradition);
             Assign(view, "_identityText", identityText);
+            return view;
+        }
+
+        private static OriScreenView BuildOriScreenUi(RectTransform root)
+        {
+            var controller = new GameObject("OriScreen", typeof(RectTransform));
+            var controllerRt = (RectTransform)controller.transform;
+            controllerRt.SetParent(root, false);
+            Stretch(controllerRt);
+
+            var oriRoot = new GameObject("OriRoot", typeof(RectTransform));
+            var oriRootRt = (RectTransform)oriRoot.transform;
+            oriRootRt.SetParent(controllerRt, false);
+            Stretch(oriRootRt);
+            var dim = MakeImage(oriRootRt, "Dim", new Color(0f, 0f, 0f, 0.75f));
+            Stretch(dim.rectTransform);
+            dim.raycastTarget = true;
+
+            var panel = MakeImage(oriRootRt, "Panel", Panel);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.05f, 0.10f);
+            panelRt.anchorMax = new Vector2(0.95f, 0.90f);
+            panelRt.offsetMin = Vector2.zero;
+            panelRt.offsetMax = Vector2.zero;
+
+            var title = MakeText(panelRt, "Title", "Àkùnlẹ̀yàn — vow your Ori", 20f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, 0.91f, 0.99f);
+
+            var cards = new OriCardView[3];
+            float[][] cardBands = { new[] { 0.66f, 0.89f }, new[] { 0.41f, 0.64f }, new[] { 0.16f, 0.39f } };
+            for (int i = 0; i < 3; i++)
+            {
+                cards[i] = BuildOriCard(panelRt, $"OriCard{i}", cardBands[i][0], cardBands[i][1]);
+            }
+
+            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose an Ori", Gold, 18f);
+            var confirmRt = (RectTransform)confirm.transform;
+            confirmRt.anchorMin = new Vector2(0.10f, 0.03f);
+            confirmRt.anchorMax = new Vector2(0.90f, 0.13f);
+            confirmRt.offsetMin = Vector2.zero;
+            confirmRt.offsetMax = Vector2.zero;
+            confirm.interactable = false;
+            var confirmLabel = confirm.GetComponentInChildren<TMP_Text>();
+            oriRoot.SetActive(false);
+
+            var screen = controller.AddComponent<OriScreenView>();
+            Assign(screen, "_root", oriRoot);
+            AssignArray(screen, "_cards", cards);
+            Assign(screen, "_confirmButton", confirm);
+            Assign(screen, "_confirmLabel", confirmLabel);
+            return screen;
+        }
+
+        private static OriCardView BuildOriCard(RectTransform parent, string name, float bottomFrac, float topFrac)
+        {
+            var cardBg = MakeImage(parent, name, Panel);
+            SetBand(cardBg.rectTransform, bottomFrac, topFrac);
+            var inner = cardBg.rectTransform;
+            inner.offsetMin = new Vector2(12f, 0f);
+            inner.offsetMax = new Vector2(-12f, 0f);
+            cardBg.raycastTarget = true;
+            cardBg.color = Panel;
+
+            var button = cardBg.gameObject.AddComponent<Button>();
+            button.targetGraphic = cardBg;
+
+            var nameText = MakeText(inner, "Name", "", 17f, TextAlignmentOptions.TopLeft, Text);
+            SetBand(nameText.rectTransform, 0.62f, 0.95f);
+            InsetX(nameText.rectTransform, 14f);
+            var vowText = MakeText(inner, "Vow", "", 13f, TextAlignmentOptions.TopLeft, Gold);
+            SetBand(vowText.rectTransform, 0.06f, 0.60f);
+            InsetX(vowText.rectTransform, 14f);
+            vowText.enableWordWrapping = true;
+
+            var view = cardBg.gameObject.AddComponent<OriCardView>();
+            Assign(view, "_button", button);
+            Assign(view, "_background", cardBg);
+            Assign(view, "_nameText", nameText);
+            Assign(view, "_vowText", vowText);
             return view;
         }
 

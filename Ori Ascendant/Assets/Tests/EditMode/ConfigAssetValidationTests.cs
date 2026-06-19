@@ -113,5 +113,22 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0.25, config.ancestorBaseBonus, "W");
             Assert.AreEqual(5, config.maxCouncil);
         }
+
+        [Test]
+        public void OriConfig_HasASeedVirtueSet()
+        {
+            // Dynasty PRD Phase 1 (slice 1): seed virtue set ships pre-§7.10 with
+            // placeholder copy. Phase 5 swaps the content for native-speaker-vetted
+            // text but the shape (non-empty list, each entry named) is the contract.
+            var config = Load<OriConfig>("Assets/Configs/OriConfig.asset");
+            Assert.IsNotNull(config.virtues, "OriConfig must define a virtue list");
+            Assert.GreaterOrEqual(config.Count, 2,
+                "the choice needs to feel like a choice — at least two virtues");
+            foreach (var virtue in config.virtues)
+            {
+                Assert.IsNotEmpty(virtue.virtueName, "every Ori virtue needs a display name");
+                Assert.IsNotEmpty(virtue.vowLine, "every Ori virtue needs a vow line");
+            }
+        }
     }
 }

@@ -39,6 +39,7 @@ namespace OriAscendant.Core
             _cultivation.Begin(save);
             if (ServiceLocator.TryGet(out AncestralCouncilSystem council)) council.Begin(save);
             if (ServiceLocator.TryGet(out TribulationSystem tribulation)) tribulation.Begin(save);
+            if (ServiceLocator.TryGet(out OriSystem ori)) ori.Begin(save);
             _aseGeneration.Begin(save);
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             OfflineProgressCalculator.Apply(save, now, _cultivation.PathOfflineRateModifier);
@@ -67,6 +68,7 @@ namespace OriAscendant.Core
             _cultivation.Begin(cloud);
             if (ServiceLocator.TryGet(out AncestralCouncilSystem council)) council.Begin(cloud);
             if (ServiceLocator.TryGet(out TribulationSystem tribulation)) tribulation.Begin(cloud);
+            if (ServiceLocator.TryGet(out OriSystem ori)) ori.Begin(cloud);
             _aseGeneration.Begin(cloud);
             _aseGeneration.RecalculateRate();
             _saveManager.Save();

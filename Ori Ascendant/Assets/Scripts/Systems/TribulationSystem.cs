@@ -117,6 +117,7 @@ namespace OriAscendant.Systems
             _save.SetAse(BigNumber.Zero);
             _save.currentStage = 0;
             _save.currentPath = -1;
+            _save.chosenOri = -1; // Àkùnlẹ̀yàn is re-vowed at the start of the next life
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
 

@@ -68,10 +68,11 @@ namespace OriAscendant.Tests.EditMode
             ServiceLocator.Clear();
         }
 
-        private void ArmAtPeak(int path = 1, double ase = 25_000_000)
+        private void ArmAtPeak(int path = 1, double ase = 25_000_000, int chosenOri = 0)
         {
             _save.currentStage = 5;
             _save.currentPath = path;
+            _save.chosenOri = chosenOri;
             _save.generationStartTimestamp = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 3600;
             _save.SetAse(BigNumber.FromDouble(ase));
             _aseGen.RecalculateRate();
@@ -105,6 +106,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsTrue(_save.GetAse().IsZero, "aseAmount → 0");
             Assert.AreEqual(0, _save.currentStage, "currentStage → 0");
             Assert.AreEqual(-1, _save.currentPath, "currentPath → -1 (re-chosen each generation)");
+            Assert.AreEqual(-1, _save.chosenOri, "chosenOri → -1 (Àkùnlẹ̀yàn is re-vowed every generation)");
             Assert.GreaterOrEqual(_save.generationStartTimestamp, before, "generationStartTimestamp → now");
             Assert.AreEqual(1, _save.lineage.generationCount, "generationCount++");
             Assert.AreEqual(1, _save.council.Count, "ancestor appended");

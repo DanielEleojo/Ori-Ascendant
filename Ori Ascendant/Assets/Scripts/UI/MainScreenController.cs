@@ -32,6 +32,7 @@ namespace OriAscendant.UI
         [SerializeField] private RectTransform _floatingTextAnchor;
         [SerializeField] private GameObject _hintRoot;
         [SerializeField] private PathScreenView _pathScreen;
+        [SerializeField] private OriScreenView _oriScreen;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
 
@@ -40,6 +41,7 @@ namespace OriAscendant.UI
         private AseGenerationSystem _aseGeneration;
         private CultivationSystem _cultivation;
         private SaveManager _saveManager;
+        private OriSystem _oriSystem;
 
         private float _secondsSinceLaunch;
         private bool _hintShown;
@@ -72,6 +74,7 @@ namespace OriAscendant.UI
             _aseGeneration = ServiceLocator.Get<AseGenerationSystem>();
             _cultivation = ServiceLocator.Get<CultivationSystem>();
             ServiceLocator.TryGet(out _saveManager);
+            ServiceLocator.TryGet(out _oriSystem);
 
             if (_progressRoot != null) _progressRoot.SetActive(true);
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
@@ -84,6 +87,19 @@ namespace OriAscendant.UI
             RefreshProgress();
             RefreshCta();
             TickHint();
+            TickOriPrompt();
+        }
+
+        // ---- post-Crossing re-vow: surface the modal on the first frame after
+        //      Resolve clears chosenOri (cheap field compare; one-shot per gen).
+        private void TickOriPrompt()
+        {
+            if (_oriScreen == null || _oriSystem == null) return;
+            if (_oriSystem.HasChosen) return;
+
+            // Already up? Don't re-poke it.
+            if (_oriScreen.gameObject.activeInHierarchy && _oriScreen.IsOpen) return;
+            _oriScreen.Show();
         }
 
         // ---- progress bar (zone 5) ----

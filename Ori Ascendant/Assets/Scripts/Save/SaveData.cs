@@ -36,6 +36,12 @@ namespace OriAscendant.Save
         /// Reset to -1 every generation (path is re-chosen at the Tier 1 gate).</summary>
         public int currentPath = -1;
 
+        /// <summary>-1 = not chosen; otherwise the index into OriConfig.virtues.
+        /// Àkùnlẹ̀yàn (chosen at birth) — set once per generation at the start of
+        /// life, reset to -1 every Crossing (Dynasty PRD Phase 1, slice 1).
+        /// Add-only field per ADR-0001: old v1 saves load with -1 unchanged.</summary>
+        public int chosenOri = -1;
+
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>
         public long lastSaveTimestamp = 0;
