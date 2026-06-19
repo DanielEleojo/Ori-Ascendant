@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using OriAscendant.Core;
+using OriAscendant.Data;
 using OriAscendant.Save;
 using OriAscendant.Systems;
 using UnityEngine;
@@ -275,9 +277,8 @@ namespace OriAscendant.Tests.EditMode
             {
                 new DeedData
                 {
-                    crossroadsId = "card_a",
-                    chosenOptionIndex = 0,
-                    wasOriAligned = true,
+                    beatIndex = 0,
+                    strayed = false,
                 }
             };
             _tribulation.SetRandomSource(new FakeRandom(0.0));
@@ -289,6 +290,192 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual("", _save.pendingCrossroadsId, "pending crossroads clears at the Crossing");
             Assert.IsNotNull(_save.deeds);
             Assert.AreEqual(0, _save.deeds.Count, "deeds list cleared at the Crossing");
+        }
+
+        // ---- Remembrance (slice 4a) ----
+
+        private void InjectRemembranceConfigs()
+        {
+            EditModeTestHelpers.Inject(_tribulation, "_remembranceConfig",
+                EditModeTestHelpers.MakeRemembranceConfig());
+            EditModeTestHelpers.Inject(_tribulation, "_crossroadsDeck",
+                EditModeTestHelpers.MakeCrossroadsDeckConfig());
+        }
+
+        [Test]
+        public void Resolve_Ascend_WritesTitle_AsRemembrance()
+        {
+            // Stage 5 = "Aṣẹ́gun" (GAMEPLAY §2.2). nameRoll=0.0 → index 0 → "Adé".
+            InjectRemembranceConfigs();
+            ArmAtPeak(); // currentStage=5 → honorific="Aṣẹ́gun"
+            // Roll 1 (0.0) < floor (0.25) → ascend; Roll 2 (0.0) → nameIndex 0.
+            _tribulation.SetRandomSource(new FakeRandom(0.0, 0.0));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("Aṣẹ́gun Adé", _save.council[0].remembrance,
+                "ascend → Title: honorific + personal name at index 0");
+        }
+
+        [Test]
+        public void Resolve_Ascend_NameIndex_UsesSecondRoll()
+        {
+            // nameRoll=0.5 with 2-name pool → (int)(0.5 * 2) = 1 → "Bàbá".
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("Aṣẹ́gun Bàbá", _save.council[0].remembrance,
+                "second random draw selects the personal name by index");
+        }
+
+        [Test]
+        public void Resolve_Fall_FirstStray_IsDefiningDeed()
+        {
+            // Two strays; FIRST stray (beatIndex 0) is the Defining Deed.
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 0, strayed = true });  // Defining Deed
+            _save.deeds.Add(new DeedData { beatIndex = 1, strayed = true });  // not selected
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // 0.99 ≥ floor → fall
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("The Wavering", _save.council[0].remembrance,
+                "fall Nickname comes from the FIRST strayed deed's fallenEpithet");
+        }
+
+        [Test]
+        public void Resolve_Fall_SkipsNonStrayedDeeds_ThenUsesFirstStray()
+        {
+            // First deed is faithful; second is the Defining Deed.
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 2, strayed = false }); // faithful, skip
+            _save.deeds.Add(new DeedData { beatIndex = 1, strayed = true });  // Defining Deed
+            _save.deeds.Add(new DeedData { beatIndex = 0, strayed = true });  // after first — ignored
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("The Divided", _save.council[0].remembrance,
+                "Defining Deed is the first STRAYED deed, not the first deed overall");
+        }
+
+        [Test]
+        public void Resolve_Fall_NoStrays_UsesFaithfulFallLine()
+        {
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 0, strayed = false }); // held true
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("The Faithful", _save.council[0].remembrance,
+                "a life that held its vow throughout gets the shared faithful-fall line");
+        }
+
+        [Test]
+        public void Resolve_Fall_EmptyDeeds_UsesFaithfulFallLine()
+        {
+            // No Crossroads system yet — deeds is always empty in isolation.
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            // _save.deeds is empty by default
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("The Faithful", _save.council[0].remembrance,
+                "empty deeds (no Crossroads yet) falls through to the faithful-fall line");
+        }
+
+        [Test]
+        public void Resolve_Remembrance_IgnoresDeityPath()
+        {
+            InjectRemembranceConfigs();
+
+            // Run 1: Ane path, one stray deed.
+            ArmAtPeak(path: 0);
+            _save.deeds.Add(new DeedData { beatIndex = 1, strayed = true });
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+            _tribulation.Resolve();
+            string earthRemembrance = _save.council[0].remembrance;
+
+            // Run 2: Osun path, same stray deed (deeds were cleared by Run 1's reset).
+            ArmAtPeak(path: 2);
+            _save.deeds.Add(new DeedData { beatIndex = 1, strayed = true });
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+            _tribulation.Resolve();
+            string riverRemembrance = _save.council[1].remembrance;
+
+            Assert.AreEqual(earthRemembrance, riverRemembrance,
+                "deity-Path never affects remembrance (ADR-0004)");
+            Assert.AreEqual("The Divided", earthRemembrance);
+        }
+
+        [Test]
+        public void Resolve_DeedsAreCleared_AfterGenerationReset()
+        {
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 0, strayed = true });
+            _tribulation.SetRandomSource(new FakeRandom(0.99));
+
+            _tribulation.Resolve();
+
+            Assert.IsEmpty(_save.deeds,
+                "deeds are per-life state — cleared alongside stage/path/ori at reset");
+        }
+
+        [Test]
+        public void Remembrance_Derive_AscendTitle_DirectCalculator()
+        {
+            var config = EditModeTestHelpers.MakeRemembranceConfig();
+            var deck = EditModeTestHelpers.MakeCrossroadsDeckConfig();
+            var deeds = new List<DeedData>();
+
+            string r = Remembrance.Derive(true, "Aṣẹ́gun", deeds, deck, config, nameIndex: 1);
+
+            Assert.AreEqual("Aṣẹ́gun Bàbá", r, "ascend → honorific + pool[nameIndex]");
+        }
+
+        [Test]
+        public void Remembrance_Derive_FallNickname_DirectCalculator()
+        {
+            var config = EditModeTestHelpers.MakeRemembranceConfig();
+            var deck = EditModeTestHelpers.MakeCrossroadsDeckConfig();
+            var deeds = new List<DeedData>
+            {
+                new DeedData { beatIndex = 2, strayed = false },
+                new DeedData { beatIndex = 0, strayed = true },  // Defining Deed
+            };
+
+            string r = Remembrance.Derive(false, "Aṣẹ́gun", deeds, deck, config, nameIndex: 0);
+
+            Assert.AreEqual("The Wavering", r, "fall → fallenEpithet of first strayed deed");
+        }
+
+        [Test]
+        public void Remembrance_Derive_PathIndependence_IsStructural()
+        {
+            // Remembrance.Derive takes no path parameter — path-independence is structural.
+            var config = EditModeTestHelpers.MakeRemembranceConfig();
+            var deck = EditModeTestHelpers.MakeCrossroadsDeckConfig();
+            var deeds = new List<DeedData>
+            {
+                new DeedData { beatIndex = 1, strayed = true },
+            };
+
+            // Calling with the same args always gives the same result — no path to vary.
+            string r1 = Remembrance.Derive(false, "Aṣẹ́gun", deeds, deck, config, 0);
+            string r2 = Remembrance.Derive(false, "Aṣẹ́gun", deeds, deck, config, 0);
+            Assert.AreEqual(r1, r2, "no path parameter → structurally path-independent");
+            Assert.AreEqual("The Divided", r1);
+>>>>>>> sandcastle/issue-6
         }
     }
 }

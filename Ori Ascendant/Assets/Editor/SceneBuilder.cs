@@ -33,6 +33,8 @@ namespace OriAscendant.EditorTools
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
         private const string OriConfigPath = ConfigFolder + "/OriConfig.asset";
         private const string CrossroadsConfigPath = ConfigFolder + "/CrossroadsConfig.asset";
+        private const string RemembranceConfigPath = ConfigFolder + "/RemembranceConfig.asset";
+        private const string CrossroadsDeckConfigPath = ConfigFolder + "/CrossroadsDeckConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
@@ -92,11 +94,14 @@ namespace OriAscendant.EditorTools
             CouncilConfig councilConfig = BuildCouncilConfig();
             OriConfig oriConfig = BuildOriConfig();
             CrossroadsConfig crossroadsConfig = BuildCrossroadsConfig();
+            RemembranceConfig remembranceConfig = BuildRemembranceConfig();
+            CrossroadsDeckConfig crossroadsDeck = BuildCrossroadsDeckConfig();
             CultivationStageConfig[] stages = BuildStageConfigs();
             PathConfig[] paths = BuildPathConfigs();
-            BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig, stages, paths);
+            BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig,
+                remembranceConfig, crossroadsDeck, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 13 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 15 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -219,6 +224,32 @@ namespace OriAscendant.EditorTools
                         new CrossroadsOption { virtueIndex = 2, optionText = "Offer something small to close the matter, even if you owe nothing." },
                     }
                 },
+            };
+            EditorUtility.SetDirty(config);
+            return config;
+        }
+
+        // Dynasty PRD slice 4a: placeholder names + faithful-fall line. Final copy lands
+        // via the §7.10 native-speaker review (Phase 5); the field shape is the contract.
+        private static RemembranceConfig BuildRemembranceConfig()
+        {
+            var config = EnsureAsset<RemembranceConfig>(RemembranceConfigPath);
+            config.personalNames = new[] { "Adé", "Ìlé", "Ẹni" };
+            config.faithfulFallLine = "The Steadfast";
+            EditorUtility.SetDirty(config);
+            return config;
+        }
+
+        // Dynasty PRD slice 4a: placeholder epithets per beat. Final copy lands via
+        // §7.10 + discernment authoring (#10, ADR-0006); field shape is the contract.
+        private static CrossroadsDeckConfig BuildCrossroadsDeckConfig()
+        {
+            var config = EnsureAsset<CrossroadsDeckConfig>(CrossroadsDeckConfigPath);
+            config.beats = new[]
+            {
+                new CrossroadsBeat { fallenEpithet = "The Wavering" },
+                new CrossroadsBeat { fallenEpithet = "The Divided" },
+                new CrossroadsBeat { fallenEpithet = "The Turned" },
             };
             EditorUtility.SetDirty(config);
             return config;
@@ -389,13 +420,15 @@ namespace OriAscendant.EditorTools
 
         private static void BuildMainScene(GameplayConfig gameplay, TribulationConfig tribulation,
             CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
+            RemembranceConfig remembranceConfig, CrossroadsDeckConfig crossroadsDeck,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             BuildCamera();
             BuildEventSystem();
-            BuildSystems(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig, stages, paths);
+            BuildSystems(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig,
+                remembranceConfig, crossroadsDeck, stages, paths);
             BuildUi(gameplay, tribulation);
 
             Directory.CreateDirectory("Assets/Scenes");
@@ -428,6 +461,7 @@ namespace OriAscendant.EditorTools
 
         private static void BuildSystems(GameplayConfig gameplay, TribulationConfig tribulation,
             CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
+            RemembranceConfig remembranceConfig, CrossroadsDeckConfig crossroadsDeck,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             var go = new GameObject("Systems");
@@ -445,6 +479,8 @@ namespace OriAscendant.EditorTools
             var tribulationSystem = go.AddComponent<TribulationSystem>();
             Assign(tribulationSystem, "_config", tribulation);
             Assign(tribulationSystem, "_gameplayConfig", gameplay);
+            Assign(tribulationSystem, "_remembranceConfig", remembranceConfig);
+            Assign(tribulationSystem, "_crossroadsDeck", crossroadsDeck);
 
             var oriSystem = go.AddComponent<OriSystem>();
             Assign(oriSystem, "_config", oriConfig);

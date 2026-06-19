@@ -115,6 +115,28 @@ namespace OriAscendant.Tests.EditMode
             return config;
         }
 
+        /// <summary>Two placeholder personal names + a faithful-fall line for remembrance tests.</summary>
+        public static RemembranceConfig MakeRemembranceConfig()
+        {
+            var config = ScriptableObject.CreateInstance<RemembranceConfig>();
+            config.personalNames = new[] { "Adé", "Bàbá" };
+            config.faithfulFallLine = "The Faithful";
+            return config;
+        }
+
+        /// <summary>Three placeholder beats, each with a distinct fallenEpithet.</summary>
+        public static CrossroadsDeckConfig MakeCrossroadsDeckConfig()
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsDeckConfig>();
+            config.beats = new[]
+            {
+                new CrossroadsBeat { fallenEpithet = "The Wavering" },
+                new CrossroadsBeat { fallenEpithet = "The Divided" },
+                new CrossroadsBeat { fallenEpithet = "The Turned" },
+            };
+            return config;
+        }
+
         private static void Assert(bool condition, string message)
         {
             if (!condition) throw new System.InvalidOperationException(message);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -37,6 +38,8 @@ namespace OriAscendant.Systems
     {
         [SerializeField] private TribulationConfig _config;
         [SerializeField] private GameplayConfig _gameplayConfig;
+        [SerializeField] private RemembranceConfig _remembranceConfig;
+        [SerializeField] private CrossroadsDeckConfig _crossroadsDeck;
 
         /// <summary>Locked signature (TECH_DESIGN §4). Notification-only: all
         /// state is already written and saved when this fires.</summary>
@@ -100,6 +103,24 @@ namespace OriAscendant.Systems
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             bool ascended = _random.NextDouble() < AscendChance;
 
+            // Second draw for personal-name selection (ascend-only; fall uses no randomness).
+            // Drawn BEFORE the reset so the random sequence is deterministic with respect to
+            // the FakeRandom used in tests.
+            int nameIndex = 0;
+            if (ascended && _remembranceConfig?.personalNames?.Length > 0)
+            {
+                double nameRoll = _random.NextDouble();
+                nameIndex = (int)(nameRoll * _remembranceConfig.personalNames.Length);
+                nameIndex = Math.Min(nameIndex, _remembranceConfig.personalNames.Length - 1);
+            }
+
+            // Capture honorific and derive remembrance BEFORE the atomic reset —
+            // the deeds list is still intact here.
+            string honorific = cultivation?.PeekStageName(_save.currentStage) ?? string.Empty;
+            string remembrance = Remembrance.Derive(
+                ascended, honorific, _save.deeds,
+                _crossroadsDeck, _remembranceConfig, nameIndex);
+
             var ancestor = new AncestorData
             {
                 peakStage = _save.currentStage,
@@ -107,6 +128,7 @@ namespace OriAscendant.Systems
                 didAscend = ascended,
                 bonusMultiplier = ascended ? 1.0 : 0.4, // locked: a fall still produces an ancestor
                 completedTimestamp = now,
+                remembrance = remembrance,
             };
 
             double w = council != null ? council.W : 0.25;
@@ -138,7 +160,7 @@ namespace OriAscendant.Systems
             _save.oriHeld = 0;              // steadfastness tally is per-life
             _save.oriTrials = 0;
             _save.pendingCrossroadsId = ""; // patient crossroads expire at the Crossing
-            if (_save.deeds != null) _save.deeds.Clear(); // Chronicle (later slice) will persist these
+            if (_save.deeds != null) _save.deeds.Clear(); // per-life history; Crossroads system writes, reset clears
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
 

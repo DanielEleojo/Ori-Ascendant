@@ -147,72 +147,80 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsNull(SaveSerializer.FromJson(json));
         }
 
-        // ---- crossroads slice 2a: new add-only fields ----
-
         [Test]
-        public void FreshSave_HasCrossroadsDefaults()
+        public void AncestorData_Remembrance_RoundTrips()
         {
             var save = new SaveData();
-            Assert.AreEqual("", save.pendingCrossroadsId, "no pending crossroads on a fresh save");
-            Assert.IsNotNull(save.deeds);
-            Assert.IsEmpty(save.deeds, "no deeds on a fresh save");
-        }
+            save.council.Add(new AncestorData
+            {
+                peakStage = 5,
+                path = 1,
+                didAscend = true,
+                bonusMultiplier = 1.0,
+                completedTimestamp = 1781000000,
+                remembrance = "Aṣẹ́gun Adé",
+            });
 
-        [Test]
-        public void PendingCrossroadsId_RoundTrips()
-        {
-            var save = new SaveData { pendingCrossroadsId = "road_stranger" };
             var restored = RoundTrip(save);
-            Assert.AreEqual("road_stranger", restored.pendingCrossroadsId);
+
+            Assert.AreEqual("Aṣẹ́gun Adé", restored.council[0].remembrance,
+                "remembrance string persists across a save round-trip");
         }
 
         [Test]
-        public void Deeds_RoundTrip()
+        public void AncestorData_Deeds_RoundTrip()
         {
             var save = new SaveData();
-            save.deeds.Add(new DeedData
-            {
-                crossroadsId = "market_debt",
-                chosenOptionIndex = 2,
-                wasOriAligned = false,
-            });
-            save.deeds.Add(new DeedData
-            {
-                crossroadsId = "road_stranger",
-                chosenOptionIndex = 0,
-                wasOriAligned = true,
-            });
+            save.deeds.Add(new DeedData { beatIndex = 2, strayed = true });
+            save.deeds.Add(new DeedData { beatIndex = 0, strayed = false });
 
             var restored = RoundTrip(save);
 
             Assert.AreEqual(2, restored.deeds.Count);
-            Assert.AreEqual("market_debt", restored.deeds[0].crossroadsId);
-            Assert.AreEqual(2, restored.deeds[0].chosenOptionIndex);
-            Assert.IsFalse(restored.deeds[0].wasOriAligned);
-            Assert.IsTrue(restored.deeds[1].wasOriAligned);
+            Assert.AreEqual(2, restored.deeds[0].beatIndex);
+            Assert.IsTrue(restored.deeds[0].strayed);
+            Assert.AreEqual(0, restored.deeds[1].beatIndex);
+            Assert.IsFalse(restored.deeds[1].strayed);
         }
 
         [Test]
-        public void PreExistingV1Save_LoadsWithCrossroadsDefaults()
+        public void PreExistingAncestor_LoadsWithNullRemembrance()
         {
-            // A save written without crossroads fields (add-only per ADR-0001).
-            string legacyJson = "{\"schemaVersion\":1," +
-                                "\"aseMantissa\":0.0,\"aseExponent\":0," +
+            // A save written before slice 4a has no remembrance field on AncestorData.
+            // Add-only field (ADR-0001): loads as null — Chronicle will handle null gracefully.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
                                 "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
-                                "\"currentStage\":0,\"currentPath\":-1,\"chosenOri\":-1," +
-                                "\"lastSaveTimestamp\":1781136000," +
-                                "\"generationStartTimestamp\":1781100000," +
-                                "\"seenFlags\":0,\"council\":[]," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0," +
+                                "\"council\":[{\"peakStage\":5,\"path\":1,\"didAscend\":true," +
+                                "\"bonusMultiplier\":1.0,\"completedTimestamp\":1781000000}]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":1}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(1, restored.council.Count);
+            Assert.IsNull(restored.council[0].remembrance,
+                "legacy ancestor without remembrance field loads with null (add-only, ADR-0001)");
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithEmptyDeeds()
+        {
+            // A save written before slice 4a has no deeds field.
+            // Add-only field (ADR-0001): loads with the default empty list.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0," +
+                                "\"council\":[]," +
                                 "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
 
             var restored = SaveSerializer.FromJson(legacyJson);
 
             Assert.IsNotNull(restored);
-            Assert.AreEqual("", restored.pendingCrossroadsId,
-                "legacy save defaults to no pending crossroads");
-            Assert.IsNotNull(restored.deeds,
-                "legacy save defaults to an empty deeds list");
-            Assert.IsEmpty(restored.deeds);
+            Assert.IsNotNull(restored.deeds, "deeds must not be null — default is an empty list");
+            Assert.IsEmpty(restored.deeds, "legacy save without deeds loads with empty list");
         }
     }
 }
