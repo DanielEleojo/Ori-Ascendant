@@ -62,10 +62,9 @@ namespace OriAscendant.Save
         /// Persists across save/load and app restart (no expiry). Add-only field (no schema bump).</summary>
         public List<string> pendingCrossroadsQueue = new List<string>();
 
-        /// <summary>Crossroads decisions made in the current life, in encounter order.
-        /// The Crossroads system (slices 2a/2b) writes entries; TribulationSystem reads
-        /// them at the Crossing to find the Defining Deed. Cleared at each generation
-        /// reset alongside all other per-life state. Add-only field per ADR-0001.</summary>
+        /// <summary>Deeds recorded this life — one per resolved Crossroads choice.
+        /// CrossroadsSystem writes; TribulationSystem reads at the Crossing to derive
+        /// the Defining Deed; cleared at generation reset. Add-only field per ADR-0001.</summary>
         public List<DeedData> deeds = new List<DeedData>();
 
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
@@ -163,11 +162,12 @@ namespace OriAscendant.Save
     }
 
     /// <summary>
-    /// A recorded Crossroads choice — one per resolved dilemma this life.
-    /// CrossroadsSystem.MakeChoice() is the sole writer. Fields serve two readers:
-    /// CrossroadsSystem UI (crossroadsId/chosenOptionIndex/wasOriAligned) and
-    /// Remembrance.Derive() (beatIndex/strayed = !wasOriAligned, indexing
-    /// CrossroadsDeckConfig.beats 1:1 with CrossroadsConfig.deck).
+    /// One resolved Crossroads decision in a life. Written by CrossroadsSystem when
+    /// the player makes a choice; read by Remembrance.Derive at the Crossing to find
+    /// the Defining Deed (the first stray). beatIndex is the card's position in the
+    /// CrossroadsConfig deck (parallel to CrossroadsDeckConfig.beats). strayed mirrors
+    /// !wasOriAligned for Remembrance's lookup without a runtime negation.
+    /// Add-only field per ADR-0001: old saves load with an empty list.
     /// Add-only per ADR-0001: old saves load with field defaults.
     /// </summary>
     [Serializable]
@@ -178,11 +178,6 @@ namespace OriAscendant.Save
         public bool wasOriAligned;      // true = chose the Ori-vow option
         public int beatIndex;           // index into CrossroadsDeckConfig.beats for epithet lookup
         public bool strayed;            // true = !wasOriAligned, kept in sync for Remembrance
-        public int chosenOptionIndex;
-        public bool wasOriAligned;
-        public bool strayed;        // = !wasOriAligned; kept for Remembrance.Derive()
-        public int beatIndex = -1;  // card's position in CrossroadsConfig.deck (= CrossroadsDeckConfig.beats index)
->>>>>>> sandcastle/issue-10
     }
 
     [Serializable]

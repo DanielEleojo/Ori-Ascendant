@@ -116,23 +116,14 @@ namespace OriAscendant.Systems
             _save.oriTrials++;
             if (aligned) _save.oriHeld++;
 
-            // Resolve the card's deck position for Remembrance (CrossroadsDeckConfig.beats 1:1 with deck).
-            int beatIndex = -1;
-            if (_config.deck != null)
-            {
-                for (int i = 0; i < _config.deck.Length; i++)
-                {
-                    if (_config.deck[i]?.id == card.id) { beatIndex = i; break; }
-                }
-            }
-
+            // card came from _config.deck via PendingCard, so IndexOf finds its slot.
             var deed = new DeedData
             {
                 crossroadsId = card.id,
                 chosenOptionIndex = optionIndex,
                 wasOriAligned = aligned,
+                beatIndex = Array.IndexOf(_config.deck, card),
                 strayed = !aligned,
-                beatIndex = beatIndex,
             };
             _save.deeds.Add(deed);
 
