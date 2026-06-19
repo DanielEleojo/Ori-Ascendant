@@ -194,17 +194,21 @@ namespace OriAscendant.Systems
         private CrossroadsCard TryDrawForebearCard()
         {
             if (_config.forebearSeedChance <= 0 || _save.chronicle == null) return null;
+
+            string forebearId = FindMostRecentForebearId();
+            if (string.IsNullOrEmpty(forebearId)) return null;
+
+            // Consume one draw for the seed roll (only the most recent forebear is checked).
+            if (_random.NextDouble() >= _config.forebearSeedChance) return null;
+            return _config.deck?.FirstOrDefault(c => c.id == forebearId);
+        }
+
+        private string FindMostRecentForebearId()
+        {
             for (int i = _save.chronicle.Count - 1; i >= 0; i--)
             {
-                string forebearId = _save.chronicle[i].forebearCrossroadsId;
-                if (string.IsNullOrEmpty(forebearId)) continue;
-                // Consume one draw for the seed roll (only the most recent forebear is checked).
-                if (_random.NextDouble() < _config.forebearSeedChance)
-                {
-                    CrossroadsCard forebearCard = _config.deck?.FirstOrDefault(c => c.id == forebearId);
-                    if (forebearCard != null) return forebearCard;
-                }
-                break; // one check per FireCrossroads call
+                string id = _save.chronicle[i].forebearCrossroadsId;
+                if (!string.IsNullOrEmpty(id)) return id;
             }
             return null;
         }
