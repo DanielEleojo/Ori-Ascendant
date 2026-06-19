@@ -110,11 +110,22 @@ namespace OriAscendant.Systems
             _save.oriTrials++;
             if (aligned) _save.oriHeld++;
 
+            int deckIndex = -1;
+            if (_config.deck != null)
+            {
+                for (int i = 0; i < _config.deck.Length; i++)
+                {
+                    if (_config.deck[i]?.id == _save.pendingCrossroadsId) { deckIndex = i; break; }
+                }
+            }
+
             var deed = new DeedData
             {
                 crossroadsId = card.id,
                 chosenOptionIndex = optionIndex,
                 wasOriAligned = aligned,
+                beatIndex = deckIndex,
+                strayed = !aligned,
             };
             _save.deeds.Add(deed);
             _save.pendingCrossroadsId = "";
