@@ -322,7 +322,8 @@ namespace OriAscendant.Tests.EditMode
         [Test]
         public void Chronicle_NullRemembrance_RoundTrips()
         {
-            // Legacy chronicle entries may have no remembrance (pre-slice-4a).
+            // Serialization safety: remembrance is a reference type and defaults
+            // to null when not set; the screen renders null as "—".
             var save = new SaveData();
             save.chronicle.Add(new ChronicleEntry
             {

@@ -1344,7 +1344,7 @@ namespace OriAscendant.EditorTools
             Assign(screen, "_root", shrineRoot.gameObject);
             Assign(screen, "_closeButton", close);
             Assign(screen, "_chronicleButton", chronicleBtn);
-            if (chronicleScreen != null) Assign(screen, "_chronicleScreen", chronicleScreen);
+            Assign(screen, "_chronicleScreen", chronicleScreen);
 
             // Five card rows, top to bottom.
             for (int i = 0; i < 5; i++)
