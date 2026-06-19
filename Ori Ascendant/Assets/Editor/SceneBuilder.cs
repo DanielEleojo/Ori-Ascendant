@@ -160,6 +160,10 @@ namespace OriAscendant.EditorTools
             config.revealSeconds = 2.5f;
             config.ancestorCardSeconds = 2.5f;
             config.finalBeatSeconds = 2.0f;
+            // Crowned Ascended reveal (Phase 6, issue #11): slot left null until the
+            // bespoke appearance-0 portrait ships (funded + §7.10 native-speaker-cleared).
+            // When the art lands, assign it here; gold-FX overlay is the fallback.
+            config.crownedAscendedRevealPortrait = null;
             EditorUtility.SetDirty(config);
             return config;
         }

@@ -43,6 +43,23 @@ namespace OriAscendant.Data
         public float ancestorCardSeconds = 2.5f;
         public float finalBeatSeconds = 2.0f;
 
+        [Header("Crowned Ascended reveal (Phase 6 — appearance-0, funded + §7.10-gated)")]
+        [Tooltip("Bespoke crowned portrait for the ascension reveal beat (appearance-0). " +
+                 "Null = gold-FX fallback (slice 6). Art ships when funded and §7.10-cleared. " +
+                 "Per-appearance crowns ride with the Appearance pool (ADR-0001).")]
+        public Sprite crownedAscendedRevealPortrait;
+
         public BigNumber GetAseThreshold() => new BigNumber(aseThresholdMantissa, aseThresholdExponent);
+
+        /// <summary>
+        /// Returns the portrait sprite to show during the reveal beat.
+        /// Uses the bespoke crowned portrait (appearance-0) when it is set and the
+        /// outcome is ascend; falls back to the humble Stage-6 Victor portrait otherwise
+        /// (the committed gold-FX fallback path).
+        /// </summary>
+        public Sprite RevealSprite(bool ascended, Sprite victoryPortrait) =>
+            ascended && crownedAscendedRevealPortrait != null
+                ? crownedAscendedRevealPortrait
+                : victoryPortrait;
     }
 }
