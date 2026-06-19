@@ -25,7 +25,7 @@ namespace OriAscendant.Systems
 
     /// <summary>
     /// Ìrékọjá resolution (TECH_DESIGN §4, GAMEPLAY §3.5/§4.4). ROLL ONCE,
-    /// PERSIST FIRST: the 60/40 coin resolves at confirmation and the COMPLETE
+    /// PERSIST FIRST: the ascend roll resolves at confirmation and the COMPLETE
     /// next-generation state is written and saved before any ceremony frame
     /// plays — if the app dies mid-animation, the outcome survives. The ceremony
     /// is replayable theater driven by the returned <see cref="TribulationResult"/>.
