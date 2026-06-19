@@ -130,15 +130,14 @@ namespace OriAscendant.Systems
             };
             _save.deeds.Add(deed);
 
-            // Promote next from queue, if any.
-            _save.pendingCrossroadsId = "";
+            // Promote next from queue, if any. Begin() guarantees the queue is non-null.
             string nextId = null;
-            if (_save.pendingCrossroadsQueue?.Count > 0)
+            if (_save.pendingCrossroadsQueue.Count > 0)
             {
                 nextId = _save.pendingCrossroadsQueue[0];
                 _save.pendingCrossroadsQueue.RemoveAt(0);
-                _save.pendingCrossroadsId = nextId;
             }
+            _save.pendingCrossroadsId = nextId ?? "";
 
             if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
             OnCrossroadsResolved?.Invoke(deed);
@@ -175,12 +174,11 @@ namespace OriAscendant.Systems
         }
 
         // Total crossroads triggered this life: active + queued + already resolved.
+        // Begin() guarantees both lists are non-null.
         private int TriggerCount()
         {
             int active = string.IsNullOrEmpty(_save.pendingCrossroadsId) ? 0 : 1;
-            int queued = _save.pendingCrossroadsQueue?.Count ?? 0;
-            int resolved = _save.deeds?.Count ?? 0;
-            return active + queued + resolved;
+            return active + _save.pendingCrossroadsQueue.Count + _save.deeds.Count;
         }
 
         private void FireCrossroads()
@@ -192,20 +190,16 @@ namespace OriAscendant.Systems
             CrossroadsCard card = _config.GetCard(index);
             if (card == null || string.IsNullOrEmpty(card.id)) return;
 
-            if (string.IsNullOrEmpty(_save.pendingCrossroadsId))
-            {
-                // No active crossroads — make this the current one.
+            // Empty active slot → this card becomes the current one; else it queues
+            // and surfaces after the active is resolved. Begin() guarantees the queue is non-null.
+            bool becomesActive = string.IsNullOrEmpty(_save.pendingCrossroadsId);
+            if (becomesActive)
                 _save.pendingCrossroadsId = card.id;
-                if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
-                OnCrossroadsReady?.Invoke(card.id);
-            }
             else
-            {
-                // Active slot taken — queue this one; it will surface after the active is resolved.
-                if (_save.pendingCrossroadsQueue == null) _save.pendingCrossroadsQueue = new List<string>();
                 _save.pendingCrossroadsQueue.Add(card.id);
-                if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
-            }
+
+            if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
+            if (becomesActive) OnCrossroadsReady?.Invoke(card.id);
         }
     }
 }

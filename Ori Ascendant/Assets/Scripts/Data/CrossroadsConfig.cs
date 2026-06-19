@@ -96,10 +96,10 @@ namespace OriAscendant.Data
         /// <summary>How many milestones are at or below the given Àṣẹ amount.</summary>
         public int CountMilestonesCrossed(BigNumber ase)
         {
-            var all = GetAllMilestones();
-            int count = 0;
-            foreach (var m in all)
-                if (ase >= m) count++;
+            int count = ase >= GetMilestone() ? 1 : 0;
+            if (extraMilestones != null)
+                foreach (var m in extraMilestones)
+                    if (ase >= m.Value) count++;
             return count;
         }
     }
