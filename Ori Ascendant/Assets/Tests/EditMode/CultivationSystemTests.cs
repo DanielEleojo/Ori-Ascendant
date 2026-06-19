@@ -237,7 +237,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1, announcements);
         }
 
-        // ---- portrait pipeline (slice 6) ----
+        // ---- portrait pipeline ----
 
         [Test]
         public void StageAdvance_PortraitFromConfig_SwitchesWithStage()
@@ -245,8 +245,10 @@ namespace OriAscendant.Tests.EditMode
             // Tag each stage config with a unique sprite so portrait selection is
             // verifiable without hitting the disk (ScriptableObject in memory).
             var stages = EditModeTestHelpers.MakeStageTable();
-            var sprite0 = Sprite.Create(new Texture2D(1, 1), new Rect(0, 0, 1, 1), Vector2.zero);
-            var sprite1 = Sprite.Create(new Texture2D(1, 1), new Rect(0, 0, 1, 1), Vector2.zero);
+            var tex0 = new Texture2D(1, 1);
+            var tex1 = new Texture2D(1, 1);
+            var sprite0 = Sprite.Create(tex0, new Rect(0, 0, 1, 1), Vector2.zero);
+            var sprite1 = Sprite.Create(tex1, new Rect(0, 0, 1, 1), Vector2.zero);
             stages[0].portrait = sprite0;
             stages[1].portrait = sprite1;
             EditModeTestHelpers.InjectArray(_cultivation, "_stages", stages);
@@ -262,6 +264,8 @@ namespace OriAscendant.Tests.EditMode
 
             Object.DestroyImmediate(sprite0);
             Object.DestroyImmediate(sprite1);
+            Object.DestroyImmediate(tex0);
+            Object.DestroyImmediate(tex1);
         }
     }
 }

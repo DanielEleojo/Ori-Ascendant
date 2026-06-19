@@ -98,7 +98,7 @@ namespace OriAscendant.UI
             TickOriPrompt();
         }
 
-        // ---- portrait pipeline (slice 6): sync Image.sprite to current stage config ----
+        // ---- portrait (zone 4): sync sprite to the current stage's config ----
 
         private void HandleStageAdvanced(int _) => RefreshPortrait();
 
