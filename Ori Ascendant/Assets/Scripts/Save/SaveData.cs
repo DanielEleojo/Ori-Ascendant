@@ -55,9 +55,9 @@ namespace OriAscendant.Save
         /// Add-only field (no schema bump per ADR-0001).</summary>
         public string pendingCrossroadsId = "";
 
-        /// <summary>Deeds recorded this life — one per resolved Crossroads choice.
-        /// Reset by TribulationSystem at the Crossing (the Chronicle will persist
-        /// them long-term in a later slice). Add-only field (no schema bump).</summary>
+        /// <summary>Crossroads decisions made in the current life, in encounter order.
+        /// CrossroadsSystem writes entries; TribulationSystem reads them at the Crossing
+        /// to find the Defining Deed. Cleared at each generation reset. Add-only per ADR-0001.</summary>
         public List<DeedData> deeds = new List<DeedData>();
 
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
@@ -78,12 +78,6 @@ namespace OriAscendant.Save
 
         /// <summary>Active Ancestral Council, max 5 (CouncilConfig.maxCouncil).</summary>
         public List<AncestorData> council = new List<AncestorData>();
-
-        /// <summary>Crossroads decisions made in the current life, in encounter order.
-        /// The Crossroads system (slices 2a/2b) writes entries; TribulationSystem reads
-        /// them at the Crossing to find the Defining Deed. Cleared at each generation
-        /// reset alongside all other per-life state. Add-only field per ADR-0001.</summary>
-        public List<DeedData> deeds = new List<DeedData>();
 
         public LineageData lineage = new LineageData();
 
@@ -140,23 +134,12 @@ namespace OriAscendant.Save
     }
 
     /// <summary>
-    /// One resolved Crossroads decision in a life. beatIndex indexes into
-    /// CrossroadsDeckConfig.beats; strayed is true when the cultivator chose
-    /// against their Ori vow. Written by the Crossroads system (slices 2a/2b);
-    /// read by TribulationSystem to derive the Defining Deed at the Crossing.
-    /// Add-only field per ADR-0001: old saves load with an empty list.
-    /// </summary>
-    [Serializable]
-    public class DeedData
-    {
-        public int beatIndex;  // index into CrossroadsDeckConfig.beats
-        public bool strayed;   // true = cultivator chose against their Ori vow
-    }
-
-    /// <summary>
     /// A recorded Crossroads choice — one per resolved dilemma this life.
-    /// wasOriAligned drives the steadfastness tally; crossroadsId + chosenOptionIndex
-    /// will key the deed-tied Nickname in the Chronicle (later slice).
+    /// CrossroadsSystem.MakeChoice() is the sole writer. Fields serve two readers:
+    /// CrossroadsSystem UI (crossroadsId/chosenOptionIndex/wasOriAligned) and
+    /// Remembrance.Derive() (beatIndex/strayed = !wasOriAligned, indexing
+    /// CrossroadsDeckConfig.beats 1:1 with CrossroadsConfig.deck).
+    /// Add-only per ADR-0001: old saves load with field defaults.
     /// </summary>
     [Serializable]
     public class DeedData
@@ -164,6 +147,8 @@ namespace OriAscendant.Save
         public string crossroadsId;
         public int chosenOptionIndex;
         public bool wasOriAligned;
+        public bool strayed;        // = !wasOriAligned; kept for Remembrance.Derive()
+        public int beatIndex = -1;  // card's position in CrossroadsConfig.deck (= CrossroadsDeckConfig.beats index)
     }
 
     [Serializable]

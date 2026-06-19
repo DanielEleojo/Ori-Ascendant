@@ -110,11 +110,23 @@ namespace OriAscendant.Systems
             _save.oriTrials++;
             if (aligned) _save.oriHeld++;
 
+            // Resolve the card's deck position for Remembrance (CrossroadsDeckConfig.beats 1:1 with deck).
+            int beatIndex = -1;
+            if (_config.deck != null)
+            {
+                for (int i = 0; i < _config.deck.Length; i++)
+                {
+                    if (_config.deck[i]?.id == card.id) { beatIndex = i; break; }
+                }
+            }
+
             var deed = new DeedData
             {
                 crossroadsId = card.id,
                 chosenOptionIndex = optionIndex,
                 wasOriAligned = aligned,
+                strayed = !aligned,
+                beatIndex = beatIndex,
             };
             _save.deeds.Add(deed);
             _save.pendingCrossroadsId = "";
