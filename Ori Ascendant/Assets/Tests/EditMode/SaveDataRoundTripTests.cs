@@ -381,5 +381,50 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsNull(restored.chronicle[0].remembrance,
                 "null remembrance survives round-trip (Chronicle handles null gracefully)");
         }
+
+        // ---- Forebear compounding (issue #8) ----
+
+        [Test]
+        public void ChronicleEntry_ForebearCrossroadsId_RoundTrips()
+        {
+            var save = new SaveData();
+            save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = 1,
+                forebearCrossroadsId = "card_b",
+            });
+            save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = 2,
+                forebearCrossroadsId = "", // faithful life — no forebear deed
+            });
+
+            var restored = RoundTrip(save);
+
+            Assert.AreEqual("card_b", restored.chronicle[0].forebearCrossroadsId,
+                "forebearCrossroadsId survives a JSON round-trip");
+            Assert.AreEqual("", restored.chronicle[1].forebearCrossroadsId,
+                "empty forebearCrossroadsId (faithful life) survives round-trip");
+        }
+
+        [Test]
+        public void LegacyChronicleEntry_LoadsWithNullForebearCrossroadsId()
+        {
+            // A save written before issue #8 has no forebearCrossroadsId on ChronicleEntry.
+            // Add-only field (ADR-0001): loads as null; CrossroadsSystem treats null == empty.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0,\"council\":[]," +
+                                "\"chronicle\":[{\"generationNumber\":1,\"chosenOri\":0," +
+                                "\"didAscend\":false,\"remembrance\":\"The Wavering\",\"completedTimestamp\":1781000000}]," +
+                                "\"lineage\":{\"permanentAseBonus\":0,\"generationCount\":1}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.AreEqual(1, restored.chronicle.Count);
+            Assert.IsTrue(string.IsNullOrEmpty(restored.chronicle[0].forebearCrossroadsId),
+                "legacy ChronicleEntry without forebearCrossroadsId loads as null/empty (ADR-0001)");
+        }
     }
 }

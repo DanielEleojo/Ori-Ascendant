@@ -180,15 +180,48 @@ namespace OriAscendant.Systems
 
         private void FireCrossroads()
         {
-            // NextDouble() is contractually [0, 1), so the cast is in [0, DeckSize - 1];
-            // the Min clamp defends against a test source returning 1.0 exactly.
+            // Light dynasty compounding (issue #8): try to surface a forebear's Defining
+            // Deed card before falling back to a random draw from the full deck.
+            CrossroadsCard card = TryDrawForebearCard() ?? DrawFromDeck();
+            if (card == null || string.IsNullOrEmpty(card.id)) return;
+            ActivateOrQueueCard(card);
+        }
+
+        /// <summary>Checks the most recent chronicle entry with a forebear card ID.
+        /// Consumes one random draw for the seed roll if a candidate entry is found.
+        /// Returns the forebear's card when the roll passes and the card is in the deck;
+        /// returns null (and falls back to the normal draw) otherwise.</summary>
+        private CrossroadsCard TryDrawForebearCard()
+        {
+            if (_config.forebearSeedChance <= 0 || _save.chronicle == null) return null;
+            for (int i = _save.chronicle.Count - 1; i >= 0; i--)
+            {
+                string forebearId = _save.chronicle[i].forebearCrossroadsId;
+                if (string.IsNullOrEmpty(forebearId)) continue;
+                // Consume one draw for the seed roll (only the most recent forebear is checked).
+                if (_random.NextDouble() < _config.forebearSeedChance)
+                {
+                    CrossroadsCard forebearCard = _config.deck?.FirstOrDefault(c => c.id == forebearId);
+                    if (forebearCard != null) return forebearCard;
+                }
+                break; // one check per FireCrossroads call
+            }
+            return null;
+        }
+
+        /// <summary>Random draw from the full deck. NextDouble() is contractually [0, 1);
+        /// the Min clamp defends against a test source returning 1.0 exactly.</summary>
+        private CrossroadsCard DrawFromDeck()
+        {
             int index = (int)(_random.NextDouble() * _config.DeckSize);
             index = Math.Min(_config.DeckSize - 1, index);
-            CrossroadsCard card = _config.GetCard(index);
-            if (card == null || string.IsNullOrEmpty(card.id)) return;
+            return _config.GetCard(index);
+        }
 
-            // Empty active slot → this card becomes the current one; else it queues
-            // and surfaces after the active is resolved. Begin() guarantees the queue is non-null.
+        /// <summary>Enqueues or activates the given card. Empty active slot → card becomes
+        /// active and OnCrossroadsReady fires; otherwise card waits in the queue.</summary>
+        private void ActivateOrQueueCard(CrossroadsCard card)
+        {
             bool becomesActive = string.IsNullOrEmpty(_save.pendingCrossroadsId);
             if (becomesActive)
                 _save.pendingCrossroadsId = card.id;

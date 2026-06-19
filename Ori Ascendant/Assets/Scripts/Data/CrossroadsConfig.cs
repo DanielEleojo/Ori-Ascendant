@@ -75,6 +75,10 @@ namespace OriAscendant.Data
         [Tooltip("Seed deck of crossroads cards; one is drawn at random each time a milestone fires.")]
         public CrossroadsCard[] deck;
 
+        [Tooltip("Probability (0–1) that a forebear's Defining Deed crossroads card is offered instead of a random draw when the chronicle has a suitable entry (light dynasty compounding, issue #8). 0 disables forebear seeding.")]
+        [Range(0f, 1f)]
+        public float forebearSeedChance = 0.5f;
+
         public BigNumber GetMilestone() => new BigNumber(milestoneMantissa, milestoneExponent);
 
         public int DeckSize => deck != null ? deck.Length : 0;

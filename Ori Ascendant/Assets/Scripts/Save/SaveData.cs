@@ -159,6 +159,12 @@ namespace OriAscendant.Save
         public bool didAscend;
         public string remembrance;      // Title (ascend) or Nickname (fall); null for legacy
         public long completedTimestamp; // Unix seconds UTC
+
+        /// <summary>The crossroads card ID from the Defining Deed of this life (the first
+        /// strayed choice), or "" if the life was faithful. Stored so descendants may
+        /// encounter the same crossroads (light dynasty compounding, issue #8).
+        /// Add-only field per ADR-0001; old saves load with null → treated as empty.</summary>
+        public string forebearCrossroadsId;
     }
 
     /// <summary>

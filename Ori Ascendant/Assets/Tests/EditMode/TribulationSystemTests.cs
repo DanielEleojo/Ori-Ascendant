@@ -559,5 +559,163 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual("The Divided", entry.remembrance,
                 "fall Nickname from the first strayed deed carries into the chronicle");
         }
+
+        // ---- Forebear crossroads seeding (issue #8) ----
+
+        [Test]
+        public void Resolve_StoresForebearCrossroadsId_WhenDefiningDeedExists()
+        {
+            // Faithful deed first; Defining Deed (first stray) has id "card_b".
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 2, crossroadsId = "card_a", strayed = false }); // faithful
+            _save.deeds.Add(new DeedData { beatIndex = 1, crossroadsId = "card_b", strayed = true });   // Defining Deed
+            _save.deeds.Add(new DeedData { beatIndex = 0, crossroadsId = "card_c", strayed = true });   // second stray — not selected
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual("card_b", _save.chronicle[0].forebearCrossroadsId,
+                "forebearCrossroadsId stores the Defining Deed card (first strayed deed)");
+        }
+
+        [Test]
+        public void Resolve_StoresEmptyForebearCrossroadsId_WhenNoStrays()
+        {
+            // A life with only faithful deeds leaves an empty forebear card ID.
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            _save.deeds.Add(new DeedData { beatIndex = 0, crossroadsId = "card_a", strayed = false });
+            _save.deeds.Add(new DeedData { beatIndex = 1, crossroadsId = "card_b", strayed = false });
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall
+
+            _tribulation.Resolve();
+
+            Assert.IsTrue(string.IsNullOrEmpty(_save.chronicle[0].forebearCrossroadsId),
+                "faithful life (no strays) stores an empty forebearCrossroadsId");
+        }
+
+        [Test]
+        public void Resolve_StoresEmptyForebearCrossroadsId_WhenNoDeeds()
+        {
+            // A life with no crossroads at all stores an empty forebear card ID.
+            InjectRemembranceConfigs();
+            ArmAtPeak();
+            // _save.deeds is empty by default
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall
+
+            _tribulation.Resolve();
+
+            Assert.IsTrue(string.IsNullOrEmpty(_save.chronicle[0].forebearCrossroadsId),
+                "a life with no deeds stores an empty forebearCrossroadsId");
+        }
+
+        // ---- Line-legacy modifier (issue #8) ----
+
+        [Test]
+        public void LineLegacyBonus_NoChronicle_ReturnsZero()
+        {
+            // Default save has empty chronicle.
+            _save.chosenOri = 0;
+            Assert.AreEqual(0.0, _tribulation.LineLegacyBonus, 1e-12, "empty chronicle → zero bonus");
+        }
+
+        [Test]
+        public void LineLegacyBonus_OneConsecutiveMatch_ReturnsBonusPerGen()
+        {
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            Assert.AreEqual(0.05, _tribulation.LineLegacyBonus, 1e-12,
+                "one consecutive matching Ori → one bonusPerGen (0.05)");
+        }
+
+        [Test]
+        public void LineLegacyBonus_TwoConsecutiveMatches_ReturnsTwoBonusPerGen()
+        {
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            Assert.AreEqual(0.10, _tribulation.LineLegacyBonus, 1e-12,
+                "two consecutive → 2 × 0.05 = 0.10");
+        }
+
+        [Test]
+        public void LineLegacyBonus_ThreeConsecutiveMatches_ClampedAtMax()
+        {
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            // 3 × 0.05 = 0.15 = max
+            Assert.AreEqual(0.15, _tribulation.LineLegacyBonus, 1e-12,
+                "three consecutive → capped at lineLegacyMaxBonus (0.15)");
+        }
+
+        [Test]
+        public void LineLegacyBonus_ExceedsMax_StillClampsToMax()
+        {
+            _save.chosenOri = 0;
+            for (int i = 0; i < 10; i++)
+                _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            // 10 × 0.05 = 0.50 but max is 0.15
+            Assert.AreEqual(0.15, _tribulation.LineLegacyBonus, 1e-12,
+                "long streak is still bounded at lineLegacyMaxBonus (ADR-0005)");
+        }
+
+        [Test]
+        public void LineLegacyBonus_BrokenStreak_OnlyCountsFromMostRecentGeneration()
+        {
+            // chronicle (oldest → newest): ori=0, ori=1 (break), ori=0 (current life's match)
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 }); // oldest — streak broken
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 1 }); // break
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 }); // most recent — match
+            // Reading backwards: last entry = ori 0 (match, count=1); next = ori 1 (break)
+            Assert.AreEqual(0.05, _tribulation.LineLegacyBonus, 1e-12,
+                "streak breaks on mismatch — only the unbroken tail from the most recent gen counts");
+        }
+
+        [Test]
+        public void LineLegacyBonus_MismatchedMostRecent_ReturnsZero()
+        {
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 }); // older match
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 1 }); // most recent: mismatch
+            Assert.AreEqual(0.0, _tribulation.LineLegacyBonus, 1e-12,
+                "most recent gen holds a different Ori → zero bonus");
+        }
+
+        [Test]
+        public void LineLegacyBonus_NoOriVowed_ReturnsZero()
+        {
+            _save.chosenOri = -1; // no vow this life
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            Assert.AreEqual(0.0, _tribulation.LineLegacyBonus, 1e-12,
+                "current life with no Ori vow earns no line-legacy bonus");
+        }
+
+        [Test]
+        public void AscendChance_IncludesLineLegacyBonus()
+        {
+            // 0 trials → floor 0.25; one consecutive Ori match → +0.05 legacy → 0.30.
+            _save.oriTrials = 0;
+            _save.chosenOri = 0;
+            _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            Assert.AreEqual(0.30, _tribulation.AscendChance, 1e-12,
+                "AscendChance includes LineLegacyBonus when there is a matching ancestry streak");
+        }
+
+        [Test]
+        public void AscendChance_WithLineLegacyBonus_NeverExceedsCeiling()
+        {
+            // Full steadfastness (ceiling 0.90) + 3-gen streak (0.15 bonus) clamps to ceiling.
+            _save.oriHeld = 5;
+            _save.oriTrials = 5;
+            _save.chosenOri = 0;
+            for (int i = 0; i < 3; i++)
+                _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
+            Assert.AreEqual(0.90, _tribulation.AscendChance, 1e-12,
+                "AscendChance with line-legacy bonus is clamped to the config ceiling (ADR-0005)");
+        }
     }
 }

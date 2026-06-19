@@ -440,6 +440,113 @@ namespace OriAscendant.Tests.EditMode
             Object.DestroyImmediate(resumeHost);
         }
 
+        // ---- Forebear-seeded crossroads (issue #8) ----
+
+        [Test]
+        public void FireCrossroads_EmptyChronicle_DrawsFromDeckNormally()
+        {
+            // No chronicle entries → forebear seeding is skipped; normal deck draw applies.
+            _crossroads.SetRandomSource(new FakeRandom(0.0)); // deck index 0 → card_a
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "empty chronicle → no forebear seeding → normal deck draw → card_a");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearDeedInChronicle_HighSeedChance_DrawsForebearCard()
+        {
+            // Chronicle has a forebear deed for card_b; seed chance = 1.0 guarantees seed.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: first draw = seed roll (0.0 < 1.0 → seed passes) → forebear card_b surfaces.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId,
+                "forebear seed roll passes → ancestor's card surfaces in the descendant's life");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearDeedInChronicle_SeedRollFails_FallsBackToRandomDraw()
+        {
+            // seedChance = 0.5; seed roll = 0.9 ≥ 0.5 → seed fails; fallback draw = 0.0 → card_a.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(0.5f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: [seed roll = 0.9 (fails), deck draw = 0.0 → index 0 → card_a]
+            _crossroads.SetRandomSource(new FakeRandom(0.9, 0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "seed roll fails → normal deck draw → card_a");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearCardNotInDeck_FallsBackToRandomDraw()
+        {
+            // Forebear's card ID ("card_unknown") not present in the current deck.
+            // Seed roll passes but card lookup fails → normal deck draw takes over.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_unknown" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: [seed roll = 0.0 (passes, but card not found), deck draw = 0.0 → card_a]
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "forebear card not in current deck → falls back to random deck draw");
+        }
+
+        [Test]
+        public void FireCrossroads_ChronicleHasOnlyFaithfulEntries_DrawsFromDeckNormally()
+        {
+            // Chronicle entries with empty forebearCrossroadsId (faithful lives) are skipped.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "" });
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = null });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // No forebear card found → no seed roll consumed → normal draw uses first random value.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "faithful-only chronicle → no forebear seeding → normal deck draw");
+        }
+
+        [Test]
+        public void FireCrossroads_OnlyMostRecentForebearIsChecked()
+        {
+            // Older entry has card_a; most recent has card_b. Only most recent is seeded.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_a" }); // older
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" }); // most recent
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // Seed roll = 0.0 → passes → most recent forebear's card (card_b) surfaces.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId,
+                "only the most recent forebear's card is checked — not older entries");
+        }
+
         // ---- helpers ----
 
         /// <summary>Directly arms a pending crossroads by setting the save field,

@@ -61,19 +61,46 @@ namespace OriAscendant.Systems
         public void SetRandomSource(IRandomSource random) =>
             _random = random ?? throw new ArgumentNullException(nameof(random));
 
+        /// <summary>Bonus to AscendChance from holding the same Ori across consecutive
+        /// generations (light dynasty compounding, issue #8). Counts consecutive tail
+        /// entries in the chronicle where chosenOri matches the current life's chosenOri,
+        /// reading backwards from the most recent. Bounded by config.lineLegacyMaxBonus.
+        /// Returns 0 when the current life has no Ori vow (chosenOri == -1) or no
+        /// matching streak exists.</summary>
+        public double LineLegacyBonus
+        {
+            get
+            {
+                if (_save?.chronicle == null || _save.chosenOri < 0 || _config == null) return 0.0;
+                int consecutive = 0;
+                for (int i = _save.chronicle.Count - 1; i >= 0; i--)
+                {
+                    if (_save.chronicle[i].chosenOri == _save.chosenOri)
+                        consecutive++;
+                    else
+                        break;
+                }
+                double bonus = consecutive * _config.lineLegacyBonusPerGen;
+                return Math.Min(bonus, _config.lineLegacyMaxBonus);
+            }
+        }
+
         /// <summary>Ascend probability for the current life, derived from steadfastness
-        /// (held/trials) via the config floor→ceiling curve. trials==0 → floor (a life
-        /// that faced no resolved crossroads earns no steadfastness credit). Reads ONLY
-        /// the tally + config — never the deity-Path (ADR-0004 orthogonality). The
-        /// confirm sheet shows this exact value, and Resolve rolls against it.</summary>
+        /// (held/trials) via the config floor→ceiling curve, plus the line-legacy bonus
+        /// (bounded, clamped to the ceiling — ADR-0004 / issue #8). trials==0 → floor
+        /// (a life that faced no resolved crossroads earns no steadfastness credit).
+        /// Reads ONLY the tally + config — never the deity-Path (ADR-0004 orthogonality).
+        /// The confirm sheet shows this exact value, and Resolve rolls against it.</summary>
         public double AscendChance
         {
             get
             {
                 if (_save == null || _config == null) return 0.0;
-                if (_save.oriTrials <= 0) return _config.ascendFloor;
+                if (_save.oriTrials <= 0)
+                    return Math.Min(_config.ascendFloor + LineLegacyBonus, _config.ascendCeiling);
                 double rate = (double)_save.oriHeld / _save.oriTrials;
-                return _config.ascendFloor + (_config.ascendCeiling - _config.ascendFloor) * rate;
+                double baseChance = _config.ascendFloor + (_config.ascendCeiling - _config.ascendFloor) * rate;
+                return Math.Min(baseChance + LineLegacyBonus, _config.ascendCeiling);
             }
         }
 
@@ -131,6 +158,21 @@ namespace OriAscendant.Systems
                 remembrance = remembrance,
             };
 
+            // Forebear compounding (issue #8): find the Defining Deed's card ID (first stray)
+            // to store in the chronicle so descendants may be offered the same crossroads.
+            string forebearCrossroadsId = "";
+            if (_save.deeds != null)
+            {
+                foreach (var deed in _save.deeds)
+                {
+                    if (deed.strayed && !string.IsNullOrEmpty(deed.crossroadsId))
+                    {
+                        forebearCrossroadsId = deed.crossroadsId;
+                        break;
+                    }
+                }
+            }
+
             // Chronicle: unbounded saga record — survives Council retirement (issue #7).
             // Appended before the reset so pre-reset fields (chosenOri, generationCount)
             // are captured intact.
@@ -141,6 +183,7 @@ namespace OriAscendant.Systems
                 didAscend = ascended,
                 remembrance = remembrance,
                 completedTimestamp = now,
+                forebearCrossroadsId = forebearCrossroadsId,
             });
 
             double w = council != null ? council.W : 0.25;

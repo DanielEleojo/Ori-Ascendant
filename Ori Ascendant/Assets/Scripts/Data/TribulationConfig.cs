@@ -34,6 +34,13 @@ namespace OriAscendant.Data
         [Tooltip("Hold-to-begin ring duration on the confirm sheet (seconds).")]
         public double holdToConfirmSeconds = 0.8;
 
+        [Header("Line-legacy compounding (issue #8)")]
+        [Tooltip("Bonus added to AscendChance per consecutive generation that held the same Ori as the current life. Bounded by lineLegacyMaxBonus.")]
+        public double lineLegacyBonusPerGen = 0.05;
+
+        [Tooltip("Maximum total line-legacy bonus (caps lineLegacyBonusPerGen × consecutiveCount). Keeps compounding bounded (ADR-0005).")]
+        public double lineLegacyMaxBonus = 0.15;
+
         [Header("Ceremony beats (GAMEPLAY §3.5 timing table)")]
         public float transitionSeconds = 2.0f;
         public int stormWaveCount = 3;
