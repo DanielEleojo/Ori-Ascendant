@@ -297,12 +297,14 @@ namespace OriAscendant.UI.Screens
                     $"Lineage Àṣẹ: ×{_result.LineageFactorBefore:0.00} → ×{_result.LineageFactorAfter:0.00}";
             }
 
-            // Victor portrait: the Stage 6 sprite at the moment of crossing
-            // (placeholder until Phase D art; seam is clear — swap the sprite asset).
+            // Victor portrait: bespoke crowned reveal (appearance-0) when slot is
+            // filled and outcome is ascend; Stage-6 humble Victor portrait otherwise
+            // (the committed gold-FX fallback from slice 6).
             if (_victoryPortrait != null)
             {
                 ServiceLocator.TryGet(out CultivationSystem cultivation);
-                _victoryPortrait.sprite = cultivation?.CurrentStageConfig?.portrait;
+                Sprite stage6Portrait = cultivation?.CurrentStageConfig?.portrait;
+                _victoryPortrait.sprite = _config?.RevealSprite(ascended, stage6Portrait);
                 _victoryPortrait.gameObject.SetActive(true);
             }
 
