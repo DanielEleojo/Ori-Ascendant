@@ -132,5 +132,39 @@ namespace OriAscendant.Tests.EditMode
                 Assert.IsNotEmpty(virtue.vowLine, "every Ori virtue needs a vow line");
             }
         }
+
+        [Test]
+        public void RemembranceConfig_HasNamePoolAndFaithfulFallLine()
+        {
+            // Dynasty PRD slice 4a: seed content is placeholder (pre-§7.10).
+            // The shape — non-empty pool, non-empty faithful-fall line — is the contract.
+            var config = Load<RemembranceConfig>("Assets/Configs/RemembranceConfig.asset");
+            Assert.IsNotNull(config.personalNames, "RemembranceConfig must define a personal-name pool");
+            Assert.GreaterOrEqual(config.personalNames.Length, 1,
+                "at least one personal name is required to form a Title");
+            foreach (var name in config.personalNames)
+            {
+                Assert.IsNotEmpty(name, "every personal name in the pool must be non-empty");
+            }
+            Assert.IsNotEmpty(config.faithfulFallLine,
+                "faithfulFallLine is the dignified fallback for lives that held their Ori vow");
+        }
+
+        [Test]
+        public void CrossroadsDeckConfig_HasBeatsWithEpithets()
+        {
+            // Dynasty PRD slice 4a: each beat carries a fallenEpithet (placeholder pre-§7.10).
+            // The shape — non-empty deck, non-empty epithet on every beat — is the contract.
+            var config = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeckConfig.asset");
+            Assert.IsNotNull(config.beats, "CrossroadsDeckConfig must define a beats array");
+            Assert.GreaterOrEqual(config.Count, 1,
+                "the deck must contain at least one beat");
+            foreach (var beat in config.beats)
+            {
+                Assert.IsNotNull(beat, "beats array must not contain null entries");
+                Assert.IsNotEmpty(beat.fallenEpithet,
+                    "every beat must supply a fallenEpithet — the Defining Deed Nickname");
+            }
+        }
     }
 }

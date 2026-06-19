@@ -62,6 +62,12 @@ namespace OriAscendant.Save
         /// <summary>Active Ancestral Council, max 5 (CouncilConfig.maxCouncil).</summary>
         public List<AncestorData> council = new List<AncestorData>();
 
+        /// <summary>Crossroads decisions made in the current life, in encounter order.
+        /// The Crossroads system (slices 2a/2b) writes entries; TribulationSystem reads
+        /// them at the Crossing to find the Defining Deed. Cleared at each generation
+        /// reset alongside all other per-life state. Add-only field per ADR-0001.</summary>
+        public List<DeedData> deeds = new List<DeedData>();
+
         public LineageData lineage = new LineageData();
 
         // ---- BigNumber bridge helpers (methods, not properties, so Newtonsoft
@@ -108,6 +114,26 @@ namespace OriAscendant.Save
         public bool didAscend;          // true = full power, false = lesser
         public double bonusMultiplier;  // 1.0 if ascended, 0.4 if fallen (locked)
         public long completedTimestamp; // Unix seconds UTC; retirement order key
+
+        /// <summary>How this cultivator is remembered — a Title ("Aṣẹ́gun Adé") for
+        /// ascended, a Nickname (the Defining Deed epithet or faithful-fall line) for
+        /// fallen. Derived at the Crossing by Remembrance.Derive() before the reset.
+        /// Add-only field per ADR-0001: old saves load with null.</summary>
+        public string remembrance;
+    }
+
+    /// <summary>
+    /// One resolved Crossroads decision in a life. beatIndex indexes into
+    /// CrossroadsDeckConfig.beats; strayed is true when the cultivator chose
+    /// against their Ori vow. Written by the Crossroads system (slices 2a/2b);
+    /// read by TribulationSystem to derive the Defining Deed at the Crossing.
+    /// Add-only field per ADR-0001: old saves load with an empty list.
+    /// </summary>
+    [Serializable]
+    public class DeedData
+    {
+        public int beatIndex;  // index into CrossroadsDeckConfig.beats
+        public bool strayed;   // true = cultivator chose against their Ori vow
     }
 
     [Serializable]
