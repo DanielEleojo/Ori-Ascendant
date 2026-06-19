@@ -250,6 +250,58 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual("", _save.pendingCrossroadsId);
         }
 
+        // ---- Deed Remembrance fields (beatIndex / strayed) ----
+
+        [Test]
+        public void OriAlignedChoice_SetsStrayed_False_AndWasOriAligned_True()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0); // Patience option
+
+            var deed = _save.deeds[0];
+            Assert.IsFalse(deed.strayed, "Ori-aligned choice: strayed=false");
+            Assert.IsTrue(deed.wasOriAligned, "Ori-aligned choice: wasOriAligned=true");
+        }
+
+        [Test]
+        public void OffOriChoice_SetsStrayed_True_AndWasOriAligned_False()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(1); // Courage — off-Ori
+
+            var deed = _save.deeds[0];
+            Assert.IsTrue(deed.strayed, "off-Ori choice: strayed=true");
+            Assert.IsFalse(deed.wasOriAligned, "off-Ori choice: wasOriAligned=false");
+        }
+
+        [Test]
+        public void MakeChoice_SetsBeatIndex_ForFirstCard()
+        {
+            // card_a is at index 0 in the test deck (Card0 first, Card1 second)
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0);
+
+            Assert.AreEqual(0, _save.deeds[0].beatIndex, "card_a is deck position 0");
+        }
+
+        [Test]
+        public void MakeChoice_SetsBeatIndex_ForSecondCard()
+        {
+            // card_b is at index 1 in the test deck
+            ArmPending("card_b");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0);
+
+            Assert.AreEqual(1, _save.deeds[0].beatIndex, "card_b is deck position 1");
+        }
+
         // ---- session resume: pending crossroads is patient ----
 
         [Test]

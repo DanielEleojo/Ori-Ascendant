@@ -179,8 +179,7 @@ namespace OriAscendant.Tests.EditMode
         [Test]
         public void CrossroadsDeckConfig_HasBeatsWithEpithets()
         {
-            // Dynasty PRD slice 4a: each beat carries a fallenEpithet (placeholder pre-§7.10).
-            // The shape — non-empty deck, non-empty epithet on every beat — is the contract.
+            // Dynasty PRD Phase 5 (issue #10): production epithets, §7.10 self-reviewed.
             var config = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeckConfig.asset");
             Assert.IsNotNull(config.beats, "CrossroadsDeckConfig must define a beats array");
             Assert.GreaterOrEqual(config.Count, 1,
@@ -191,6 +190,43 @@ namespace OriAscendant.Tests.EditMode
                 Assert.IsNotEmpty(beat.fallenEpithet,
                     "every beat must supply a fallenEpithet — the Defining Deed Nickname");
             }
+        }
+
+        [Test]
+        public void CrossroadsConfig_ProductionDeck_AlignedWithBeats()
+        {
+            // Phase 5: beats and deck are 1:1 so beatIndex is always valid.
+            var deck = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            var beats = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeckConfig.asset");
+            Assert.AreEqual(deck.DeckSize, beats.Count,
+                "CrossroadsConfig.deck and CrossroadsDeckConfig.beats must be the same length " +
+                "— beatIndex indexes both arrays by position");
+        }
+
+        [Test]
+        public void CrossroadsConfig_EachCard_CoversAllVirtueIndices()
+        {
+            // Every card must offer an option for each of the 3 Ori virtues (0,1,2)
+            // so a player can always stay true to their chosen Ori (PRD §10).
+            var config = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            foreach (var card in config.deck)
+            {
+                var covered = new System.Collections.Generic.HashSet<int>();
+                foreach (var opt in card.options)
+                    if (opt.virtueIndex >= 0) covered.Add(opt.virtueIndex);
+                for (int v = 0; v <= 2; v++)
+                    Assert.IsTrue(covered.Contains(v),
+                        $"card '{card.id}' missing option for virtue index {v}");
+            }
+        }
+
+        [Test]
+        public void RemembranceConfig_PersonalNames_AtLeastFiveNames()
+        {
+            // Production pool needs variety; fewer than 5 makes Titles feel repetitive.
+            var config = Load<RemembranceConfig>("Assets/Configs/RemembranceConfig.asset");
+            Assert.GreaterOrEqual(config.personalNames.Length, 5,
+                "production name pool must have ≥5 names for meaningful Title variety");
         }
     }
 }

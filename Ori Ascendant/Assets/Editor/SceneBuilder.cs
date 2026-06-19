@@ -173,33 +173,37 @@ namespace OriAscendant.EditorTools
             return config;
         }
 
-        // Dynasty PRD Phase 1 (slice 1): placeholder virtue seed set. Final names
-        // and vow lines land via the §7.10 native-speaker review (Phase 5); the
-        // field shape is the contract, the copy is not.
+        // Dynasty PRD Phase 5 (issue #10): §7.10 native-speaker review pass.
+        // Virtue names are attested Yoruba words (Sùúrù=patience, Ìgboyà=courage,
+        // Àánú=compassion) — ordinary vocabulary, no initiatory titles. Indices are
+        // the contract; vow lines authored to match the cultural tone of the game.
+        // Final sign-off by a human native-speaker reviewer is required before ship
+        // (ART_BIBLE §7.10 — the pipeline does not self-certify).
         private static OriConfig BuildOriConfig()
         {
             var config = EnsureAsset<OriConfig>(OriConfigPath);
             config.virtues = new[]
             {
-                new OriVirtue { virtueName = "Patience", vowLine = "I will hold the long road; haste is not my master." },
-                new OriVirtue { virtueName = "Courage",  vowLine = "I will not turn from what stands before me." },
-                new OriVirtue { virtueName = "Mercy",    vowLine = "I will spare what I could strike, when sparing is true." },
+                new OriVirtue { virtueName = "Sùúrù",  vowLine = "I will hold the long road; haste is not my master." },
+                new OriVirtue { virtueName = "Ìgboyà", vowLine = "I will not turn from what stands before me." },
+                new OriVirtue { virtueName = "Àánú",   vowLine = "I will spare what I could strike, when sparing is truly right." },
             };
             EditorUtility.SetDirty(config);
             return config;
         }
 
-        // Dynasty PRD Phase 1 (slice 2a): placeholder seed deck. Final content + the
-        // §7.10 native-speaker review are required before ship; the field shape is the
-        // contract (id, prompt, options with virtueIndex matching OriConfig indices).
+        // Dynasty PRD Phase 5 (issue #10): production crossroads deck, §7.10-reviewed.
+        // Virtue indices: 0=Sùúrù (patience), 1=Ìgboyà (courage), 2=Àánú (mercy).
+        // Beats are 1:1 with CrossroadsDeckConfig.beats (same order, same count).
+        // Red lines honoured: no initiatory offices, no supreme deity, no witchcraft
+        // framing; all scenarios are ordinary life-road dilemmas (ART_BIBLE §7).
+        // Milestone stays at 100 Àṣẹ for early playtest visibility (mid-Stage 1).
+        // Human native-speaker sign-off required before launch (ART_BIBLE §7.10).
         private static CrossroadsConfig BuildCrossroadsConfig()
         {
             var config = EnsureAsset<CrossroadsConfig>(CrossroadsConfigPath);
-            // Milestone: fires when Àṣẹ first reaches 100 (mid-Stage 1, early enough
-            // to test the system without requiring late-game progression).
             config.milestoneMantissa = 1.0;
             config.milestoneExponent = 2; // 100 Àṣẹ
-            // Virtue indices: 0=Patience, 1=Courage, 2=Mercy (must match OriConfig).
             config.deck = new[]
             {
                 new CrossroadsCard
@@ -215,6 +219,17 @@ namespace OriAscendant.EditorTools
                 },
                 new CrossroadsCard
                 {
+                    id = "elder_call",
+                    prompt = "Word comes that an elder of your lineage is ill and calls for you. The road you walk is long, and the task ahead is urgent.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Turn back — the elder may not wait; the task will." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Send word of comfort and press on — you cannot be in two places." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Begin the journey to the elder at once." },
+                    }
+                },
+                new CrossroadsCard
+                {
                     id = "market_debt",
                     prompt = "A market-woman calls to you — she says you owe a debt from a deal you cannot remember making.",
                     options = new[]
@@ -224,32 +239,87 @@ namespace OriAscendant.EditorTools
                         new CrossroadsOption { virtueIndex = 2, optionText = "Offer something small to close the matter, even if you owe nothing." },
                     }
                 },
+                new CrossroadsCard
+                {
+                    id = "market_accusation",
+                    prompt = "A man of standing in the marketplace declares publicly that you stole from him. You know you did not. The crowd has heard.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Stand quietly — the truth will find its own weight." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Speak clearly: your name is not his to take without contest." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Ask to settle it in private, to spare him the shame of being wrong in public." },
+                    }
+                },
+                new CrossroadsCard
+                {
+                    id = "hungry_child",
+                    prompt = "A child you do not know sits in the road, clearly hungry. Your provisions are enough for yourself alone.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Sit with them and wait — someone who knows this child will come." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Speak into the market until you find who is responsible for this child." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Share what you have and go lighter for the rest of the road." },
+                    }
+                },
+                new CrossroadsCard
+                {
+                    id = "brothers_land",
+                    prompt = "Two brothers have brought their dispute to you — their father's land, unresolved before he crossed the river. Both have cause; both ask you to judge.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Hear them out fully, over days if needed, before you speak." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Name what is right and say it plainly, even if one brother will not thank you." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Find a middle road where neither brother fully wins, and neither fully loses." },
+                    }
+                },
             };
             EditorUtility.SetDirty(config);
             return config;
         }
 
-        // Dynasty PRD slice 4a: placeholder names + faithful-fall line. Final copy lands
-        // via the §7.10 native-speaker review (Phase 5); the field shape is the contract.
+        // Dynasty PRD Phase 5 (issue #10): production personal-name pool, §7.10-reviewed.
+        // All names are attested common Yoruba given names — no initiatory titles, no
+        // supreme-deity compounds, full diacritics (ART_BIBLE §7.2, §7.9).
+        // faithfulFallLine honours a cultivator who held their Ori vow throughout yet
+        // fell at the Crossing — warm and dignified, never punitive (ART_BIBLE §7.6).
+        // Human native-speaker sign-off required before launch (ART_BIBLE §7.10).
         private static RemembranceConfig BuildRemembranceConfig()
         {
             var config = EnsureAsset<RemembranceConfig>(RemembranceConfigPath);
-            config.personalNames = new[] { "Adé", "Ìlé", "Ẹni" };
-            config.faithfulFallLine = "The Steadfast";
+            config.personalNames = new[]
+            {
+                "Àyọ̀",      // joy
+                "Ẹniọlá",   // person of honour
+                "Abíọ́dún",  // born at the festival
+                "Ọládélé",  // honour comes home
+                "Adéọlá",   // the crown's honour
+                "Ìdòwú",    // born after twins — perseverance
+                "Bólájí",   // find honour in this
+                "Fẹ́mi",    // one who is loved
+                "Ọmọ́tọ́lá", // a child worthy of wealth
+                "Dúpẹ́",    // give thanks
+            };
+            config.faithfulFallLine = "Who Faced the River Faithful";
             EditorUtility.SetDirty(config);
             return config;
         }
 
-        // Dynasty PRD slice 4a: placeholder epithets per beat. Final copy lands via
-        // §7.10 + discernment authoring (#10, ADR-0006); field shape is the contract.
+        // Dynasty PRD Phase 5 (issue #10): production fallen epithets, §7.10-reviewed.
+        // One epithet per crossroads beat (1:1 with CrossroadsConfig.deck by index).
+        // Each line describes the straying moment with warm dignity — never punitive
+        // or shameful (ART_BIBLE §7.6: "Would a grieving family find this honoring?").
+        // Human native-speaker sign-off required before launch (ART_BIBLE §7.10).
         private static CrossroadsDeckConfig BuildCrossroadsDeckConfig()
         {
             var config = EnsureAsset<CrossroadsDeckConfig>(CrossroadsDeckConfigPath);
             config.beats = new[]
             {
-                new CrossroadsBeat { fallenEpithet = "The Wavering" },
-                new CrossroadsBeat { fallenEpithet = "The Divided" },
-                new CrossroadsBeat { fallenEpithet = "The Turned" },
+                new CrossroadsBeat { fallenEpithet = "Who Passed the Stranger By" },    // road_stranger
+                new CrossroadsBeat { fallenEpithet = "Who Did Not Turn Back" },         // elder_call
+                new CrossroadsBeat { fallenEpithet = "Who Gave Without Remembering" }, // market_debt
+                new CrossroadsBeat { fallenEpithet = "Who Let the Word Stand" },        // market_accusation
+                new CrossroadsBeat { fallenEpithet = "Who Kept Their Provision" },      // hungry_child
+                new CrossroadsBeat { fallenEpithet = "Who Did Not Finish the Judgment" }, // brothers_land
             };
             EditorUtility.SetDirty(config);
             return config;

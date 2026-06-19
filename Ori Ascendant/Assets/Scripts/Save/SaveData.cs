@@ -163,11 +163,12 @@ namespace OriAscendant.Save
     }
 
     /// <summary>
-    /// One resolved Crossroads decision in a life. Written by CrossroadsSystem (slices 2a/2b);
-    /// read by TribulationSystem to derive the Defining Deed epithet at the Crossing.
-    /// beatIndex indexes into CrossroadsDeckConfig.beats; strayed (== !wasOriAligned) is true
-    /// when the cultivator chose against their Ori vow. Cleared at each generation reset.
-    /// Add-only fields per ADR-0001: old saves load with an empty list.
+    /// A recorded Crossroads choice — one per resolved dilemma this life.
+    /// CrossroadsSystem.MakeChoice() is the sole writer. Fields serve two readers:
+    /// CrossroadsSystem UI (crossroadsId/chosenOptionIndex/wasOriAligned) and
+    /// Remembrance.Derive() (beatIndex/strayed = !wasOriAligned, indexing
+    /// CrossroadsDeckConfig.beats 1:1 with CrossroadsConfig.deck).
+    /// Add-only per ADR-0001: old saves load with field defaults.
     /// </summary>
     [Serializable]
     public class DeedData
@@ -177,6 +178,11 @@ namespace OriAscendant.Save
         public bool wasOriAligned;      // true = chose the Ori-vow option
         public int beatIndex;           // index into CrossroadsDeckConfig.beats for epithet lookup
         public bool strayed;            // true = !wasOriAligned, kept in sync for Remembrance
+        public int chosenOptionIndex;
+        public bool wasOriAligned;
+        public bool strayed;        // = !wasOriAligned; kept for Remembrance.Derive()
+        public int beatIndex = -1;  // card's position in CrossroadsConfig.deck (= CrossroadsDeckConfig.beats index)
+>>>>>>> sandcastle/issue-10
     }
 
     [Serializable]
