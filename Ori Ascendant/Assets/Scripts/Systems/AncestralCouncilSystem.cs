@@ -25,9 +25,6 @@ namespace OriAscendant.Systems
         /// <summary>Raised after an ancestor is retired into the lineage foundation.</summary>
         public event Action<AncestorData> OnAncestorRetired;
 
-        /// <summary>Raised after any council mutation (induction or retirement).</summary>
-        public event Action OnCouncilChanged;
-
         /// <summary>Cheap change counter for polling views.</summary>
         public int Version { get; private set; }
 
@@ -85,7 +82,6 @@ namespace OriAscendant.Systems
 
             _save.council.Add(ancestor);
             Version++;
-            OnCouncilChanged?.Invoke();
             return retired;
         }
 
