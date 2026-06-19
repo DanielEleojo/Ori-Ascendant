@@ -95,10 +95,7 @@ namespace OriAscendant.UI
         private void TickOriPrompt()
         {
             if (_oriScreen == null || _oriSystem == null) return;
-            if (_oriSystem.HasChosen) return;
-
-            // Already up? Don't re-poke it.
-            if (_oriScreen.gameObject.activeInHierarchy && _oriScreen.IsOpen) return;
+            if (_oriSystem.HasChosen || _oriScreen.IsOpen) return;
             _oriScreen.Show();
         }
 
