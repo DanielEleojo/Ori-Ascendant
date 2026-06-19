@@ -56,8 +56,7 @@ namespace OriAscendant.Save
         public string pendingCrossroadsId = "";
 
         /// <summary>Deeds recorded this life — one per resolved Crossroads choice.
-        /// Reset by TribulationSystem at the Crossing (the Chronicle will persist
-        /// them long-term in a later slice). Add-only field (no schema bump).</summary>
+        /// Reset by TribulationSystem at the Crossing. Add-only field (no schema bump).</summary>
         public List<DeedData> deeds = new List<DeedData>();
 
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
@@ -79,11 +78,11 @@ namespace OriAscendant.Save
         /// <summary>Active Ancestral Council, max 5 (CouncilConfig.maxCouncil).</summary>
         public List<AncestorData> council = new List<AncestorData>();
 
-        /// <summary>Crossroads decisions made in the current life, in encounter order.
-        /// The Crossroads system (slices 2a/2b) writes entries; TribulationSystem reads
-        /// them at the Crossing to find the Defining Deed. Cleared at each generation
-        /// reset alongside all other per-life state. Add-only field per ADR-0001.</summary>
-        public List<DeedData> deeds = new List<DeedData>();
+        /// <summary>Unbounded saga record — every completed generation in order.
+        /// Unlike the Council (max 5), this list never shrinks: retired ancestors
+        /// remain here so the player can read the full bloodline history.
+        /// Add-only field per ADR-0001; old saves load with an empty list.</summary>
+        public List<ChronicleEntry> chronicle = new List<ChronicleEntry>();
 
         public LineageData lineage = new LineageData();
 
@@ -140,6 +139,21 @@ namespace OriAscendant.Save
     }
 
     /// <summary>
+    /// One completed generation in the saga, appended to SaveData.chronicle at the
+    /// Crossing. Unlike the Council (capped at 5), the Chronicle never shrinks —
+    /// every generation is remembered even after retirement. Add-only per ADR-0001.
+    /// </summary>
+    [Serializable]
+    public class ChronicleEntry
+    {
+        public int generationNumber;    // 1-based
+        public int chosenOri;           // virtue index, or -1 if no vow was held
+        public bool didAscend;
+        public string remembrance;      // Title (ascend) or Nickname (fall); null for legacy
+        public long completedTimestamp; // Unix seconds UTC
+    }
+
+    /// <summary>
     /// One resolved Crossroads decision in a life. beatIndex indexes into
     /// CrossroadsDeckConfig.beats; strayed is true when the cultivator chose
     /// against their Ori vow. Written by the Crossroads system (slices 2a/2b);
@@ -151,19 +165,6 @@ namespace OriAscendant.Save
     {
         public int beatIndex;  // index into CrossroadsDeckConfig.beats
         public bool strayed;   // true = cultivator chose against their Ori vow
-    }
-
-    /// <summary>
-    /// A recorded Crossroads choice — one per resolved dilemma this life.
-    /// wasOriAligned drives the steadfastness tally; crossroadsId + chosenOptionIndex
-    /// will key the deed-tied Nickname in the Chronicle (later slice).
-    /// </summary>
-    [Serializable]
-    public class DeedData
-    {
-        public string crossroadsId;
-        public int chosenOptionIndex;
-        public bool wasOriAligned;
     }
 
     [Serializable]

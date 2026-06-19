@@ -475,7 +475,87 @@ namespace OriAscendant.Tests.EditMode
             string r2 = Remembrance.Derive(false, "Aṣẹ́gun", deeds, deck, config, 0);
             Assert.AreEqual(r1, r2, "no path parameter → structurally path-independent");
             Assert.AreEqual("The Divided", r1);
->>>>>>> sandcastle/issue-6
+        }
+
+        // ---- Chronicle (issue #7) ----
+
+        [Test]
+        public void Resolve_AppendsChronicleEntry_EachGeneration()
+        {
+            InjectRemembranceConfigs();
+            ArmAtPeak(path: 1, chosenOri: 0);
+            _tribulation.SetRandomSource(new FakeRandom(0.0, 0.0)); // ascend; nameIndex 0
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual(1, _save.chronicle.Count, "one chronicle entry per Crossing");
+            var entry = _save.chronicle[0];
+            Assert.AreEqual(1, entry.generationNumber, "generation 1 is the first completed life");
+            Assert.AreEqual(0, entry.chosenOri, "chosenOri captured before the reset");
+            Assert.IsTrue(entry.didAscend);
+            Assert.IsNotNull(entry.remembrance, "remembrance is carried into the chronicle");
+        }
+
+        [Test]
+        public void Chronicle_AccretesAcrossGenerations_PastCouncilCap()
+        {
+            InjectRemembranceConfigs();
+
+            // Run 6 generations — one more than the Council cap (5).
+            for (int i = 0; i < 6; i++)
+            {
+                ArmAtPeak(path: 1, chosenOri: 0);
+                _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall every time
+                _tribulation.Resolve();
+            }
+
+            // Chronicle is unbounded.
+            Assert.AreEqual(6, _save.chronicle.Count,
+                "chronicle records every generation, including the 6th that retired an ancestor");
+            // Council is capped at 5 (MaxCouncil).
+            Assert.AreEqual(5, _save.council.Count,
+                "council still caps at 5 — unaffected by the chronicle");
+
+            // Generation numbers must be sequential.
+            for (int i = 0; i < 6; i++)
+                Assert.AreEqual(i + 1, _save.chronicle[i].generationNumber);
+        }
+
+        [Test]
+        public void Chronicle_CouncilBehaviourUnchanged_WhenFull()
+        {
+            InjectRemembranceConfigs();
+            // Fill the council (5 gens) + push one more to trigger retirement.
+            for (int i = 0; i < 6; i++)
+            {
+                ArmAtPeak(path: 1, chosenOri: 0);
+                _tribulation.SetRandomSource(new FakeRandom(0.0, 0.0));
+                _tribulation.Resolve();
+            }
+
+            // The 6th generation retired the oldest council member — permanentAseBonus
+            // absorbed it (Àṣẹ-neutral rule). Council stays at 5.
+            Assert.AreEqual(5, _save.council.Count);
+            // permanentAseBonus > 0 proves a retirement happened.
+            Assert.Greater(_save.lineage.permanentAseBonus, 0.0,
+                "council retirement baked the retired ancestor into permanentAseBonus");
+        }
+
+        [Test]
+        public void Chronicle_Fall_RecordsCorrectOutcome()
+        {
+            InjectRemembranceConfigs();
+            ArmAtPeak(path: 2, chosenOri: 1);
+            _save.deeds.Add(new DeedData { beatIndex = 1, strayed = true }); // Defining Deed
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall
+
+            _tribulation.Resolve();
+
+            var entry = _save.chronicle[0];
+            Assert.IsFalse(entry.didAscend);
+            Assert.AreEqual(1, entry.chosenOri);
+            Assert.AreEqual("The Divided", entry.remembrance,
+                "fall Nickname from the first strayed deed carries into the chronicle");
         }
     }
 }

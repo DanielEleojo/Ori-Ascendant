@@ -256,5 +256,87 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsNotNull(restored.deeds, "deeds must not be null — default is an empty list");
             Assert.IsEmpty(restored.deeds, "legacy save without deeds loads with empty list");
         }
+
+        // ---- Chronicle (issue #7) ----
+
+        [Test]
+        public void ChronicleEntry_RoundTrips()
+        {
+            var save = new SaveData();
+            save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = 3,
+                chosenOri = 1,
+                didAscend = true,
+                remembrance = "Aṣẹ́gun Adé",
+                completedTimestamp = 1_781_200_000L,
+            });
+            save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = 4,
+                chosenOri = 0,
+                didAscend = false,
+                remembrance = "The Steadfast",
+                completedTimestamp = 1_781_300_000L,
+            });
+
+            var restored = RoundTrip(save);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(2, restored.chronicle.Count);
+
+            var e0 = restored.chronicle[0];
+            Assert.AreEqual(3, e0.generationNumber);
+            Assert.AreEqual(1, e0.chosenOri);
+            Assert.IsTrue(e0.didAscend);
+            Assert.AreEqual("Aṣẹ́gun Adé", e0.remembrance);
+            Assert.AreEqual(1_781_200_000L, e0.completedTimestamp);
+
+            var e1 = restored.chronicle[1];
+            Assert.AreEqual(4, e1.generationNumber);
+            Assert.IsFalse(e1.didAscend);
+            Assert.AreEqual("The Steadfast", e1.remembrance);
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithEmptyChronicle()
+        {
+            // A save written before issue #7 has no chronicle field.
+            // Add-only field (ADR-0001): loads with the default empty list.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0," +
+                                "\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.IsNotNull(restored.chronicle,
+                "chronicle must not be null — default is an empty list (ADR-0001)");
+            Assert.IsEmpty(restored.chronicle,
+                "legacy save without chronicle loads with empty list");
+        }
+
+        [Test]
+        public void Chronicle_NullRemembrance_RoundTrips()
+        {
+            // Legacy chronicle entries may have no remembrance (pre-slice-4a).
+            var save = new SaveData();
+            save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = 1,
+                chosenOri = -1,
+                didAscend = false,
+                remembrance = null,
+                completedTimestamp = 1_781_000_000L,
+            });
+
+            var restored = RoundTrip(save);
+
+            Assert.IsNull(restored.chronicle[0].remembrance,
+                "null remembrance survives round-trip (Chronicle handles null gracefully)");
+        }
     }
 }

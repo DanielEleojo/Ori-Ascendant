@@ -30,16 +30,25 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _foundationLine;
         [SerializeField] private TMP_Text _totalLine;
         [SerializeField] private Button _closeButton;
+        [SerializeField] private Button _chronicleButton;
+        [SerializeField] private ChronicleScreenView _chronicleScreen;
 
         private void Awake()
         {
             if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
+            if (_chronicleButton != null) _chronicleButton.onClick.AddListener(OpenChronicle);
             if (_root != null) _root.SetActive(false);
         }
 
         private void OnDestroy()
         {
             if (_closeButton != null) _closeButton.onClick.RemoveListener(Hide);
+            if (_chronicleButton != null) _chronicleButton.onClick.RemoveListener(OpenChronicle);
+        }
+
+        private void OpenChronicle()
+        {
+            if (_chronicleScreen != null) _chronicleScreen.Show();
         }
 
         public void Show()
