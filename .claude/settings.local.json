@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__26d40d6b-b37d-4141-8f1c-5f50f33a85bf__models_explore",
+      "mcp__26d40d6b-b37d-4141-8f1c-5f50f33a85bf__balance",
+      "mcp__26d40d6b-b37d-4141-8f1c-5f50f33a85bf__show_generations",
+      "mcp__26d40d6b-b37d-4141-8f1c-5f50f33a85bf__job_display"
+    ]
+  }
+}

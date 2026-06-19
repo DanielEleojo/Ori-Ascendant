@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p Logs)",
+      "Bash(timeout 590 \"/home/baba/Unity/Hub/Editor/6000.4.10f1/Editor/Unity\" -batchmode -nographics -quit -projectPath \"/home/baba/ASE/Ori Ascendant\" -executeMethod OriAscendant.EditorTools.SceneBuilder.BuildAll -logFile \"/home/baba/ASE/Ori Ascendant/Logs/scenebuild.log\")",
+      "Bash(echo \"=== EXIT: $? ===\")",
+      "Bash(timeout 590 \"/home/baba/Unity/Hub/Editor/6000.4.10f1/Editor/Unity\" -runTests -batchmode -nographics -projectPath \"/home/baba/ASE/Ori Ascendant\" -testPlatform PlayMode -testResults Logs/playmode-results.xml -logFile Logs/unity-playmode.log)",
+      "Bash(claude skills *)",
+      "Bash(grep -iA2 -E \"command|skill|plugin|install\")"
+    ]
+  }
+}
