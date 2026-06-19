@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace OriAscendant.Data
@@ -38,18 +39,40 @@ namespace OriAscendant.Data
     }
 
     /// <summary>
-    /// Seed deck of crossroads dilemmas and the Àṣẹ milestone at which one fires
-    /// (Dynasty PRD Phase 1, slice 2a). Final deck content lands after the §7.10
+    /// One Àṣẹ milestone entry in a CrossroadsConfig. When the player's accumulated Àṣẹ
+    /// reaches this value, an additional crossroads is queued (slice 2b).
+    /// </summary>
+    [Serializable]
+    public class CrossroadsMilestone
+    {
+        [Tooltip("Àṣẹ threshold (mantissa × 10^exponent) that triggers one queued crossroads.")]
+        public double mantissa = 1.0;
+        public int exponent = 3;
+
+        public BigNumber Value => new BigNumber(mantissa, exponent);
+    }
+
+    /// <summary>
+    /// Seed deck of crossroads dilemmas and the Àṣẹ milestones at which they fire
+    /// (Dynasty PRD Phase 1, slices 2a/2b). Final deck content lands after the §7.10
     /// native-speaker review; the field shape is the contract.
+    ///
+    /// The first milestone is defined by milestoneMantissa/milestoneExponent (backward
+    /// compat). Additional milestones are listed in extraMilestones. All milestones are
+    /// evaluated together: when the player's Àṣẹ surpasses more milestones than there
+    /// are already-triggered crossroads this life, the extras queue up.
     /// </summary>
     [CreateAssetMenu(fileName = "CrossroadsConfig", menuName = "Ori Ascendant/Crossroads Config")]
     public class CrossroadsConfig : ScriptableObject
     {
-        [Tooltip("Àṣẹ milestone: when accumulated Àṣẹ first reaches this amount this life, a crossroads fires.")]
+        [Tooltip("First Àṣẹ milestone (mantissa × 10^exponent). When first crossed this life, a crossroads fires.")]
         public double milestoneMantissa = 1.0;
         public int milestoneExponent = 3;
 
-        [Tooltip("Seed deck of crossroads cards; drawn at random when the milestone fires.")]
+        [Tooltip("Additional milestones beyond the first. Each one queues another crossroads when crossed.")]
+        public CrossroadsMilestone[] extraMilestones = new CrossroadsMilestone[0];
+
+        [Tooltip("Seed deck of crossroads cards; one is drawn at random each time a milestone fires.")]
         public CrossroadsCard[] deck;
 
         public BigNumber GetMilestone() => new BigNumber(milestoneMantissa, milestoneExponent);
@@ -58,5 +81,26 @@ namespace OriAscendant.Data
 
         public CrossroadsCard GetCard(int index) =>
             deck != null && index >= 0 && index < deck.Length ? deck[index] : null;
+
+        /// <summary>Returns all milestones (first + extra) sorted ascending.</summary>
+        public List<BigNumber> GetAllMilestones()
+        {
+            var list = new List<BigNumber> { GetMilestone() };
+            if (extraMilestones != null)
+                foreach (var m in extraMilestones)
+                    list.Add(m.Value);
+            list.Sort();
+            return list;
+        }
+
+        /// <summary>How many milestones are at or below the given Àṣẹ amount.</summary>
+        public int CountMilestonesCrossed(BigNumber ase)
+        {
+            var all = GetAllMilestones();
+            int count = 0;
+            foreach (var m in all)
+                if (ase >= m) count++;
+            return count;
+        }
     }
 }

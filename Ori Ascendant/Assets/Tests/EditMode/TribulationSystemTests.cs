@@ -273,6 +273,7 @@ namespace OriAscendant.Tests.EditMode
             _save.oriHeld = 3;
             _save.oriTrials = 4;
             _save.pendingCrossroadsId = "card_a";
+            _save.pendingCrossroadsQueue = new System.Collections.Generic.List<string> { "card_b" };
             _save.deeds = new System.Collections.Generic.List<DeedData>
             {
                 new DeedData
@@ -288,6 +289,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0, _save.oriHeld,   "oriHeld resets to 0 for the new life");
             Assert.AreEqual(0, _save.oriTrials,  "oriTrials resets to 0 for the new life");
             Assert.AreEqual("", _save.pendingCrossroadsId, "pending crossroads clears at the Crossing");
+            Assert.AreEqual(0, _save.pendingCrossroadsQueue.Count, "crossroads queue also clears at the Crossing");
             Assert.IsNotNull(_save.deeds);
             Assert.AreEqual(0, _save.deeds.Count, "deeds list cleared at the Crossing");
         }
@@ -475,7 +477,6 @@ namespace OriAscendant.Tests.EditMode
             string r2 = Remembrance.Derive(false, "Aṣẹ́gun", deeds, deck, config, 0);
             Assert.AreEqual(r1, r2, "no path parameter → structurally path-independent");
             Assert.AreEqual("The Divided", r1);
->>>>>>> sandcastle/issue-6
         }
     }
 }

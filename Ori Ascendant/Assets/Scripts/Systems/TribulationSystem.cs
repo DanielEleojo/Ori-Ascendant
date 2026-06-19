@@ -160,6 +160,7 @@ namespace OriAscendant.Systems
             _save.oriHeld = 0;              // steadfastness tally is per-life
             _save.oriTrials = 0;
             _save.pendingCrossroadsId = ""; // patient crossroads expire at the Crossing
+            _save.pendingCrossroadsQueue?.Clear(); // whole queue expires too
             if (_save.deeds != null) _save.deeds.Clear(); // per-life history; Crossroads system writes, reset clears
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;

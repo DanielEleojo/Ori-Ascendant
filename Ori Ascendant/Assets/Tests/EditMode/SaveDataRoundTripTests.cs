@@ -256,5 +256,45 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsNotNull(restored.deeds, "deeds must not be null — default is an empty list");
             Assert.IsEmpty(restored.deeds, "legacy save without deeds loads with empty list");
         }
+
+        [Test]
+        public void PendingCrossroadsQueue_RoundTrips()
+        {
+            var save = new SaveData
+            {
+                pendingCrossroadsId = "card_a",
+            };
+            save.pendingCrossroadsQueue.Add("card_b");
+            save.pendingCrossroadsQueue.Add("card_c");
+
+            var restored = RoundTrip(save);
+
+            Assert.AreEqual("card_a", restored.pendingCrossroadsId, "active crossroads survives round-trip");
+            Assert.IsNotNull(restored.pendingCrossroadsQueue, "queue must not be null after load");
+            Assert.AreEqual(2, restored.pendingCrossroadsQueue.Count, "both queued crossroads survive round-trip");
+            Assert.AreEqual("card_b", restored.pendingCrossroadsQueue[0]);
+            Assert.AreEqual("card_c", restored.pendingCrossroadsQueue[1]);
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithEmptyPendingQueue()
+        {
+            // A save written before slice 2b has no pendingCrossroadsQueue field.
+            // Add-only field (ADR-0001): loads with the default empty list.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0," +
+                                "\"pendingCrossroadsId\":\"card_a\"," +
+                                "\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual("card_a", restored.pendingCrossroadsId, "legacy single pending id preserved");
+            Assert.IsNotNull(restored.pendingCrossroadsQueue, "queue must not be null on old save — default empty list");
+            Assert.IsEmpty(restored.pendingCrossroadsQueue, "legacy save without queue loads with empty list");
+        }
     }
 }

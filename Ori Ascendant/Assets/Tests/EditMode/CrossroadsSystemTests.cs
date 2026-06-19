@@ -275,6 +275,119 @@ namespace OriAscendant.Tests.EditMode
             Object.DestroyImmediate(newHost);
         }
 
+        // ---- queue: multiple milestones reached while offline (slice 2b) ----
+
+        [Test]
+        public void TwoMilestonesCrossed_QueuesTwo_FirstIsActive()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            // FakeRandom: first draw → 0.0 (index 0 = card_a), second draw → 0.5 (index 1 = card_b)
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            // Àṣẹ passes BOTH milestones (1 000 and 5 000)
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.IsTrue(_crossroads.HasPending, "first crossroads is active");
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId, "card_a is the active crossroads");
+            Assert.AreEqual(1, _save.pendingCrossroadsQueue.Count, "second crossroads waits in queue");
+            Assert.AreEqual("card_b", _save.pendingCrossroadsQueue[0]);
+        }
+
+        [Test]
+        public void ResolveFirst_SurfacesSecond_ViaOnCrossroadsReady()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            string readyId = null;
+            _crossroads.OnCrossroadsReady += id => readyId = id;
+
+            _crossroads.MakeChoice(0); // resolve card_a
+
+            Assert.IsTrue(_crossroads.HasPending, "second crossroads is now active");
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId, "card_b promoted from queue");
+            Assert.AreEqual("card_b", readyId, "OnCrossroadsReady fires for the next crossroads");
+            Assert.AreEqual(0, _save.pendingCrossroadsQueue.Count, "queue is empty after promotion");
+        }
+
+        [Test]
+        public void PendingQueue_SurvivesSaveLoadRoundTrip()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            // Round-trip the save through JSON
+            string json = SaveSerializer.ToJson(_save);
+            var reloaded = SaveSerializer.FromJson(json);
+
+            Assert.AreEqual("card_a", reloaded.pendingCrossroadsId, "active crossroads survives round-trip");
+            Assert.IsNotNull(reloaded.pendingCrossroadsQueue, "queue must not be null after load");
+            Assert.AreEqual(1, reloaded.pendingCrossroadsQueue.Count, "queued crossroads survive round-trip");
+            Assert.AreEqual("card_b", reloaded.pendingCrossroadsQueue[0]);
+        }
+
+        [Test]
+        public void PendingCrossroads_NeverExpires_OnSessionResume()
+        {
+            // A crossroads fires
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.IsTrue(_crossroads.HasPending);
+
+            // Simulate app restart: fresh CrossroadsSystem, same save (no time-based expiry)
+            ServiceLocator.Clear();
+            var resumeHost = new GameObject("ResumeHost");
+            var resumed = resumeHost.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(resumed, "_config", _config);
+            ServiceLocator.Register(resumed);
+
+            string receivedId = null;
+            resumed.OnCrossroadsReady += id => receivedId = id;
+            resumed.Begin(_save);
+
+            Assert.IsTrue(resumed.HasPending, "crossroads still pending after app restart — no expiry");
+            Assert.AreEqual("card_a", resumed.PendingCard?.id, "same card is still pending");
+            Assert.AreEqual("card_a", receivedId, "OnCrossroadsReady fires on resume with the pending card");
+
+            Object.DestroyImmediate(resumeHost);
+        }
+
+        [Test]
+        public void QueuedCrossroads_NeverExpire_OnSessionResume()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            // Simulate app restart
+            ServiceLocator.Clear();
+            var resumeHost = new GameObject("ResumeHost2");
+            var resumed = resumeHost.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(resumed, "_config", twoConfig);
+            ServiceLocator.Register(resumed);
+            resumed.Begin(_save);
+
+            Assert.IsTrue(resumed.HasPending, "active crossroads still pending after restart");
+            Assert.AreEqual(1, _save.pendingCrossroadsQueue.Count, "queued crossroads intact after restart");
+
+            Object.DestroyImmediate(resumeHost);
+        }
+
         // ---- helpers ----
 
         /// <summary>Directly arms a pending crossroads by setting the save field,

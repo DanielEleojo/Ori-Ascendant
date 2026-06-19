@@ -111,6 +111,21 @@ namespace OriAscendant.Tests.EditMode
             var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
             config.milestoneMantissa = 1.0;
             config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new CrossroadsMilestone[0];
+            config.deck = cards ?? new CrossroadsCard[0];
+            return config;
+        }
+
+        /// <summary>Two-milestone config (Àṣẹ 1 000 and 5 000) for queue tests (slice 2b).</summary>
+        public static CrossroadsConfig MakeTwoMilestoneCrossroadsConfig(params CrossroadsCard[] cards)
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new[]
+            {
+                new CrossroadsMilestone { mantissa = 5.0, exponent = 3 }, // 5 000 Àṣẹ
+            };
             config.deck = cards ?? new CrossroadsCard[0];
             return config;
         }

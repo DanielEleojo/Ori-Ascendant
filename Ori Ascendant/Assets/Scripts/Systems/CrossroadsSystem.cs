@@ -9,24 +9,30 @@ using UnityEngine;
 namespace OriAscendant.Systems
 {
     /// <summary>
-    /// Crossroads — virtue-testing dilemma events (Dynasty PRD Phase 1, slice 2a).
-    /// Owns SaveData.pendingCrossroadsId and SaveData.deeds writes.
+    /// Crossroads — virtue-testing dilemma events (Dynasty PRD Phase 1, slices 2a/2b).
+    /// Owns SaveData.pendingCrossroadsId, SaveData.pendingCrossroadsQueue, and SaveData.deeds writes.
     ///
-    /// Milestone: a single Àṣẹ threshold defined in CrossroadsConfig. When first
-    /// crossed this life, a card is drawn at random from the deck and set pending.
-    /// The event is patient — it waits indefinitely for a player choice.
+    /// Milestones: CrossroadsConfig defines one or more Àṣẹ thresholds. When the player's
+    /// accumulated Àṣẹ surpasses more milestones than there are already-triggered crossroads
+    /// this life, the excess are queued. The queue is patient — cards wait indefinitely, and
+    /// persist across save/load and app restart (no expiry).
     ///
-    /// Choice: MakeChoice(optionIndex) records a Deed, updates the steadfastness
-    /// tally (oriHeld / oriTrials in SaveData), fires OnCrossroadsResolved,
-    /// and saves. oriHeld increments only when the chosen option's virtueIndex
-    /// matches the life's chosenOri; oriTrials always increments.
+    /// Queue protocol: the active crossroads sits in SaveData.pendingCrossroadsId; extras wait
+    /// in SaveData.pendingCrossroadsQueue. After a choice is made, the next item is promoted
+    /// from the queue and OnCrossroadsReady fires again.
+    ///
+    /// Choice: MakeChoice(optionIndex) records a Deed, updates the steadfastness tally
+    /// (oriHeld / oriTrials in SaveData), dequeues the next crossroads if any, then
+    /// fires OnCrossroadsResolved. oriHeld increments only when the chosen option's
+    /// virtueIndex matches the life's chosenOri; oriTrials always increments.
     /// </summary>
     public class CrossroadsSystem : MonoBehaviour
     {
         [SerializeField] private CrossroadsConfig _config;
 
         /// <summary>Raised when a crossroads becomes active (card id). Fires on
-        /// Begin() if a pending crossroads survived from a previous session.</summary>
+        /// Begin() if a pending crossroads survived from a previous session, and
+        /// again each time the next queued crossroads is promoted after a choice.</summary>
         public event Action<string> OnCrossroadsReady;
 
         /// <summary>Raised after a choice is committed (tally updated, deed recorded,
@@ -70,29 +76,29 @@ namespace OriAscendant.Systems
         {
             _save = save ?? throw new ArgumentNullException(nameof(save));
             if (_save.deeds == null) _save.deeds = new List<DeedData>();
+            if (_save.pendingCrossroadsQueue == null) _save.pendingCrossroadsQueue = new List<string>();
             SubscribeAse();
             // Surface any crossroads that survived from a previous session.
             if (HasPending) { OnCrossroadsReady?.Invoke(_save.pendingCrossroadsId); return; }
-            // A save loaded mid-life may already be above the milestone (offline accrual).
+            // A save loaded mid-life may already be above one or more milestones (offline accrual).
             EvaluateMilestone();
         }
 
-        /// <summary>Checks whether the milestone has been crossed and fires a
-        /// crossroads if so. Called from Begin() and from the AseChanged event.
-        /// Tests call this directly after setting save.SetAse() to avoid the
-        /// event-subscription path (RecalculateRate fires OnRateRecalculated,
-        /// not OnAseChanged).</summary>
+        /// <summary>Checks whether any milestones have been newly crossed and queues
+        /// crossroads for each. Called from Begin() and from the AseChanged event.
+        /// Tests call this directly after SetAse() to avoid the event-subscription path
+        /// (RecalculateRate fires OnRateRecalculated, not OnAseChanged).</summary>
         public void EvaluateMilestone()
         {
             if (_save == null) return;
-            CheckMilestone(_save.GetAse());
+            CheckMilestones(_save.GetAse());
         }
 
         /// <summary>
         /// Commits the player's choice for the pending crossroads.
         /// - Ori-aligned choice (option.virtueIndex == save.chosenOri): held++ and trials++
         /// - Any other choice: trials++ only
-        /// Records a Deed and fires OnCrossroadsResolved.
+        /// Records a Deed, dequeues the next crossroads if any, and fires OnCrossroadsResolved.
         /// Returns false when no crossroads is pending or the index is out of range.
         /// </summary>
         public bool MakeChoice(int optionIndex)
@@ -110,17 +116,33 @@ namespace OriAscendant.Systems
             _save.oriTrials++;
             if (aligned) _save.oriHeld++;
 
+            int cardIndex = _config.deck != null
+                ? Array.FindIndex(_config.deck, c => c.id == card.id)
+                : -1;
+
             var deed = new DeedData
             {
                 crossroadsId = card.id,
                 chosenOptionIndex = optionIndex,
                 wasOriAligned = aligned,
+                beatIndex = Math.Max(0, cardIndex),
+                strayed = !aligned,
             };
             _save.deeds.Add(deed);
+
+            // Promote next from queue, if any.
             _save.pendingCrossroadsId = "";
+            string nextId = null;
+            if (_save.pendingCrossroadsQueue?.Count > 0)
+            {
+                nextId = _save.pendingCrossroadsQueue[0];
+                _save.pendingCrossroadsQueue.RemoveAt(0);
+                _save.pendingCrossroadsId = nextId;
+            }
 
             if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
             OnCrossroadsResolved?.Invoke(deed);
+            if (nextId != null) OnCrossroadsReady?.Invoke(nextId);
             return true;
         }
 
@@ -141,19 +163,28 @@ namespace OriAscendant.Systems
 
         private void HandleAseChanged(BigNumber ase) => EvaluateMilestone();
 
-        private void CheckMilestone(BigNumber ase)
+        private void CheckMilestones(BigNumber ase)
         {
             if (_save == null || _config == null || _config.DeckSize == 0) return;
-            if (HasPending) return;                        // already waiting for a choice
-            if (_save.deeds != null && _save.deeds.Count > 0) return; // fired this life already
-            if (ase < _config.GetMilestone()) return;
 
-            FireCrossroads();
+            int crossed = _config.CountMilestonesCrossed(ase);
+            int triggered = TriggerCount();
+
+            for (int i = triggered; i < crossed; i++)
+                FireCrossroads();
+        }
+
+        // Total crossroads triggered this life: active + queued + already resolved.
+        private int TriggerCount()
+        {
+            int active = string.IsNullOrEmpty(_save.pendingCrossroadsId) ? 0 : 1;
+            int queued = _save.pendingCrossroadsQueue?.Count ?? 0;
+            int resolved = _save.deeds?.Count ?? 0;
+            return active + queued + resolved;
         }
 
         private void FireCrossroads()
         {
-            // Caller (CheckMilestone) already verified DeckSize > 0.
             // NextDouble() is contractually [0, 1), so the cast is in [0, DeckSize - 1];
             // the Min clamp defends against a test source returning 1.0 exactly.
             int index = (int)(_random.NextDouble() * _config.DeckSize);
@@ -161,9 +192,20 @@ namespace OriAscendant.Systems
             CrossroadsCard card = _config.GetCard(index);
             if (card == null || string.IsNullOrEmpty(card.id)) return;
 
-            _save.pendingCrossroadsId = card.id;
-            if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
-            OnCrossroadsReady?.Invoke(card.id);
+            if (string.IsNullOrEmpty(_save.pendingCrossroadsId))
+            {
+                // No active crossroads — make this the current one.
+                _save.pendingCrossroadsId = card.id;
+                if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
+                OnCrossroadsReady?.Invoke(card.id);
+            }
+            else
+            {
+                // Active slot taken — queue this one; it will surface after the active is resolved.
+                if (_save.pendingCrossroadsQueue == null) _save.pendingCrossroadsQueue = new List<string>();
+                _save.pendingCrossroadsQueue.Add(card.id);
+                if (ServiceLocator.TryGet(out SaveManager saveManager)) saveManager.Save();
+            }
         }
     }
 }
