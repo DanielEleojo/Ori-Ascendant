@@ -4,8 +4,8 @@ namespace OriAscendant.Data
 {
     /// <summary>
     /// Presentation discriminator for Tribulation art/copy/SFX per path.
-    /// NEVER touches resolution odds — the 60/40 coin is identical on all paths
-    /// (TribulationConfig.baseAscendChance, locked).
+    /// NEVER touches resolution odds — the steadfastness curve is identical on
+    /// all paths (ADR-0004).
     /// </summary>
     public enum TribulationType
     {

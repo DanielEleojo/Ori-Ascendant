@@ -139,6 +139,8 @@ namespace OriAscendant.EditorTools
         {
             var config = EnsureAsset<TribulationConfig>(TribulationConfigPath);
             config.baseAscendChance = 0.60;
+            config.ascendFloor = 0.25;
+            config.ascendCeiling = 0.90;
             config.aseThresholdMantissa = 25.0;
             config.aseThresholdExponent = 6;
             config.ambientFractions = new[] { 0.5f, 0.8f, 1.0f };
@@ -841,11 +843,15 @@ namespace OriAscendant.EditorTools
 
             var sheetTitle = MakeText(sheetRt, "Title", "Ìrékọjá — The Crossing", 22f, TextAlignmentOptions.Center, Gold);
             SetBand(sheetTitle.rectTransform, 0.88f, 0.98f);
+            // ADR-0004 "always shown": the derived chance, foregrounded under the title.
+            var chanceText = MakeText(sheetRt, "ChanceToAscendText", "Chance to ascend: —", 17f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(chanceText.rectTransform, 0.78f, 0.88f);
             var ascendLine = MakeText(sheetRt, "AscendLine", "", 15f, TextAlignmentOptions.Center, Text);
-            SetBand(ascendLine.rectTransform, 0.74f, 0.86f);
+            SetBand(ascendLine.rectTransform, 0.66f, 0.78f);
             InsetX(ascendLine.rectTransform, 14f);
             var fallLine = MakeText(sheetRt, "FallLine", "", 15f, TextAlignmentOptions.Center, Text);
-            SetBand(fallLine.rectTransform, 0.62f, 0.74f);
+            SetBand(fallLine.rectTransform, 0.54f, 0.66f);
             InsetX(fallLine.rectTransform, 14f);
             var eitherWay = MakeText(sheetRt, "EitherWay", "Either way, your lineage grows stronger.", 14f,
                 TextAlignmentOptions.Center, Gold);
@@ -868,7 +874,7 @@ namespace OriAscendant.EditorTools
             SetBand(oddsPanel.rectTransform, 0.28f, 0.44f);
             InsetX(oddsPanel.rectTransform, 12f);
             var oddsText = MakeText(oddsPanel.rectTransform, "OddsText",
-                "Ascend: 60%. Fall: 40%.\nEvery Tribulation, every generation, same odds.\nBoth outcomes grant an Ancestor.",
+                "Your ascend chance rises with your steadfastness — held faithful to your Ori at each Crossroads.\nEven the steadfast can fall; even the wavering can ascend. Both outcomes grant an Ancestor.",
                 12f, TextAlignmentOptions.Center, Text);
             Stretch(oddsText.rectTransform);
             oddsPanel.gameObject.SetActive(false);
@@ -987,6 +993,7 @@ namespace OriAscendant.EditorTools
             var screen = controller.AddComponent<TribulationScreen>();
             Assign(screen, "_config", tribulation);
             Assign(screen, "_confirmRoot", confirmRoot.gameObject);
+            Assign(screen, "_chanceToAscendText", chanceText);
             Assign(screen, "_ascendLine", ascendLine);
             Assign(screen, "_fallLine", fallLine);
             Assign(screen, "_oddsPanel", oddsPanel.gameObject);

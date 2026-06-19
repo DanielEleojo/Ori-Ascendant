@@ -6,11 +6,31 @@ using UnityEngine;
 
 namespace OriAscendant.Tests.EditMode
 {
+    /// <summary>Deterministic random for tests: returns the supplied values in order,
+    /// repeating the last once exhausted. A single value behaves as a 1-element
+    /// sequence, and the settable Value resets it to one fixed value — so both the
+    /// constructor and the legacy `.Value =` call sites work unchanged.</summary>
     internal sealed class FakeRandom : IRandomSource
     {
-        public double Value;
-        public FakeRandom(double value) => Value = value;
-        public double NextDouble() => Value;
+        private double[] _values;
+        private int _index;
+
+        public FakeRandom(params double[] values) =>
+            _values = values != null && values.Length > 0 ? values : new[] { 0.0 };
+
+        /// <summary>Back-compat single-value control: resets the source to one fixed value.</summary>
+        public double Value
+        {
+            get => _values[System.Math.Min(_index, _values.Length - 1)];
+            set { _values = new[] { value }; _index = 0; }
+        }
+
+        public double NextDouble()
+        {
+            double v = _values[System.Math.Min(_index, _values.Length - 1)];
+            _index++;
+            return v;
+        }
     }
 
     /// <summary>
@@ -94,7 +114,7 @@ namespace OriAscendant.Tests.EditMode
         public void Resolve_Ascend_WritesTheCompleteGenerationReset()
         {
             ArmAtPeak(path: 1);
-            _tribulation.SetRandomSource(new FakeRandom(0.0)); // < 0.60 → ascend
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // 0.0 < any derived chance → ascend
             long before = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             var result = _tribulation.Resolve();
@@ -126,7 +146,7 @@ namespace OriAscendant.Tests.EditMode
         public void Resolve_Fall_StillProducesAnAncestor_At0Point4()
         {
             ArmAtPeak(path: 2);
-            _tribulation.SetRandomSource(new FakeRandom(0.99)); // ≥ 0.60 → fall
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // 0/0 trials → floor 0.25; 0.99 ≥ 0.25 → fall
 
             var result = _tribulation.Resolve();
 
@@ -139,13 +159,67 @@ namespace OriAscendant.Tests.EditMode
         }
 
         [Test]
-        public void Resolve_Boundary_ExactlyPointSixFalls()
+        public void AscendChance_IsLinearAcrossTheBand()
+        {
+            _save.oriTrials = 5;
+            _save.oriHeld = 0;
+            Assert.AreEqual(0.25, _tribulation.AscendChance, 1e-12, "full waver → floor");
+            _save.oriHeld = 5;
+            Assert.AreEqual(0.90, _tribulation.AscendChance, 1e-12, "full faith → ceiling");
+            _save.oriHeld = 3;
+            Assert.AreEqual(0.64, _tribulation.AscendChance, 1e-12, "3/5 → floor + (ceiling − floor) × 0.6");
+        }
+
+        [Test]
+        public void AscendChance_ZeroTrials_IsFloor()
+        {
+            _save.oriTrials = 0;
+            _save.oriHeld = 0;
+            Assert.AreEqual(0.25, _tribulation.AscendChance, 1e-12,
+                "a life that faced no resolved crossroads earns only the floor");
+        }
+
+        [Test]
+        public void AscendChance_IgnoresDeityPath()
+        {
+            _save.oriHeld = 3;
+            _save.oriTrials = 5;
+            _save.currentPath = 0; // Ane
+            double earth = _tribulation.AscendChance;
+            _save.currentPath = 2; // Osun
+            double river = _tribulation.AscendChance;
+            Assert.AreEqual(earth, river, 1e-12, "deity-Path never touches Crossing odds (ADR-0004)");
+            Assert.AreEqual(0.64, earth, 1e-12);
+        }
+
+        [Test]
+        public void Resolve_RollUnderDerivedChance_Ascends()
         {
             ArmAtPeak();
-            _tribulation.SetRandomSource(new FakeRandom(0.60)); // roll < chance ascends; 0.60 is NOT < 0.60
+            _save.oriHeld = 5; // steadfast → ceiling 0.90
+            _save.oriTrials = 5;
+            _tribulation.SetRandomSource(new FakeRandom(0.89));
+            Assert.IsTrue(_tribulation.Resolve().DidAscend, "a roll under the derived chance ascends");
+        }
 
-            var result = _tribulation.Resolve();
-            Assert.IsFalse(result.DidAscend);
+        [Test]
+        public void Resolve_RollAtDerivedChance_Falls()
+        {
+            ArmAtPeak();
+            _save.oriHeld = 5; // steadfast → ceiling 0.90
+            _save.oriTrials = 5;
+            _tribulation.SetRandomSource(new FakeRandom(0.90));
+            Assert.IsFalse(_tribulation.Resolve().DidAscend,
+                "even the steadfast can fall — roll == chance is not < chance");
+        }
+
+        [Test]
+        public void SequenceRandom_ReturnsValuesInOrder_ThenRepeatsLast()
+        {
+            var seq = new FakeRandom(0.1, 0.9);
+            Assert.AreEqual(0.1, seq.NextDouble());
+            Assert.AreEqual(0.9, seq.NextDouble());
+            Assert.AreEqual(0.9, seq.NextDouble(), "an exhausted sequence repeats its last value");
         }
 
         [Test]

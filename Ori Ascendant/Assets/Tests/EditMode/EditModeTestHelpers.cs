@@ -88,6 +88,8 @@ namespace OriAscendant.Tests.EditMode
         {
             var config = ScriptableObject.CreateInstance<TribulationConfig>();
             config.baseAscendChance = 0.60;
+            config.ascendFloor = 0.25;
+            config.ascendCeiling = 0.90;
             config.aseThresholdMantissa = 25.0;
             config.aseThresholdExponent = 6;
             return config;

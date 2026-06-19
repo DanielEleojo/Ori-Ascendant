@@ -42,6 +42,13 @@ namespace OriAscendant.Save
         /// Add-only field per ADR-0001: old v1 saves load with -1 unchanged.</summary>
         public int chosenOri = -1;
 
+        /// <summary>Steadfastness tally for this life — "held N of M" crossroads kept
+        /// true to the Ori. The Crossing reads these to derive AscendChance via the
+        /// floor→ceiling curve (ADR-0004). Add-only fields (no schema bump).
+        /// Slices 2a/2b own the writers (the Crossroads system); slice 3 reads them.</summary>
+        public int oriHeld = 0;
+        public int oriTrials = 0;
+
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>
         public long lastSaveTimestamp = 0;
