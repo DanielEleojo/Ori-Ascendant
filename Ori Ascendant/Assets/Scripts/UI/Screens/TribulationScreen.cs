@@ -41,6 +41,8 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _revealSubtitle;
         [SerializeField] private TMP_Text _deltaLine;
         [SerializeField] private Button _ceremonyTapCatcher;
+        [SerializeField] private Image _victoryPortrait;
+        [SerializeField] private Image _ascensionFxOverlay;
 
         [Header("Ancestor card")]
         [SerializeField] private GameObject _cardRoot;
@@ -185,7 +187,7 @@ namespace OriAscendant.UI.Screens
                 case Phase.Transition: TickTransition(); break;
                 case Phase.StormWaves: TickStormWaves(); break;
                 case Phase.Silence: TickSilence(); break;
-                case Phase.Reveal: TickTimed(_config.revealSeconds, EnterAncestorCard); break;
+                case Phase.Reveal: TickReveal(); break;
                 case Phase.AncestorCard: TickTimed(_config.ancestorCardSeconds, EnterSummary); break;
                 case Phase.FinalBeat: TickTimed(_config.finalBeatSeconds, Finish); break;
             }
@@ -250,6 +252,27 @@ namespace OriAscendant.UI.Screens
             }
         }
 
+        private void TickReveal()
+        {
+            _timer += Time.unscaledDeltaTime;
+            TickAscensionFx();
+            if (_timer >= _config.revealSeconds)
+            {
+                _timer = 0f;
+                EnterAncestorCard();
+            }
+        }
+
+        private void TickAscensionFx()
+        {
+            if (_ascensionFxOverlay == null || _result == null || !_result.DidAscend) return;
+            // Slow gold pulse during the ascension reveal beat.
+            float pulse = 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * 1.2f);
+            var c = _ascensionFxOverlay.color;
+            c.a = pulse;
+            _ascensionFxOverlay.color = c;
+        }
+
         private void ShowReveal()
         {
             bool ascended = _result.DidAscend;
@@ -273,6 +296,20 @@ namespace OriAscendant.UI.Screens
                 _deltaLine.text =
                     $"Lineage Àṣẹ: ×{_result.LineageFactorBefore:0.00} → ×{_result.LineageFactorAfter:0.00}";
             }
+
+            // Victor portrait: the Stage 6 sprite at the moment of crossing
+            // (placeholder until Phase D art; seam is clear — swap the sprite asset).
+            if (_victoryPortrait != null)
+            {
+                ServiceLocator.TryGet(out CultivationSystem cultivation);
+                _victoryPortrait.sprite = cultivation?.CurrentStageConfig?.portrait;
+                _victoryPortrait.gameObject.SetActive(true);
+            }
+
+            // Gold-radiance FX overlay: ascension beat committed fallback.
+            // Animated by TickAscensionFx() during the Reveal phase.
+            if (_ascensionFxOverlay != null)
+                _ascensionFxOverlay.gameObject.SetActive(ascended);
         }
 
         private void TickTimed(float duration, System.Action next)
@@ -374,6 +411,13 @@ namespace OriAscendant.UI.Screens
             if (_revealTitle != null) _revealTitle.gameObject.SetActive(showReveal);
             if (_revealSubtitle != null) _revealSubtitle.gameObject.SetActive(showReveal);
             if (_deltaLine != null) _deltaLine.gameObject.SetActive(showReveal);
+
+            // Portrait and FX visible only during reveal; ShowReveal() re-shows them.
+            if (!showReveal)
+            {
+                if (_victoryPortrait != null) _victoryPortrait.gameObject.SetActive(false);
+                if (_ascensionFxOverlay != null) _ascensionFxOverlay.gameObject.SetActive(false);
+            }
         }
     }
 }
