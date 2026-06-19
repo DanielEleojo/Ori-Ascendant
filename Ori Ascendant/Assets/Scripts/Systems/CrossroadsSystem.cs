@@ -110,21 +110,13 @@ namespace OriAscendant.Systems
             _save.oriTrials++;
             if (aligned) _save.oriHeld++;
 
-            int deckIndex = -1;
-            if (_config.deck != null)
-            {
-                for (int i = 0; i < _config.deck.Length; i++)
-                {
-                    if (_config.deck[i]?.id == _save.pendingCrossroadsId) { deckIndex = i; break; }
-                }
-            }
-
+            // card came from _config.deck via PendingCard, so IndexOf finds its slot.
             var deed = new DeedData
             {
                 crossroadsId = card.id,
                 chosenOptionIndex = optionIndex,
                 wasOriAligned = aligned,
-                beatIndex = deckIndex,
+                beatIndex = Array.IndexOf(_config.deck, card),
                 strayed = !aligned,
             };
             _save.deeds.Add(deed);
