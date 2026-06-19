@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using OriAscendant.Core;
 using UnityEngine;
 
@@ -14,8 +13,12 @@ namespace OriAscendant.Save
     /// (GameManager). This manager runs auth+reconcile as fire-and-forget in the
     /// background and only raises <see cref="OnCloudSaveAdopted"/> in the rare
     /// case the cloud strictly wins (device swap / reinstall). All pushes are
-    /// opportunistic and silent. In the editor / on Linux the provider is
-    /// <see cref="NullCloudSaveProvider"/>, so every path is inert.
+    /// opportunistic and silent. The "any cloud failure → local, never throw"
+    /// invariant is owned by <see cref="CloudSyncCoordinator"/> (the single
+    /// seam, issue #15) — this manager calls into it and trusts the contract,
+    /// no re-asserted try/catch in the reconcile or push paths. In the editor
+    /// / on Linux the provider is <see cref="NullCloudSaveProvider"/>, so every
+    /// path is inert.
     /// </summary>
     public class CloudSaveManager : MonoBehaviour
     {
@@ -59,13 +62,13 @@ namespace OriAscendant.Save
         }
 
         /// <summary>Fire-and-forget launch reconcile. Never awaited by the caller;
-        /// gameplay is already running on the local save when this starts.</summary>
+        /// gameplay is already running on the local save when this starts. The
+        /// coordinator's <see cref="CloudSyncCoordinator.AuthenticateAndReconcileAsync"/>
+        /// owns the never-throws guarantee — this method defers to it.</summary>
         public async void BeginBackgroundReconcile(SaveData local)
         {
             if (Coordinator == null) return;
-            SaveData chosen;
-            try { chosen = await Coordinator.AuthenticateAndReconcileAsync(local); }
-            catch { chosen = local; }
+            SaveData chosen = await Coordinator.AuthenticateAndReconcileAsync(local);
             if (!ReferenceEquals(chosen, local) && chosen != null)
             {
                 OnCloudSaveAdopted?.Invoke(chosen);
@@ -75,7 +78,8 @@ namespace OriAscendant.Save
         /// <summary>Opportunistic push of the current in-memory save (serialized
         /// fresh, so it is correct regardless of the local file write order).
         /// Hooked from Tribulation completion (a locked business rule) and app
-        /// suspend. Silent on any failure.</summary>
+        /// suspend. The coordinator's <see cref="CloudSyncCoordinator.PushAsync"/>
+        /// is silent on failure (the single owner of that rule) — no double-catch here.</summary>
         public void PushLatest()
         {
             PushRequestCount++; // synchronous: the "hook fired" signal for tests
@@ -83,13 +87,7 @@ namespace OriAscendant.Save
             if (!ServiceLocator.TryGet(out SaveManager saveManager) || saveManager.Current == null) return;
 
             string json = SaveSerializer.ToJson(saveManager.Current);
-            _ = SafePush(json);
-        }
-
-        private async Task SafePush(string json)
-        {
-            try { await Coordinator.PushAsync(json); }
-            catch { /* never surfaces — cloud failure must not affect gameplay */ }
+            _ = Coordinator.PushAsync(json);
         }
 
         private void OnApplicationPause(bool paused)
