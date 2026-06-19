@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OriAscendant.Core;
 using OriAscendant.Data;
@@ -68,7 +69,7 @@ namespace OriAscendant.Systems
         public void Begin(SaveData save)
         {
             _save = save ?? throw new ArgumentNullException(nameof(save));
-            if (_save.deeds == null) _save.deeds = new System.Collections.Generic.List<DeedData>();
+            if (_save.deeds == null) _save.deeds = new List<DeedData>();
             SubscribeAse();
             // Surface any crossroads that survived from a previous session.
             if (HasPending) { OnCrossroadsReady?.Invoke(_save.pendingCrossroadsId); return; }
@@ -152,9 +153,11 @@ namespace OriAscendant.Systems
 
         private void FireCrossroads()
         {
-            if (_config.DeckSize == 0) return;
+            // Caller (CheckMilestone) already verified DeckSize > 0.
+            // NextDouble() is contractually [0, 1), so the cast is in [0, DeckSize - 1];
+            // the Min clamp defends against a test source returning 1.0 exactly.
             int index = (int)(_random.NextDouble() * _config.DeckSize);
-            index = Math.Max(0, Math.Min(_config.DeckSize - 1, index));
+            index = Math.Min(_config.DeckSize - 1, index);
             CrossroadsCard card = _config.GetCard(index);
             if (card == null || string.IsNullOrEmpty(card.id)) return;
 
