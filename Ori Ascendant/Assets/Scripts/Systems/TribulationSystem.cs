@@ -131,6 +131,18 @@ namespace OriAscendant.Systems
                 remembrance = remembrance,
             };
 
+            // Chronicle: unbounded saga record — survives Council retirement (issue #7).
+            // Appended before the reset so pre-reset fields (chosenOri, generationCount)
+            // are captured intact.
+            _save.chronicle.Add(new ChronicleEntry
+            {
+                generationNumber = _save.lineage.generationCount + 1,
+                chosenOri = _save.chosenOri,
+                didAscend = ascended,
+                remembrance = remembrance,
+                completedTimestamp = now,
+            });
+
             double w = council != null ? council.W : 0.25;
             double sumBefore = council?.ActiveCouncilSum ?? 0.0;
             double permBefore = _save.lineage.permanentAseBonus;

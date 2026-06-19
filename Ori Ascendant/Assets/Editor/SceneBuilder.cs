@@ -682,7 +682,8 @@ namespace OriAscendant.EditorTools
 
             // ---- Phase C screens ----
             TribulationScreen tribulationScreen = BuildTribulationScreenUi(root, tribulation);
-            CouncilScreenView councilScreen = BuildCouncilScreenUi(root);
+            ChronicleScreenView chronicleScreen = BuildChronicleScreenUi(root);
+            CouncilScreenView councilScreen = BuildCouncilScreenUi(root, chronicleScreen);
             SettingsScreenView settingsScreen = BuildSettingsUi(root); // Phase D
 
             var stripView = canvasGo.AddComponent<CouncilStripView>();
@@ -1226,7 +1227,82 @@ namespace OriAscendant.EditorTools
             return screen;
         }
 
-        private static CouncilScreenView BuildCouncilScreenUi(RectTransform root)
+        private static ChronicleScreenView BuildChronicleScreenUi(RectTransform root)
+        {
+            var controller = new GameObject("ChronicleScreen", typeof(RectTransform));
+            var controllerRt = (RectTransform)controller.transform;
+            controllerRt.SetParent(root, false);
+            Stretch(controllerRt);
+
+            var chronicleRoot = NewStretched(controllerRt, "ChronicleRoot");
+            var dim = MakeImage(chronicleRoot, "Dim", new Color(0f, 0f, 0f, 0.85f));
+            Stretch(dim.rectTransform);
+            dim.raycastTarget = true;
+            var panel = MakeImage(chronicleRoot, "Panel", Panel);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.05f, 0.08f);
+            panelRt.anchorMax = new Vector2(0.95f, 0.92f);
+            panelRt.offsetMin = Vector2.zero;
+            panelRt.offsetMax = Vector2.zero;
+
+            var title = MakeText(panelRt, "Title", "The Chronicle", 20f, TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, 0.92f, 0.99f);
+
+            var close = MakeButton(panelRt, "CloseButton", "✕", PanelLine, 14f);
+            var closeRt = (RectTransform)close.transform;
+            closeRt.anchorMin = new Vector2(1f, 1f);
+            closeRt.anchorMax = new Vector2(1f, 1f);
+            closeRt.pivot = new Vector2(1f, 1f);
+            closeRt.sizeDelta = new Vector2(34f, 34f);
+            closeRt.anchoredPosition = new Vector2(-6f, -6f);
+
+            // Scrollable body — viewport clips the content; rows added at runtime.
+            var viewport = MakeImage(panelRt, "Viewport", new Color(0f, 0f, 0f, 0.01f));
+            var viewportRt = viewport.rectTransform;
+            viewportRt.anchorMin = new Vector2(0.03f, 0.04f);
+            viewportRt.anchorMax = new Vector2(0.97f, 0.90f);
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = Vector2.zero;
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            var content = new GameObject("Content", typeof(RectTransform));
+            var contentRt = (RectTransform)content.transform;
+            contentRt.SetParent(viewportRt, false);
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.offsetMin = Vector2.zero;
+            contentRt.offsetMax = Vector2.zero;
+            var vlg = content.AddComponent<VerticalLayoutGroup>();
+            vlg.childAlignment = TextAnchor.UpperCenter;
+            vlg.spacing = 6f;
+            vlg.padding = new RectOffset(8, 8, 8, 8);
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            var fitter = content.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = panel.gameObject.AddComponent<ScrollRect>();
+            scroll.content = contentRt;
+            scroll.viewport = viewportRt;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 20f;
+
+            chronicleRoot.gameObject.SetActive(false);
+
+            var screen = controller.AddComponent<ChronicleScreenView>();
+            Assign(screen, "_root", chronicleRoot.gameObject);
+            Assign(screen, "_contentRoot", contentRt);
+            Assign(screen, "_closeButton", close);
+            return screen;
+        }
+
+        private static CouncilScreenView BuildCouncilScreenUi(RectTransform root,
+            ChronicleScreenView chronicleScreen)
         {
             var controller = new GameObject("CouncilScreen", typeof(RectTransform));
             var controllerRt = (RectTransform)controller.transform;
@@ -1255,9 +1331,20 @@ namespace OriAscendant.EditorTools
             closeRt.sizeDelta = new Vector2(34f, 34f);
             closeRt.anchoredPosition = new Vector2(-6f, -6f);
 
+            // Chronicle access button — top-left corner, mirroring the close button top-right.
+            var chronicleBtn = MakeButton(panelRt, "ChronicleButton", "Chronicle ›", PanelLine, 12f);
+            var chronicleBtnRt = (RectTransform)chronicleBtn.transform;
+            chronicleBtnRt.anchorMin = new Vector2(0f, 1f);
+            chronicleBtnRt.anchorMax = new Vector2(0f, 1f);
+            chronicleBtnRt.pivot = new Vector2(0f, 1f);
+            chronicleBtnRt.sizeDelta = new Vector2(100f, 30f);
+            chronicleBtnRt.anchoredPosition = new Vector2(6f, -6f);
+
             var screen = controller.AddComponent<CouncilScreenView>();
             Assign(screen, "_root", shrineRoot.gameObject);
             Assign(screen, "_closeButton", close);
+            Assign(screen, "_chronicleButton", chronicleBtn);
+            Assign(screen, "_chronicleScreen", chronicleScreen);
 
             // Five card rows, top to bottom.
             for (int i = 0; i < 5; i++)

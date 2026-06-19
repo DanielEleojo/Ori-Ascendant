@@ -87,6 +87,12 @@ namespace OriAscendant.Save
         /// <summary>Active Ancestral Council, max 5 (CouncilConfig.maxCouncil).</summary>
         public List<AncestorData> council = new List<AncestorData>();
 
+        /// <summary>Unbounded saga record — every completed generation in order.
+        /// Unlike the Council (max 5), this list never shrinks: retired ancestors
+        /// remain here so the player can read the full bloodline history.
+        /// Add-only field per ADR-0001; old saves load with an empty list.</summary>
+        public List<ChronicleEntry> chronicle = new List<ChronicleEntry>();
+
         public LineageData lineage = new LineageData();
 
         // ---- BigNumber bridge helpers (methods, not properties, so Newtonsoft
@@ -139,6 +145,21 @@ namespace OriAscendant.Save
         /// fallen. Derived at the Crossing by Remembrance.Derive() before the reset.
         /// Add-only field per ADR-0001: old saves load with null.</summary>
         public string remembrance;
+    }
+
+    /// <summary>
+    /// One completed generation in the saga, appended to SaveData.chronicle at the
+    /// Crossing. Unlike the Council (capped at 5), the Chronicle never shrinks —
+    /// every generation is remembered even after retirement. Add-only per ADR-0001.
+    /// </summary>
+    [Serializable]
+    public class ChronicleEntry
+    {
+        public int generationNumber;    // 1-based
+        public int chosenOri;           // virtue index, or -1 if no vow was held
+        public bool didAscend;
+        public string remembrance;      // Title (ascend) or Nickname (fall); null for legacy
+        public long completedTimestamp; // Unix seconds UTC
     }
 
     /// <summary>
