@@ -254,13 +254,13 @@ namespace OriAscendant.UI
             }
 
             _secondsSinceLaunch += Time.unscaledDeltaTime;
+            long nowUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             // Write the appear timestamp once, after the appear delay.
             if (save.channelHintShownAt == 0 && _secondsSinceLaunch >= HintAppearSeconds)
-                save.channelHintShownAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                save.channelHintShownAt = nowUtc;
 
             // Derive visibility from persisted state — survives resume and scene reload.
-            long nowUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var state = ChannelHintDecision.Evaluate(save.channelHintShownAt, nowUtc, HintLifetimeSeconds);
             bool shouldShow = state == ChannelHintState.Active;
             if (_hintRoot.activeSelf != shouldShow) _hintRoot.SetActive(shouldShow);
