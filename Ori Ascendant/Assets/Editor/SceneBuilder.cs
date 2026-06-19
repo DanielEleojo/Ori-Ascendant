@@ -779,6 +779,7 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_advanceButton", advance);
             Assign(controller, "_advanceLabel", advanceLabel);
             Assign(controller, "_portraitButton", portraitButton);
+            Assign(controller, "_portraitImage", portrait);
             Assign(controller, "_floatingTextAnchor", portraitZone);
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);
@@ -1110,6 +1111,20 @@ namespace OriAscendant.EditorTools
             InsetX(revealSubtitle.rectTransform, 24f);
             var deltaLine = MakeText(ceremonyRoot, "DeltaLine", "", 18f, TextAlignmentOptions.Center, Gold);
             SetBand(deltaLine.rectTransform, 0.32f, 0.40f);
+
+            // Victor portrait: receives the Stage 6 sprite at ascension reveal.
+            // Placeholder until Phase D art — seam is clear, swap the sprite asset.
+            var victoryPortrait = MakeImage(ceremonyRoot, "VictoryPortrait", Panel);
+            SetBand(victoryPortrait.rectTransform, 0.67f, 0.88f);
+            InsetX(victoryPortrait.rectTransform, 80f);
+            victoryPortrait.gameObject.SetActive(false);
+
+            // Gold-radiance FX overlay: ascension beat committed fallback (swap for
+            // bespoke crowned reveal Phase D). Alpha pulsed by TribulationScreen.
+            var ascensionFx = MakeImage(victoryPortrait.rectTransform, "AscensionFxOverlay",
+                new Color(Gold.r, Gold.g, Gold.b, 0f));
+            ascensionFx.gameObject.SetActive(false);
+
             ceremonyRoot.gameObject.SetActive(false);
 
             // -- ancestor card --
@@ -1193,6 +1208,8 @@ namespace OriAscendant.EditorTools
             Assign(screen, "_revealSubtitle", revealSubtitle);
             Assign(screen, "_deltaLine", deltaLine);
             Assign(screen, "_ceremonyTapCatcher", tapCatcher);
+            Assign(screen, "_victoryPortrait", victoryPortrait);
+            Assign(screen, "_ascensionFxOverlay", ascensionFx);
             Assign(screen, "_cardRoot", cardRoot.gameObject);
             Assign(screen, "_cardFrame", cardFrame);
             Assign(screen, "_cardMotif", cardMotif);

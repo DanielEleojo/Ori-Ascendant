@@ -34,6 +34,7 @@ namespace OriAscendant.UI
         [SerializeField] private PathScreenView _pathScreen;
         [SerializeField] private OriScreenView _oriScreen;
         [SerializeField] private Screens.CrossroadsScreenView _crossroadsScreen;
+        [SerializeField] private Image _portraitImage;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
 
@@ -69,6 +70,7 @@ namespace OriAscendant.UI
             if (_portraitButton != null) _portraitButton.onClick.RemoveListener(HandlePortraitTapped);
             if (_settingsButton != null && _settingsScreen != null)
                 _settingsButton.onClick.RemoveListener(_settingsScreen.Show);
+            if (_cultivation != null) _cultivation.OnStageAdvanced -= HandleStageAdvanced;
         }
 
         private void Start()
@@ -81,6 +83,12 @@ namespace OriAscendant.UI
 
             if (_progressRoot != null) _progressRoot.SetActive(true);
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
+
+            if (_cultivation != null)
+            {
+                _cultivation.OnStageAdvanced += HandleStageAdvanced;
+                RefreshPortrait();
+            }
         }
 
         private void Update()
@@ -92,6 +100,16 @@ namespace OriAscendant.UI
             TickHint();
             TickOriPrompt();
             TickCrossroadsPrompt();
+        }
+
+        // ---- portrait (zone 4): sync sprite to the current stage's config ----
+
+        private void HandleStageAdvanced(int _) => RefreshPortrait();
+
+        private void RefreshPortrait()
+        {
+            if (_portraitImage == null || _cultivation == null) return;
+            _portraitImage.sprite = _cultivation.CurrentStageConfig?.portrait;
         }
 
         // ---- post-Crossing re-vow: surface the modal on the first frame after
