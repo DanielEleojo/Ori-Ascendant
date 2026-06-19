@@ -45,9 +45,20 @@ namespace OriAscendant.Save
         /// <summary>Steadfastness tally for this life — "held N of M" crossroads kept
         /// true to the Ori. The Crossing reads these to derive AscendChance via the
         /// floor→ceiling curve (ADR-0004). Add-only fields (no schema bump).
-        /// Slices 2a/2b own the writers (the Crossroads system); slice 3 reads them.</summary>
+        /// CrossroadsSystem owns the writers (slice 2a); TribulationSystem reads them.</summary>
         public int oriHeld = 0;
         public int oriTrials = 0;
+
+        /// <summary>The pending crossroads card's id, or "" when none is active.
+        /// Set by CrossroadsSystem when the Àṣẹ milestone fires; cleared when the
+        /// player makes a choice. Survives save/load — the crossroads is patient.
+        /// Add-only field (no schema bump per ADR-0001).</summary>
+        public string pendingCrossroadsId = "";
+
+        /// <summary>Deeds recorded this life — one per resolved Crossroads choice.
+        /// Reset by TribulationSystem at the Crossing (the Chronicle will persist
+        /// them long-term in a later slice). Add-only field (no schema bump).</summary>
+        public List<DeedData> deeds = new List<DeedData>();
 
         /// <summary>Unix seconds UTC of the last save — the offline-calc anchor.
         /// 0 means "never saved" (fresh install: no offline gain).</summary>
@@ -108,6 +119,19 @@ namespace OriAscendant.Save
         public bool didAscend;          // true = full power, false = lesser
         public double bonusMultiplier;  // 1.0 if ascended, 0.4 if fallen (locked)
         public long completedTimestamp; // Unix seconds UTC; retirement order key
+    }
+
+    /// <summary>
+    /// A recorded Crossroads choice — one per resolved dilemma this life.
+    /// wasOriAligned drives the steadfastness tally; crossroadsId + chosenOptionIndex
+    /// will key the deed-tied Nickname in the Chronicle (later slice).
+    /// </summary>
+    [Serializable]
+    public class DeedData
+    {
+        public string crossroadsId;
+        public int chosenOptionIndex;
+        public bool wasOriAligned;
     }
 
     [Serializable]

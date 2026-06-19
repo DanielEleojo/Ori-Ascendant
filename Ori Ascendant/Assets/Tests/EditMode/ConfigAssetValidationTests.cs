@@ -132,5 +132,31 @@ namespace OriAscendant.Tests.EditMode
                 Assert.IsNotEmpty(virtue.vowLine, "every Ori virtue needs a vow line");
             }
         }
+
+        [Test]
+        public void CrossroadsConfig_HasASeedDeck()
+        {
+            // Dynasty PRD Phase 1 (slice 2a): seed deck ships pre-§7.10. The field
+            // shape (non-empty deck, each card with id + prompt + at least 2 options,
+            // each option with text) is the contract; final content is the review pass.
+            var config = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            Assert.IsNotNull(config.deck, "CrossroadsConfig must define a deck");
+            Assert.GreaterOrEqual(config.DeckSize, 1, "the deck needs at least one card");
+            Assert.IsTrue(config.GetMilestone() > BigNumber.Zero,
+                "milestone must be positive — a zero milestone fires immediately");
+            foreach (var card in config.deck)
+            {
+                Assert.IsNotEmpty(card.id, "every crossroads card needs a unique id");
+                Assert.IsNotEmpty(card.prompt, "every crossroads card needs a prompt");
+                Assert.IsNotNull(card.options);
+                Assert.GreaterOrEqual(card.options.Length, 2,
+                    $"card '{card.id}' must offer at least 2 options so it is a real dilemma");
+                foreach (var option in card.options)
+                {
+                    Assert.IsNotEmpty(option.optionText,
+                        $"every option in card '{card.id}' needs display text");
+                }
+            }
+        }
     }
 }

@@ -134,7 +134,11 @@ namespace OriAscendant.Systems
             _save.SetAse(BigNumber.Zero);
             _save.currentStage = 0;
             _save.currentPath = -1;
-            _save.chosenOri = -1; // Àkùnlẹ̀yàn is re-vowed at the start of the next life
+            _save.chosenOri = -1;           // Àkùnlẹ̀yàn is re-vowed at the start of the next life
+            _save.oriHeld = 0;              // steadfastness tally is per-life
+            _save.oriTrials = 0;
+            _save.pendingCrossroadsId = ""; // patient crossroads expire at the Crossing
+            if (_save.deeds != null) _save.deeds.Clear(); // Chronicle (later slice) will persist these
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
 

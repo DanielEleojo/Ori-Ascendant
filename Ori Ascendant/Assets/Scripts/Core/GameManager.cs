@@ -41,6 +41,8 @@ namespace OriAscendant.Core
             if (ServiceLocator.TryGet(out TribulationSystem tribulation)) tribulation.Begin(save);
             if (ServiceLocator.TryGet(out OriSystem ori)) ori.Begin(save);
             _aseGeneration.Begin(save);
+            // CrossroadsSystem subscribes to AseChanged after Begin; must follow AseGen.Begin
+            if (ServiceLocator.TryGet(out Systems.CrossroadsSystem crossroads)) crossroads.Begin(save);
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             // Two intents (issue #17): a fresh save STAMPS the timestamps with
             // zero Àṣẹ credited; any existing save runs resume accrual.
@@ -79,6 +81,7 @@ namespace OriAscendant.Core
             if (ServiceLocator.TryGet(out TribulationSystem tribulation)) tribulation.Begin(cloud);
             if (ServiceLocator.TryGet(out OriSystem ori)) ori.Begin(cloud);
             _aseGeneration.Begin(cloud);
+            if (ServiceLocator.TryGet(out Systems.CrossroadsSystem crossroads)) crossroads.Begin(cloud);
             _aseGeneration.RecalculateRate();
             _saveManager.Save();
         }

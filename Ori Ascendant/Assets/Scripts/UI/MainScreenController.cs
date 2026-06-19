@@ -33,6 +33,7 @@ namespace OriAscendant.UI
         [SerializeField] private GameObject _hintRoot;
         [SerializeField] private PathScreenView _pathScreen;
         [SerializeField] private OriScreenView _oriScreen;
+        [SerializeField] private Screens.CrossroadsScreenView _crossroadsScreen;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
 
@@ -42,6 +43,7 @@ namespace OriAscendant.UI
         private CultivationSystem _cultivation;
         private SaveManager _saveManager;
         private OriSystem _oriSystem;
+        private Systems.CrossroadsSystem _crossroadsSystem;
 
         private float _secondsSinceLaunch;
         private bool _hintShown;
@@ -75,6 +77,7 @@ namespace OriAscendant.UI
             _cultivation = ServiceLocator.Get<CultivationSystem>();
             ServiceLocator.TryGet(out _saveManager);
             ServiceLocator.TryGet(out _oriSystem);
+            ServiceLocator.TryGet(out _crossroadsSystem);
 
             if (_progressRoot != null) _progressRoot.SetActive(true);
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
@@ -88,6 +91,7 @@ namespace OriAscendant.UI
             RefreshCta();
             TickHint();
             TickOriPrompt();
+            TickCrossroadsPrompt();
         }
 
         // ---- post-Crossing re-vow: surface the modal on the first frame after
@@ -97,6 +101,15 @@ namespace OriAscendant.UI
             if (_oriScreen == null || _oriSystem == null) return;
             if (_oriSystem.HasChosen || _oriScreen.IsOpen) return;
             _oriScreen.Show();
+        }
+
+        // ---- pending crossroads: surface the modal once Àṣẹ passes the milestone
+        //      and the crossroads fires. Patient — waits across sessions.
+        private void TickCrossroadsPrompt()
+        {
+            if (_crossroadsScreen == null || _crossroadsSystem == null) return;
+            if (!_crossroadsSystem.HasPending || _crossroadsScreen.IsOpen) return;
+            _crossroadsScreen.Show();
         }
 
         // ---- progress bar (zone 5) ----

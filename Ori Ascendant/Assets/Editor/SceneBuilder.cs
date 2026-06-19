@@ -32,6 +32,7 @@ namespace OriAscendant.EditorTools
         private const string TribulationConfigPath = ConfigFolder + "/TribulationConfig.asset";
         private const string CouncilConfigPath = ConfigFolder + "/CouncilConfig.asset";
         private const string OriConfigPath = ConfigFolder + "/OriConfig.asset";
+        private const string CrossroadsConfigPath = ConfigFolder + "/CrossroadsConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
@@ -90,11 +91,12 @@ namespace OriAscendant.EditorTools
             TribulationConfig tribulation = BuildTribulationConfig();
             CouncilConfig councilConfig = BuildCouncilConfig();
             OriConfig oriConfig = BuildOriConfig();
+            CrossroadsConfig crossroadsConfig = BuildCrossroadsConfig();
             CultivationStageConfig[] stages = BuildStageConfigs();
             PathConfig[] paths = BuildPathConfigs();
-            BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, stages, paths);
+            BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 12 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 13 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -177,6 +179,46 @@ namespace OriAscendant.EditorTools
                 new OriVirtue { virtueName = "Patience", vowLine = "I will hold the long road; haste is not my master." },
                 new OriVirtue { virtueName = "Courage",  vowLine = "I will not turn from what stands before me." },
                 new OriVirtue { virtueName = "Mercy",    vowLine = "I will spare what I could strike, when sparing is true." },
+            };
+            EditorUtility.SetDirty(config);
+            return config;
+        }
+
+        // Dynasty PRD Phase 1 (slice 2a): placeholder seed deck. Final content + the
+        // §7.10 native-speaker review are required before ship; the field shape is the
+        // contract (id, prompt, options with virtueIndex matching OriConfig indices).
+        private static CrossroadsConfig BuildCrossroadsConfig()
+        {
+            var config = EnsureAsset<CrossroadsConfig>(CrossroadsConfigPath);
+            // Milestone: fires when Àṣẹ first reaches 100 (mid-Stage 1, early enough
+            // to test the system without requiring late-game progression).
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 2; // 100 Àṣẹ
+            // Virtue indices: 0=Patience, 1=Courage, 2=Mercy (must match OriConfig).
+            config.deck = new[]
+            {
+                new CrossroadsCard
+                {
+                    id = "road_stranger",
+                    prompt = "A stranger sits blocking the narrow road, eyes closed. They do not move.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Sit beside them. The road will keep." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Speak firmly — this road must not be held." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Step around and leave them in peace." },
+                    }
+                },
+                new CrossroadsCard
+                {
+                    id = "market_debt",
+                    prompt = "A market-woman calls to you — she says you owe a debt from a deal you cannot remember making.",
+                    options = new[]
+                    {
+                        new CrossroadsOption { virtueIndex = 0, optionText = "Wait, and hear the full account before you answer." },
+                        new CrossroadsOption { virtueIndex = 1, optionText = "Refuse clearly; a debt you did not make is not yours to carry." },
+                        new CrossroadsOption { virtueIndex = 2, optionText = "Offer something small to close the matter, even if you owe nothing." },
+                    }
+                },
             };
             EditorUtility.SetDirty(config);
             return config;
@@ -346,14 +388,14 @@ namespace OriAscendant.EditorTools
         // ================= scene =================
 
         private static void BuildMainScene(GameplayConfig gameplay, TribulationConfig tribulation,
-            CouncilConfig councilConfig, OriConfig oriConfig,
+            CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             BuildCamera();
             BuildEventSystem();
-            BuildSystems(gameplay, tribulation, councilConfig, oriConfig, stages, paths);
+            BuildSystems(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig, stages, paths);
             BuildUi(gameplay, tribulation);
 
             Directory.CreateDirectory("Assets/Scenes");
@@ -385,7 +427,7 @@ namespace OriAscendant.EditorTools
         }
 
         private static void BuildSystems(GameplayConfig gameplay, TribulationConfig tribulation,
-            CouncilConfig councilConfig, OriConfig oriConfig,
+            CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             var go = new GameObject("Systems");
@@ -406,6 +448,9 @@ namespace OriAscendant.EditorTools
 
             var oriSystem = go.AddComponent<OriSystem>();
             Assign(oriSystem, "_config", oriConfig);
+
+            var crossroadsSystem = go.AddComponent<CrossroadsSystem>();
+            Assign(crossroadsSystem, "_config", crossroadsConfig);
 
             go.AddComponent<OriAscendant.Save.CloudSaveManager>();
             go.AddComponent<OriAscendant.Audio.AudioManager>();
@@ -457,7 +502,7 @@ namespace OriAscendant.EditorTools
             var rateText = MakeText(counterCanvasRt, "RateText", "+0 Àṣẹ/s", 17f, TextAlignmentOptions.Top, Gold);
             SetBand(rateText.rectTransform, 0.00f, 0.30f);
 
-            // Zone 3 — identity line + path badge + Ori badge.
+            // Zone 3 — identity line + path badge + Ori badge + steadfastness.
             var identity = Zone(root, "IdentityZone", 0.20f, 0.24f);
             var stageText = MakeText(identity, "StageText", "Stage 1", 20f, TextAlignmentOptions.Center, Text);
             Stretch(stageText.rectTransform);
@@ -467,6 +512,12 @@ namespace OriAscendant.EditorTools
             var oriBadge = MakeText(identity, "OriBadge", "", 14f, TextAlignmentOptions.MidlineLeft, Gold);
             Inset(oriBadge.rectTransform, left: 20f);
             oriBadge.gameObject.SetActive(false); // shown once an Ori is vowed
+            // Steadfastness tally (Dynasty PRD Phase 1, slice 2a): hidden until
+            // the first crossroads has been resolved (oriTrials > 0).
+            var steadfastnessText = MakeText(identity, "SteadfastnessText", "", 12f,
+                TextAlignmentOptions.MidlineLeft, TextDim);
+            Inset(steadfastnessText.rectTransform, left: 20f);
+            steadfastnessText.gameObject.SetActive(false);
 
             // Zone 4 — portrait = the channel-tap target (GAMEPLAY §5.3).
             var portraitZone = Zone(root, "PortraitZone", 0.24f, 0.58f);
@@ -590,6 +641,9 @@ namespace OriAscendant.EditorTools
             // ---- Ori choice modal (Dynasty PRD Phase 1, slice 1) ----
             OriScreenView oriScreen = BuildOriScreenUi(root);
 
+            // ---- Crossroads modal (Dynasty PRD Phase 1, slice 2a) ----
+            CrossroadsScreenView crossroadsScreen = BuildCrossroadsScreenUi(root);
+
             // ---- Phase C screens ----
             TribulationScreen tribulationScreen = BuildTribulationScreenUi(root, tribulation);
             CouncilScreenView councilScreen = BuildCouncilScreenUi(root);
@@ -675,6 +729,7 @@ namespace OriAscendant.EditorTools
             Assign(view, "_generationText", genText);
             Assign(view, "_pathBadge", pathBadge);
             Assign(view, "_oriBadge", oriBadge);
+            Assign(view, "_steadfastnessText", steadfastnessText);
 
             var controller = canvasGo.AddComponent<MainScreenController>();
             Assign(controller, "_config", config);
@@ -692,6 +747,7 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);
             Assign(controller, "_oriScreen", oriScreen);
+            Assign(controller, "_crossroadsScreen", crossroadsScreen);
             Assign(controller, "_settingsButton", settingsBtn);
             Assign(controller, "_settingsScreen", settingsScreen);
 
@@ -819,6 +875,99 @@ namespace OriAscendant.EditorTools
             Assign(view, "_background", cardBg);
             Assign(view, "_nameText", nameText);
             Assign(view, "_vowText", vowText);
+            return view;
+        }
+
+        // ---- Crossroads modal (Dynasty PRD Phase 1, slice 2a) ----
+        // Mirrors the OriScreenView pattern: 4 option slots (most seed cards use 2–3),
+        // hidden root, confirm button. The options bind dynamically when Show() is called.
+        private static CrossroadsScreenView BuildCrossroadsScreenUi(RectTransform root)
+        {
+            var controller = new GameObject("CrossroadsScreen", typeof(RectTransform));
+            var controllerRt = (RectTransform)controller.transform;
+            controllerRt.SetParent(root, false);
+            Stretch(controllerRt);
+
+            var crossroadsRoot = new GameObject("CrossroadsRoot", typeof(RectTransform));
+            var crossroadsRootRt = (RectTransform)crossroadsRoot.transform;
+            crossroadsRootRt.SetParent(controllerRt, false);
+            Stretch(crossroadsRootRt);
+            var dim = MakeImage(crossroadsRootRt, "Dim", new Color(0f, 0f, 0f, 0.80f));
+            Stretch(dim.rectTransform);
+            dim.raycastTarget = true;
+
+            var panel = MakeImage(crossroadsRootRt, "Panel", Panel);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.05f, 0.06f);
+            panelRt.anchorMax = new Vector2(0.95f, 0.94f);
+            panelRt.offsetMin = Vector2.zero;
+            panelRt.offsetMax = Vector2.zero;
+
+            var title = MakeText(panelRt, "Title", "A crossroads", 18f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, 0.92f, 0.99f);
+
+            var prompt = MakeText(panelRt, "Prompt", "", 15f, TextAlignmentOptions.Center, Text);
+            SetBand(prompt.rectTransform, 0.75f, 0.92f);
+            InsetX(prompt.rectTransform, 14f);
+            prompt.enableWordWrapping = true;
+
+            // 3 option slots (seed deck uses up to 3 options per card).
+            const int maxOptions = 3;
+            var optionViews = new CrossroadsOptionView[maxOptions];
+            float[][] optionBands =
+            {
+                new[] { 0.56f, 0.73f },
+                new[] { 0.37f, 0.54f },
+                new[] { 0.18f, 0.35f },
+            };
+            for (int i = 0; i < maxOptions; i++)
+            {
+                optionViews[i] = BuildCrossroadsOptionView(panelRt, $"OptionCard{i}",
+                    optionBands[i][0], optionBands[i][1]);
+            }
+
+            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose your path", Gold, 16f);
+            var confirmRt = (RectTransform)confirm.transform;
+            confirmRt.anchorMin = new Vector2(0.10f, 0.03f);
+            confirmRt.anchorMax = new Vector2(0.90f, 0.13f);
+            confirmRt.offsetMin = Vector2.zero;
+            confirmRt.offsetMax = Vector2.zero;
+            confirm.interactable = false;
+            var confirmLabel = confirm.GetComponentInChildren<TMP_Text>();
+            crossroadsRoot.SetActive(false);
+
+            var screen = controller.AddComponent<CrossroadsScreenView>();
+            Assign(screen, "_root", crossroadsRoot);
+            Assign(screen, "_promptText", prompt);
+            AssignArray(screen, "_optionViews", optionViews);
+            Assign(screen, "_confirmButton", confirm);
+            Assign(screen, "_confirmLabel", confirmLabel);
+            return screen;
+        }
+
+        private static CrossroadsOptionView BuildCrossroadsOptionView(
+            RectTransform parent, string name, float bottomFrac, float topFrac)
+        {
+            var cardBg = MakeImage(parent, name, Panel);
+            SetBand(cardBg.rectTransform, bottomFrac, topFrac);
+            var inner = cardBg.rectTransform;
+            inner.offsetMin = new Vector2(12f, 0f);
+            inner.offsetMax = new Vector2(-12f, 0f);
+            cardBg.raycastTarget = true;
+
+            var button = cardBg.gameObject.AddComponent<Button>();
+            button.targetGraphic = cardBg;
+
+            var optionText = MakeText(inner, "OptionText", "", 14f, TextAlignmentOptions.MidlineLeft, Text);
+            SetBand(optionText.rectTransform, 0.10f, 0.90f);
+            InsetX(optionText.rectTransform, 14f);
+            optionText.enableWordWrapping = true;
+
+            var view = cardBg.gameObject.AddComponent<CrossroadsOptionView>();
+            Assign(view, "_button", button);
+            Assign(view, "_background", cardBg);
+            Assign(view, "_optionText", optionText);
             return view;
         }
 

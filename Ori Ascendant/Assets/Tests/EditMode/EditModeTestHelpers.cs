@@ -103,6 +103,18 @@ namespace OriAscendant.Tests.EditMode
             return config;
         }
 
+        /// <summary>Crossroads seed deck with the supplied cards and the
+        /// default milestone (Àṣẹ 1 000). Cards can be omitted to get an
+        /// empty-deck config for guard-rail tests.</summary>
+        public static CrossroadsConfig MakeCrossroadsConfig(params CrossroadsCard[] cards)
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.deck = cards ?? new CrossroadsCard[0];
+            return config;
+        }
+
         private static void Assert(bool condition, string message)
         {
             if (!condition) throw new System.InvalidOperationException(message);

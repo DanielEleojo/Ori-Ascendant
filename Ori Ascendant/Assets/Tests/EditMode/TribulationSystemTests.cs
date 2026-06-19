@@ -262,5 +262,33 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsNotNull(eventAncestor);
             Assert.AreEqual(0, saveStageAtEvent, "event is notification-only — fired AFTER the atomic write");
         }
+
+        [Test]
+        public void Resolve_ResetsSteadfastnessAndCrossroadsState()
+        {
+            ArmAtPeak();
+            // Simulate a life that held its Ori at a crossroads
+            _save.oriHeld = 3;
+            _save.oriTrials = 4;
+            _save.pendingCrossroadsId = "card_a";
+            _save.deeds = new System.Collections.Generic.List<DeedData>
+            {
+                new DeedData
+                {
+                    crossroadsId = "card_a",
+                    chosenOptionIndex = 0,
+                    wasOriAligned = true,
+                }
+            };
+            _tribulation.SetRandomSource(new FakeRandom(0.0));
+
+            _tribulation.Resolve();
+
+            Assert.AreEqual(0, _save.oriHeld,   "oriHeld resets to 0 for the new life");
+            Assert.AreEqual(0, _save.oriTrials,  "oriTrials resets to 0 for the new life");
+            Assert.AreEqual("", _save.pendingCrossroadsId, "pending crossroads clears at the Crossing");
+            Assert.IsNotNull(_save.deeds);
+            Assert.AreEqual(0, _save.deeds.Count, "deeds list cleared at the Crossing");
+        }
     }
 }

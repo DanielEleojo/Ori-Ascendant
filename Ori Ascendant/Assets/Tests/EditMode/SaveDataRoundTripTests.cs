@@ -146,5 +146,73 @@ namespace OriAscendant.Tests.EditMode
         {
             Assert.IsNull(SaveSerializer.FromJson(json));
         }
+
+        // ---- crossroads slice 2a: new add-only fields ----
+
+        [Test]
+        public void FreshSave_HasCrossroadsDefaults()
+        {
+            var save = new SaveData();
+            Assert.AreEqual("", save.pendingCrossroadsId, "no pending crossroads on a fresh save");
+            Assert.IsNotNull(save.deeds);
+            Assert.IsEmpty(save.deeds, "no deeds on a fresh save");
+        }
+
+        [Test]
+        public void PendingCrossroadsId_RoundTrips()
+        {
+            var save = new SaveData { pendingCrossroadsId = "road_stranger" };
+            var restored = RoundTrip(save);
+            Assert.AreEqual("road_stranger", restored.pendingCrossroadsId);
+        }
+
+        [Test]
+        public void Deeds_RoundTrip()
+        {
+            var save = new SaveData();
+            save.deeds.Add(new DeedData
+            {
+                crossroadsId = "market_debt",
+                chosenOptionIndex = 2,
+                wasOriAligned = false,
+            });
+            save.deeds.Add(new DeedData
+            {
+                crossroadsId = "road_stranger",
+                chosenOptionIndex = 0,
+                wasOriAligned = true,
+            });
+
+            var restored = RoundTrip(save);
+
+            Assert.AreEqual(2, restored.deeds.Count);
+            Assert.AreEqual("market_debt", restored.deeds[0].crossroadsId);
+            Assert.AreEqual(2, restored.deeds[0].chosenOptionIndex);
+            Assert.IsFalse(restored.deeds[0].wasOriAligned);
+            Assert.IsTrue(restored.deeds[1].wasOriAligned);
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithCrossroadsDefaults()
+        {
+            // A save written without crossroads fields (add-only per ADR-0001).
+            string legacyJson = "{\"schemaVersion\":1," +
+                                "\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"chosenOri\":-1," +
+                                "\"lastSaveTimestamp\":1781136000," +
+                                "\"generationStartTimestamp\":1781100000," +
+                                "\"seenFlags\":0,\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual("", restored.pendingCrossroadsId,
+                "legacy save defaults to no pending crossroads");
+            Assert.IsNotNull(restored.deeds,
+                "legacy save defaults to an empty deeds list");
+            Assert.IsEmpty(restored.deeds);
+        }
     }
 }
