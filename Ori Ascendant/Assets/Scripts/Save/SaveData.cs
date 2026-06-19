@@ -67,6 +67,12 @@ namespace OriAscendant.Save
         /// <summary>Unix seconds UTC when the current generation began (gen summary).</summary>
         public long generationStartTimestamp = 0;
 
+        /// <summary>Unix seconds UTC when the channel hint was first shown, or 0 if it has
+        /// never been shown. Drives ChannelHintDecision across resumes and scene reloads.
+        /// Add-only field per ADR-0001; old saves load with 0 so the hint surfaces after
+        /// the appear delay on first resume.</summary>
+        public long channelHintShownAt = 0;
+
         /// <summary>One-time-event bitmask; see <see cref="SeenFlags"/>.</summary>
         public int seenFlags = 0;
 
