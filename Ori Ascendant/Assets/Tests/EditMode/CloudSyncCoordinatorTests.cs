@@ -7,12 +7,16 @@ using OriAscendant.Save;
 namespace OriAscendant.Tests.EditMode
 {
     /// <summary>Configurable fake provider — completes synchronously so the
-    /// coordinator's awaits resolve inline (safe to GetResult in a sync test).</summary>
+    /// coordinator's awaits resolve inline (safe to GetResult in a sync test).
+    /// The Throw* flags let the e2e suite simulate every documented cloud
+    /// failure mode: auth blow-up, load blow-up, push blow-up.</summary>
     internal sealed class FakeCloudProvider : ICloudSaveProvider
     {
         public bool Available = true;
         public bool AuthResult = true;
         public bool ThrowOnAuth;
+        public bool ThrowOnLoad;
+        public bool ThrowOnSave;
         public string CloudJson;
         public bool SaveResult = true;
         public int SaveCalls;
@@ -25,11 +29,16 @@ namespace OriAscendant.Tests.EditMode
             return Task.FromResult(AuthResult);
         }
 
-        public Task<string> LoadAsync() => Task.FromResult(CloudJson);
+        public Task<string> LoadAsync()
+        {
+            if (ThrowOnLoad) throw new Exception("load blew up");
+            return Task.FromResult(CloudJson);
+        }
 
         public Task<bool> SaveAsync(string json)
         {
             SaveCalls++;
+            if (ThrowOnSave) throw new Exception("save blew up");
             return Task.FromResult(SaveResult);
         }
     }
@@ -142,6 +151,37 @@ namespace OriAscendant.Tests.EditMode
             Run(coord.AuthenticateAndReconcileAsync(Local(1, 1)));
 
             Assert.IsTrue(Run(coord.PushAsync("{}")));
+            Assert.AreEqual(1, provider.SaveCalls);
+        }
+
+        [Test]
+        public void LoadThrows_IsSwallowed_KeepsLocal()
+        {
+            // Auth succeeds; the cloud blob download itself blows up. The
+            // coordinator owns swallowing this — the manager must not re-catch.
+            var provider = new FakeCloudProvider { AuthResult = true, ThrowOnLoad = true };
+            var coord = new CloudSyncCoordinator(provider);
+            var local = Local(2, 100);
+
+            SaveData chosen = null;
+            Assert.DoesNotThrow(() => chosen = Run(coord.AuthenticateAndReconcileAsync(local)));
+            Assert.AreSame(local, chosen);
+            Assert.IsTrue(coord.IsAuthenticated, "auth still succeeded; only the load blew");
+        }
+
+        [Test]
+        public void PushThrows_IsSwallowed_ReturnsFalse()
+        {
+            // The locked CLAUDE.md rule — a push that throws must never surface.
+            // The coordinator's catch is the structural guarantee CloudSaveManager
+            // relies on (the coordinator is the single owner of the swallow rule).
+            var provider = new FakeCloudProvider { AuthResult = true, ThrowOnSave = true };
+            var coord = new CloudSyncCoordinator(provider);
+            Run(coord.AuthenticateAndReconcileAsync(Local(1, 1)));
+
+            bool pushed = true;
+            Assert.DoesNotThrow(() => pushed = Run(coord.PushAsync("{}")));
+            Assert.IsFalse(pushed);
             Assert.AreEqual(1, provider.SaveCalls);
         }
     }
