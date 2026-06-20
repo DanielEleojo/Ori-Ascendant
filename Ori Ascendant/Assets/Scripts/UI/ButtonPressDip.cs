@@ -1,3 +1,5 @@
+using OriAscendant.Audio;
+using OriAscendant.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -16,11 +18,12 @@ namespace OriAscendant.UI
         private const float RecoverDuration = 0.12f;
 
         private bool _isPressed;
-        // Sentinel: no active release yet — avoids a spurious first-frame recovery from 0.
-        private float _releaseElapsed = float.MaxValue;
+        private float _releaseElapsed = float.MaxValue; // sentinel: no active release yet
+        private AudioManager _audio;
 
-        private static bool ReduceMotion =>
-            PlayerPrefs.GetInt("ReduceMotion", 0) != 0;
+        private static bool ReduceMotion => MotionPrefs.ReduceMotionEnabled;
+
+        private void Awake() => ServiceLocator.TryGet(out _audio);
 
         private void Update()
         {
@@ -42,6 +45,7 @@ namespace OriAscendant.UI
         {
             _isPressed = true;
             _releaseElapsed = 0f;
+            _audio?.PlaySelect();
         }
 
         public void OnPointerUp(PointerEventData eventData) => Release();

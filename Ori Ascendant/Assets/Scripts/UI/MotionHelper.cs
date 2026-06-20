@@ -3,7 +3,7 @@ using UnityEngine;
 namespace OriAscendant.UI
 {
     /// <summary>
-    /// Pure-math motion primitives for hand-rolled UI animation (ADR-0003).
+    /// Pure-math motion primitives for hand-rolled UI animation (ADR-0005).
     /// No MonoBehaviour, no third-party tween library — all fns are static and
     /// headlessly testable on Linux. Callers own time tracking and the reduce-motion
     /// flag; they pass both in on every call.
@@ -37,11 +37,9 @@ namespace OriAscendant.UI
 
         // ---- Accessibility ----
 
-        /// <summary>Returns true when the player has enabled Reduce Motion.
-        /// Written by a future iOS native bridge (ADR-0004) via PlayerPrefs;
-        /// defaults to false on all other platforms.</summary>
-        public static bool IsReduceMotion() =>
-            PlayerPrefs.GetInt("ReduceMotion", 0) != 0;
+        /// <summary>Returns true when Reduce Motion is active (in-app toggle OR OS flag).
+        /// The OS flag is synced by MotionPrefs.SyncOsFlag() via the native bridge (ADR-0005).</summary>
+        public static bool IsReduceMotion() => MotionPrefs.ReduceMotionEnabled;
 
         // ---- Micro-feedback motions (issue #24) ----
 

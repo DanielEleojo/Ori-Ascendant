@@ -1,6 +1,10 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using OriAscendant.Audio;
+using OriAscendant.Core;
+using OriAscendant.UI;
+using UnityEngine;
 
 namespace OriAscendant.Tests.EditMode
 {
@@ -130,6 +134,47 @@ namespace OriAscendant.Tests.EditMode
             foreach (var n in spy.NotifyCalls)
                 Assert.AreNotEqual(NotificationStyle.Warning, n,
                     "Fall must never use the Warning notification haptic");
+        }
+
+        // ---- issue #6: ButtonPressDip press-down fires Select haptic ----
+
+        [Test]
+        public void ButtonPressDip_OnPointerDown_FiresSelectHaptic()
+        {
+            ServiceLocator.Clear();
+            var host = new GameObject("DipHapticsTest");
+            try
+            {
+                var audio = host.AddComponent<AudioManager>();
+
+                // Inject spy directly into AudioManager._haptics.
+                var spy = new SpyHaptics();
+                typeof(AudioManager)
+                    .GetField("_haptics", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(audio, spy);
+
+                // Ensure AudioManager is registered (belt-and-suspenders for EditMode Awake timing).
+                ServiceLocator.Register(audio);
+
+                var dip = host.AddComponent<ButtonPressDip>();
+
+                // Also inject _audio directly in case ServiceLocator wiring raced in EditMode.
+                typeof(ButtonPressDip)
+                    .GetField("_audio", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(dip, audio);
+
+                dip.OnPointerDown(null);
+
+                Assert.AreEqual(1, spy.SelectCount,
+                    "ButtonPressDip press-down must fire Select haptic via AudioManager.PlaySelect() (#6)");
+                Assert.AreEqual(0, spy.ImpactCalls.Count,
+                    "press-down must not fire an Impact haptic");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                ServiceLocator.Clear();
+            }
         }
     }
 }
