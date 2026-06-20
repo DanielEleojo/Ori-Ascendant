@@ -35,6 +35,43 @@ namespace OriAscendant.UI
             return Mathf.Lerp(from, to, EaseOut(elapsed / duration));
         }
 
+        // ---- Accessibility ----
+
+        /// <summary>Returns true when the player has enabled Reduce Motion.
+        /// Written by a future iOS native bridge (ADR-0004) via PlayerPrefs;
+        /// defaults to false on all other platforms.</summary>
+        public static bool IsReduceMotion() =>
+            PlayerPrefs.GetInt("ReduceMotion", 0) != 0;
+
+        // ---- Micro-feedback motions (issue #24) ----
+
+        /// <summary>Scale for press-dip recovery: 0.96 at elapsed=0, eases to 1.0 at
+        /// elapsed=duration. When <paramref name="reduceMotion"/> is true, snaps to 1.0
+        /// (scale motion silenced per iOS Reduce Motion).</summary>
+        public static float PressDipScale(float elapsed, float duration, bool reduceMotion) =>
+            Tween(0.96f, 1.0f, elapsed, duration, reduceMotion);
+
+        /// <summary>Alpha envelope for a warm number-flash: 0 → 1 → 0 over duration
+        /// (sine arch, peaks at half-duration). Reduce Motion softens the peak to 40%
+        /// — alpha tweens are permitted per iOS RM guidelines.</summary>
+        public static float FlashAlpha(float elapsed, float duration, bool reduceMotion)
+        {
+            if (duration <= 0f) return 0f;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float alpha = Mathf.Sin(t * Mathf.PI);
+            return reduceMotion ? alpha * 0.4f : alpha;
+        }
+
+        /// <summary>Scale factor for a brief tap-response pulse: 1.0 → (1.0+amplitude) → 1.0
+        /// (sine arch, peaks at half-duration). When <paramref name="reduceMotion"/> is true,
+        /// returns 1.0 (scale motion silenced per iOS Reduce Motion).</summary>
+        public static float TapPulseScale(float elapsed, float duration, float amplitude, bool reduceMotion)
+        {
+            if (reduceMotion || duration <= 0f) return 1.0f;
+            float t = Mathf.Clamp01(elapsed / duration);
+            return 1.0f + amplitude * Mathf.Sin(t * Mathf.PI);
+        }
+
         // ---- Idle breathing ----
 
         /// <summary>Sine value for a slow idle breathing oscillation.

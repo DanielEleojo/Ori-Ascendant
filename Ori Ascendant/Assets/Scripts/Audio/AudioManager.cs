@@ -47,9 +47,9 @@ namespace OriAscendant.Audio
             _bgmB = CreateSource("BGM_B", loop: true);
             _sfx = CreateSource("SFX", loop: false);
 #if UNITY_IOS && !UNITY_EDITOR
-            _haptics = new iOSHaptics();
+            _haptics = new GatedHaptics(new iOSHaptics());
 #else
-            _haptics = new NullHaptics();
+            _haptics = new GatedHaptics(new NullHaptics());
 #endif
             ServiceLocator.Register(this);
         }

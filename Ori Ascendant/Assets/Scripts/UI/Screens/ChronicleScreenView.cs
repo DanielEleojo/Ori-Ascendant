@@ -9,10 +9,10 @@ using UnityEngine.UI;
 namespace OriAscendant.UI.Screens
 {
     /// <summary>
-    /// The bloodline Chronicle: an unbounded scrollable list of every completed
-    /// generation's Ori, outcome, and Title/Nickname (issue #7). Unlike the
-    /// Ancestral Council (capped at 5), this screen remembers them all — retired
-    /// ancestors remain in the Chronicle so the player can read the full saga.
+    /// The bloodline Chronicle: an unbroken vertical thread of light flowing back
+    /// through every generation (issue #27). One node per generation — bright for
+    /// Ascended, ember for a fall. The thread is never cut; a fallen generation
+    /// is an ember node, not a gap. Scrollable for long histories.
     /// Display-only; game state is never written here.
     /// </summary>
     public class ChronicleScreenView : MonoBehaviour
@@ -21,17 +21,25 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private RectTransform _contentRoot;
         [SerializeField] private Button _closeButton;
 
-        private static readonly Color Gold = new Color(0.851f, 0.643f, 0.255f);
-        private static readonly Color Text = new Color(0.925f, 0.902f, 0.847f);
-        private static readonly Color TextDim = new Color(0.604f, 0.639f, 0.698f);
-        private static readonly Color PanelLine = new Color(0.165f, 0.192f, 0.251f);
+        private const float NodeRowHeight  = 80f;
+        private const float ThreadX        = 24f;   // x-centre of the thread line
+        private const float ThreadWidth    = 3f;
+        private const float DotSize        = 14f;
+        private const float TextLeftMargin = 48f;
 
         public bool IsOpen => _root != null && _root.activeSelf;
+
+        private CanvasGroup _canvasGroup;
+        private OverlayTransition _transition;
 
         private void Awake()
         {
             if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
-            if (_root != null) _root.SetActive(false);
+            if (_root != null)
+            {
+                _root.SetActive(false);
+                _canvasGroup = _root.GetComponent<CanvasGroup>() ?? _root.AddComponent<CanvasGroup>();
+            }
         }
 
         private void OnDestroy()
@@ -39,15 +47,24 @@ namespace OriAscendant.UI.Screens
             if (_closeButton != null) _closeButton.onClick.RemoveListener(Hide);
         }
 
+        private void Update()
+        {
+            if (_root == null || !_root.activeSelf) return;
+            if (_transition.TickAndApply(_canvasGroup, _root.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+                _root.SetActive(false);
+        }
+
         public void Show()
         {
             Refresh();
             if (_root != null) _root.SetActive(true);
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            _transition.Open();
         }
 
         private void Hide()
         {
-            if (_root != null) _root.SetActive(false);
+            _transition.Close();
         }
 
         private void Refresh()
@@ -68,8 +85,9 @@ namespace OriAscendant.UI.Screens
                 return;
             }
 
-            foreach (var entry in save.chronicle)
-                BuildRow(entry, oriNames);
+            var nodes = ChronicleThreadMapper.MapAll(save.chronicle);
+            for (int i = 0; i < nodes.Length; i++)
+                BuildThreadNode(nodes[i], save.chronicle[i], oriNames);
         }
 
         private static string[] ResolveOriNames()
@@ -94,36 +112,63 @@ namespace OriAscendant.UI.Screens
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = message;
             tmp.fontSize = 14f;
-            tmp.color = TextDim;
+            tmp.color = Palette.TextSecondary;
             tmp.alignment = TextAlignmentOptions.Center;
         }
 
-        private void BuildRow(ChronicleEntry entry, string[] oriNames)
+        /// <summary>
+        /// Builds one node row: a thread segment (always drawn) + a coloured node dot +
+        /// label and remembrance text beside it. The row height is uniform so the thread
+        /// segments stack into one unbroken vertical line across the full history.
+        /// </summary>
+        private void BuildThreadNode(ChronicleNodeState node, ChronicleEntry entry, string[] oriNames)
         {
-            var rowGo = new GameObject("Row", typeof(RectTransform));
+            var rowGo = new GameObject("Node", typeof(RectTransform));
             var rowRt = (RectTransform)rowGo.transform;
             rowRt.SetParent(_contentRoot, false);
             var le = rowGo.AddComponent<LayoutElement>();
-            le.preferredHeight = 68f;
+            le.preferredHeight = NodeRowHeight;
             le.flexibleWidth = 1f;
-            var bg = rowGo.AddComponent<Image>();
-            bg.color = PanelLine;
 
-            // Generation + outcome (top-left)
-            var topGo = new GameObject("Top", typeof(RectTransform));
-            var topRt = (RectTransform)topGo.transform;
-            topRt.SetParent(rowRt, false);
-            topRt.anchorMin = new Vector2(0f, 0.55f);
-            topRt.anchorMax = new Vector2(0.7f, 1f);
-            topRt.offsetMin = new Vector2(12f, 0f);
-            topRt.offsetMax = new Vector2(0f, -4f);
-            var topText = topGo.AddComponent<TextMeshProUGUI>();
-            topText.text = $"Gen {entry.generationNumber}  —  {(entry.didAscend ? "Ascended" : "Fell")}";
-            topText.fontSize = 14f;
-            topText.color = entry.didAscend ? Gold : Text;
-            topText.alignment = TextAlignmentOptions.MidlineLeft;
+            // Thread segment — drawn in every row so the line is never broken.
+            var threadGo = new GameObject("Thread", typeof(RectTransform));
+            var threadRt = (RectTransform)threadGo.transform;
+            threadRt.SetParent(rowRt, false);
+            threadRt.anchorMin = Vector2.zero;
+            threadRt.anchorMax = new Vector2(0f, 1f);
+            threadRt.pivot     = new Vector2(0f, 0.5f);
+            threadRt.offsetMin = new Vector2(ThreadX - ThreadWidth * 0.5f, 0f);
+            threadRt.offsetMax = new Vector2(ThreadX + ThreadWidth * 0.5f, 0f);
+            var threadImg = threadGo.AddComponent<Image>();
+            threadImg.color = ChronicleThreadMapper.ThreadLineColor;
 
-            // Ori name (top-right, dimmed)
+            // Node dot — colour reflects outcome (bright gold or warm ember).
+            var dotGo = new GameObject("Dot", typeof(RectTransform));
+            var dotRt = (RectTransform)dotGo.transform;
+            dotRt.SetParent(rowRt, false);
+            dotRt.anchorMin = new Vector2(0f, 0.5f);
+            dotRt.anchorMax = new Vector2(0f, 0.5f);
+            dotRt.pivot     = new Vector2(0.5f, 0.5f);
+            dotRt.anchoredPosition = new Vector2(ThreadX, 0f);
+            dotRt.sizeDelta = new Vector2(DotSize, DotSize);
+            var dotImg = dotGo.AddComponent<Image>();
+            dotImg.color = node.NodeColor;
+
+            // Label: "Gen N  —  Ascended / Fell"
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            var labelRt = (RectTransform)labelGo.transform;
+            labelRt.SetParent(rowRt, false);
+            labelRt.anchorMin = new Vector2(0f, 0.5f);
+            labelRt.anchorMax = new Vector2(1f, 1f);
+            labelRt.offsetMin = new Vector2(TextLeftMargin, 0f);
+            labelRt.offsetMax = new Vector2(-8f, -4f);
+            var labelTmp = labelGo.AddComponent<TextMeshProUGUI>();
+            labelTmp.text      = node.Label;
+            labelTmp.fontSize  = 14f;
+            labelTmp.color     = entry.didAscend ? Palette.AseGold : Palette.EmberWarm;
+            labelTmp.alignment = TextAlignmentOptions.BottomLeft;
+
+            // Ori name (top-right, dimmed) — optional
             if (entry.chosenOri >= 0)
             {
                 string oriName = oriNames != null && entry.chosenOri < oriNames.Length
@@ -132,30 +177,30 @@ namespace OriAscendant.UI.Screens
                 var oriGo = new GameObject("Ori", typeof(RectTransform));
                 var oriRt = (RectTransform)oriGo.transform;
                 oriRt.SetParent(rowRt, false);
-                oriRt.anchorMin = new Vector2(0.7f, 0.55f);
-                oriRt.anchorMax = new Vector2(1f, 1f);
-                oriRt.offsetMin = new Vector2(0f, 0f);
-                oriRt.offsetMax = new Vector2(-12f, -4f);
-                var oriText = oriGo.AddComponent<TextMeshProUGUI>();
-                oriText.text = oriName;
-                oriText.fontSize = 12f;
-                oriText.color = TextDim;
-                oriText.alignment = TextAlignmentOptions.MidlineRight;
+                oriRt.anchorMin = new Vector2(0.6f, 0.5f);
+                oriRt.anchorMax = new Vector2(1f,   1f);
+                oriRt.offsetMin = new Vector2(0f,  0f);
+                oriRt.offsetMax = new Vector2(-8f, -4f);
+                var oriTmp = oriGo.AddComponent<TextMeshProUGUI>();
+                oriTmp.text      = oriName;
+                oriTmp.fontSize  = 12f;
+                oriTmp.color     = Palette.TextSecondary;
+                oriTmp.alignment = TextAlignmentOptions.BottomRight;
             }
 
-            // Title / Nickname (bottom)
+            // Remembrance (bottom)
             var remGo = new GameObject("Remembrance", typeof(RectTransform));
             var remRt = (RectTransform)remGo.transform;
             remRt.SetParent(rowRt, false);
-            remRt.anchorMin = new Vector2(0f, 0.05f);
-            remRt.anchorMax = new Vector2(1f, 0.55f);
-            remRt.offsetMin = new Vector2(12f, 0f);
-            remRt.offsetMax = new Vector2(-12f, 0f);
-            var remText = remGo.AddComponent<TextMeshProUGUI>();
-            remText.text = entry.remembrance ?? "—";
-            remText.fontSize = 13f;
-            remText.color = Gold;
-            remText.alignment = TextAlignmentOptions.MidlineLeft;
+            remRt.anchorMin = new Vector2(0f, 0f);
+            remRt.anchorMax = new Vector2(1f, 0.5f);
+            remRt.offsetMin = new Vector2(TextLeftMargin, 4f);
+            remRt.offsetMax = new Vector2(-8f, 0f);
+            var remTmp = remGo.AddComponent<TextMeshProUGUI>();
+            remTmp.text      = node.Remembrance;
+            remTmp.fontSize  = 13f;
+            remTmp.color     = Palette.TextPrimary;
+            remTmp.alignment = TextAlignmentOptions.TopLeft;
         }
     }
 }

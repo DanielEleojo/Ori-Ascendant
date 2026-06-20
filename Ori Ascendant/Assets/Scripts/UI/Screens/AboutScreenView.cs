@@ -15,11 +15,17 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private Button _closeButton;
 
         private bool _built;
+        private CanvasGroup _canvasGroup;
+        private OverlayTransition _transition;
 
         private void Awake()
         {
             if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
-            if (_root != null) _root.SetActive(false);
+            if (_root != null)
+            {
+                _root.SetActive(false);
+                _canvasGroup = _root.GetComponent<CanvasGroup>() ?? _root.AddComponent<CanvasGroup>();
+            }
         }
 
         private void OnDestroy()
@@ -27,15 +33,24 @@ namespace OriAscendant.UI.Screens
             if (_closeButton != null) _closeButton.onClick.RemoveListener(Hide);
         }
 
+        private void Update()
+        {
+            if (_root == null || !_root.activeSelf) return;
+            if (_transition.TickAndApply(_canvasGroup, _root.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+                _root.SetActive(false);
+        }
+
         public void Show()
         {
             if (!_built) { BuildBody(); _built = true; }
             if (_root != null) _root.SetActive(true);
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            _transition.Open();
         }
 
         private void Hide()
         {
-            if (_root != null) _root.SetActive(false);
+            _transition.Close();
         }
 
         private void BuildBody()

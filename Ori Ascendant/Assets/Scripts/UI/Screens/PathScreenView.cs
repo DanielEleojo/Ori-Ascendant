@@ -23,16 +23,29 @@ namespace OriAscendant.UI.Screens
         private CultivationSystem _cultivation;
         private int _selectedIndex = -1;
         private bool _bound;
+        private CanvasGroup _canvasGroup;
+        private OverlayTransition _transition;
 
         private void Awake()
         {
             if (_confirmButton != null) _confirmButton.onClick.AddListener(Confirm);
-            if (_root != null) _root.SetActive(false);
+            if (_root != null)
+            {
+                _root.SetActive(false);
+                _canvasGroup = _root.GetComponent<CanvasGroup>() ?? _root.AddComponent<CanvasGroup>();
+            }
         }
 
         private void OnDestroy()
         {
             if (_confirmButton != null) _confirmButton.onClick.RemoveListener(Confirm);
+        }
+
+        private void Update()
+        {
+            if (_root == null || !_root.activeSelf) return;
+            if (_transition.TickAndApply(_canvasGroup, _root.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+                _root.SetActive(false);
         }
 
         public void Show()
@@ -51,6 +64,8 @@ namespace OriAscendant.UI.Screens
             _selectedIndex = -1;
             RefreshSelection();
             if (_root != null) _root.SetActive(true);
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            _transition.Open();
         }
 
         private void Select(int index)
@@ -75,9 +90,9 @@ namespace OriAscendant.UI.Screens
         private void Confirm()
         {
             if (_selectedIndex < 0 || _cultivation == null) return;
-            if (_cultivation.ChoosePath(_selectedIndex) && _root != null)
+            if (_cultivation.ChoosePath(_selectedIndex))
             {
-                _root.SetActive(false);
+                _transition.Close();
             }
         }
     }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using OriAscendant.Core;
 using OriAscendant.Save;
+using OriAscendant.Systems;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -131,11 +132,30 @@ namespace OriAscendant.UI
         private Texture2D _barFillTex;  // tracked so it can be destroyed on re-theme
         private Color _themeAccent = Palette.AseGold; // drives advance glow + leading edge
 
+        // Vessel fill (issue #25, PRD W2): gold-light fill driven by VesselFillRatio.
+        private Image _vesselFillImage;
+        private CultivationSystem _cultivation;
+        private AseGenerationSystem _aseGen;
+
         // Hero idle breathing (ADR-0003): slow sine on scale + brightness.
         private float _breathTime;
         private const float BreathPeriodSeconds = 4.2f; // ~0.24 Hz — calm, never distracting
         private const float BreathScaleAmp   = 0.012f;  // ±1.2% scale
         private const float BreathBrightAmp  = 0.07f;   // ±7% brightness tint
+
+        // Micro-feedback motions (issue #24)
+        private TMP_Text _aseCounter;               // the hero Àṣẹ counter — watched for changes
+        private string _lastAseCounterValue;        // triggers flash when the value changes
+        private float _aseFlashElapsed = float.MaxValue;       // large = no active flash
+        private float _silhouettePulseElapsed = float.MaxValue; // large = no active pulse
+        private const float AseFlashDuration          = 0.5f;
+        private const float SilhouettePulseDuration   = 0.25f;
+        private const float SilhouettePulseAmplitude  = 0.04f; // ±4% scale burst
+
+        // Deep field (issue #26): retired ancestors recede into the sky.
+        private RectTransform _deepFieldLayer;
+        private readonly List<Image> _deepFieldStars = new List<Image>();
+        private int _lastDeepFieldCount = -1;
 
         private void Start()
         {
@@ -184,7 +204,10 @@ namespace OriAscendant.UI
             for (int i = 0; i < _motes.Count; i++) _motes[i].Tick(dt);
 
             RefreshTribulationAtmosphere();
+            TickMicroFeedback(dt);
+            RefreshDeepField();
             TickBreathing(dt);
+            TickVesselFill();
 
             // CTA glow breathes only while advancing is actually possible.
             if (_advanceGlow != null)
@@ -240,6 +263,7 @@ namespace OriAscendant.UI
                 }
             }
             if (hero != null) hero.color = Palette.AseGold;
+            _aseCounter = hero; // owned by TickMicroFeedback for the flash animation
         }
 
         private static bool Approx(Color a, Color b) =>
@@ -279,6 +303,12 @@ namespace OriAscendant.UI
             AddStar(sky.rectTransform, 0.24f, 0.84f, 4f, 0.30f);
             AddStar(sky.rectTransform, 0.62f, 0.82f, 5f, 0.45f);
             AddStar(sky.rectTransform, 0.45f, 0.96f, 4f, 0.30f);
+
+            // Deep-field layer — retired ancestors recede here (issue #26).
+            // Stars are added dynamically in RefreshDeepField() as generations complete.
+            var dfLayer = NewStretchImage("DeepFieldLayer", sky.rectTransform);
+            dfLayer.color = Color.clear;
+            _deepFieldLayer = dfLayer.rectTransform;
 
             // Drifting Àṣẹ motes: soft gold points above the sky, below the UI.
             var moteLayer = NewStretchImage("MoteLayer", canvas.transform);
@@ -327,6 +357,7 @@ namespace OriAscendant.UI
             SkinAdvance(root);
             SkinBar(root);
             SkinCouncil(root);
+            SkinButtons(root);
         }
 
         /// <summary>The portrait Image is a transparent raycast-only hit-area; all
@@ -351,10 +382,24 @@ namespace OriAscendant.UI
             srt.sizeDelta = new Vector2(250f, 250f); // SQUARE → the bust texture isn't vertically stretched
             srt.anchoredPosition = new Vector2(0f, 0f);
 
+            // Vessel fill: bright gold light that rises from the feet as Àṣẹ accrues.
+            // Must be the first child so constellation/staff render above it.
+            _vesselFillImage = NewChildImage(srt, "VesselFill");
+            _vesselFillImage.type = Image.Type.Filled;
+            _vesselFillImage.fillMethod = Image.FillMethod.Vertical;
+            _vesselFillImage.fillOrigin = (int)Image.OriginVertical.Bottom;
+            _vesselFillImage.fillAmount = 0f;
+            _vesselFillImage.color = Palette.AseCore;
+
             BuildConstellation(srt); // elder crown — toggled on at the final stage
             BuildStaff(srt);         // elder staff — toggled on at the elder tiers
             // The bust sprite itself is built on the first Update tick, once the real
             // cultivation stage is known — avoids a stage-0 flash before the save loads.
+
+            // Wire tap-pulse: restart the pulse when the portrait button is tapped.
+            var portraitBtn = portrait.GetComponent<Button>();
+            if (portraitBtn != null)
+                portraitBtn.onClick.AddListener(OnPortraitTapped);
         }
 
         /// <summary>Flat amber rectangle → rounded gold face, dark label, soft glow.</summary>
@@ -438,6 +483,59 @@ namespace OriAscendant.UI
             }
         }
 
+        private void OnPortraitTapped() => _silhouettePulseElapsed = 0f;
+
+        /// <summary>Attaches ButtonPressDip to every Button in the canvas so all
+        /// interactive elements share the same press-dip tactile response.</summary>
+        private static void SkinButtons(Transform root)
+        {
+            var buttons = root.GetComponentsInChildren<Button>(true);
+            foreach (var btn in buttons)
+                if (btn.GetComponent<ButtonPressDip>() == null)
+                    btn.gameObject.AddComponent<ButtonPressDip>();
+        }
+
+        // ================= deep field: growing bloodline sky (issue #26) =================
+
+        /// <summary>Adds retiring-ancestor stars as the bloodline grows. Chronicle entries
+        /// only accumulate; stars are added monotonically, never removed. Positions are
+        /// deterministic (golden-ratio scatter) so no Random is needed.</summary>
+        private void RefreshDeepField()
+        {
+            if (_save == null) ServiceLocator.TryGet(out _save);
+            var save = _save?.Current;
+            if (save == null || _deepFieldLayer == null || _dotSprite == null) return;
+
+            int needed = ConstellationStarMapper.DeepFieldStarCount(save);
+            if (needed == _lastDeepFieldCount) return;
+
+            for (int i = _deepFieldStars.Count; i < needed; i++)
+            {
+                bool ascended = i < save.chronicle.Count && save.chronicle[i].didAscend;
+                _deepFieldStars.Add(AddDeepFieldStar(_deepFieldLayer, i, ascended));
+            }
+            _lastDeepFieldCount = needed;
+        }
+
+        private Image AddDeepFieldStar(RectTransform parent, int index, bool didAscend)
+        {
+            // Golden-ratio scatter: avoids clustering without needing Random.
+            float nx = Mathf.Repeat(index * 0.618034f, 1f);
+            float ny = 0.72f + Mathf.Repeat(index * 0.317f, 0.22f);
+
+            var go = new GameObject($"DeepStar{index}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(nx, ny);
+            rt.sizeDelta = new Vector2(3f, 3f); // smaller than council stars — feels more distant
+            rt.anchoredPosition = Vector2.zero;
+            var img = go.GetComponent<Image>();
+            img.sprite = _dotSprite;
+            img.raycastTarget = false;
+            img.color = ConstellationStarMapper.DeepFieldStarColor(didAscend);
+            return img;
+        }
+
         // ================= Wave 3: tribulation atmosphere =================
 
         /// <summary>Drives both storm atmosphere layers from the tribulation fraction.
@@ -464,24 +562,72 @@ namespace OriAscendant.UI
 
         /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
         /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
-        /// returns 0) so the bust is perfectly still.</summary>
+<<<<<<< HEAD
+        /// returns 0) so the bust is perfectly still. The tap-pulse scale (issue #24)
+        /// is multiplied in so both motions compose without clamping. VesselFill is a
+        /// child of the silhouette so it inherits the scale; its color is pulsed here too.</summary>
         private void TickBreathing(float dt)
         {
             if (_silhouette == null) return;
             _breathTime += dt;
             bool rm = IsReduceMotion();
             float breathe = MotionHelper.BreathingSine(_breathTime, BreathPeriodSeconds, rm);
-            float scale = 1f + breathe * BreathScaleAmp;
+            float breathScale = 1f + breathe * BreathScaleAmp;
+            float pulseScale = MotionHelper.TapPulseScale(
+                _silhouettePulseElapsed, SilhouettePulseDuration, SilhouettePulseAmplitude, rm);
+            float scale = breathScale * pulseScale;
             _silhouette.rectTransform.localScale = new Vector3(scale, scale, 1f);
             float bright = 1f + breathe * BreathBrightAmp;
             _silhouette.color = new Color(bright, bright, bright, 1f);
+            // Vessel fill pulses with the same rhythm — AseCore tinted by breathing.
+            if (_vesselFillImage != null)
+            {
+                Color fc = Palette.AseCore;
+                _vesselFillImage.color = new Color(fc.r * bright, fc.g * bright, fc.b * bright, 1f);
+            }
         }
 
-        /// <summary>Returns true when the player has enabled Reduce Motion.
-        /// Stored in PlayerPrefs so a native iOS bridge (ADR-0004) can write it;
-        /// defaults to false on all non-iOS platforms.</summary>
-        private static bool IsReduceMotion() =>
-            PlayerPrefs.GetInt("ReduceMotion", 0) != 0;
+<<<<<<< HEAD
+        /// <summary>Ticks all micro-feedback timers and applies their visual outputs
+        /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash on value change.</summary>
+        private void TickMicroFeedback(float dt)
+        {
+            _silhouettePulseElapsed += dt;
+            _aseFlashElapsed += dt;
+
+            if (_aseCounter == null) return;
+
+            string val = _aseCounter.text;
+            if (val != _lastAseCounterValue && _lastAseCounterValue != null)
+                _aseFlashElapsed = 0f; // counter just changed — start a fresh flash
+            _lastAseCounterValue = val;
+
+            float alpha = MotionHelper.FlashAlpha(_aseFlashElapsed, AseFlashDuration, IsReduceMotion());
+            _aseCounter.color = Color.Lerp(Palette.AseGold, Palette.AseCore, alpha);
+        }
+
+        // ================= vessel fill (issue #25, PRD W2) =================
+
+        /// <summary>Drives the vessel fill Image from the monotonic fill ratio.
+        /// Fill rises continuously as Àṣẹ accrues and never recedes across stage
+        /// boundaries (guaranteed by VesselFillRatio.Compute).</summary>
+        private void TickVesselFill()
+        {
+            if (_vesselFillImage == null) return;
+            if (_cultivation == null) ServiceLocator.TryGet(out _cultivation);
+            if (_aseGen == null) ServiceLocator.TryGet(out _aseGen);
+            if (_cultivation == null || _aseGen == null) return;
+
+            BigNumber target = _cultivation.CurrentTarget;
+            double progressFraction = target.IsZero
+                ? 0.0
+                : (_aseGen.CurrentAse / target).ToDouble();
+
+            _vesselFillImage.fillAmount =
+                VesselFillRatio.Compute(CurrentStage(), progressFraction, _cultivation.StageCount);
+        }
+
+        private static bool IsReduceMotion() => MotionPrefs.ReduceMotionEnabled;
 
         // ================= silhouette aging =================
 
@@ -532,6 +678,8 @@ namespace OriAscendant.UI
             var sprite = BuildBustSprite(256, ProfileForStage(stage));
             var old = _silhouette.sprite;
             _silhouette.sprite = sprite;
+            // VesselFill shares the same sprite so the fill is clipped to the bust shape.
+            if (_vesselFillImage != null) _vesselFillImage.sprite = sprite;
             if (old != null)
             {
                 if (old.texture != null) Destroy(old.texture);
