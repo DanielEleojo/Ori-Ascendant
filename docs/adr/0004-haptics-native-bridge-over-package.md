@@ -1,35 +1,28 @@
-# Haptics via a native UIFeedbackGenerator bridge, not a package
+# Native bridge for iOS system features over a managed package
 
-The haptic seam (`IHapticFeedback.Light/Medium/Heavy`) currently maps all three to
-`Handheld.Vibrate()`, which on iOS is the coarse legacy vibration — not the Taptic Engine — so
-the intensities feel identical and cheap. We will reach the real Taptic Engine through a **small
-in-repo Objective-C bridge** over Apple's `UIFeedbackGenerator` (impact light/medium/heavy +
-notification success/warning + selection tick), rather than adding a third-party haptics package
-(e.g. Nice Vibrations / Lofelt).
+iOS system APIs that lack a Unity managed equivalent (haptics, accessibility settings) are reached through a thin native bridge — a C plug-in called via `DllImport("__Internal")` — rather than a third-party managed package.
 
 ## Why
 
-- A `UIFeedbackGenerator` wrapper is ~40 lines and zero-dependency — it fits the
-  build-it-ourselves, deliberately-lean ethos (cf. [0001](0001-procedural-skin-over-art-pipeline.md)).
-- It covers ~90% of need (crisp differentiated impacts + the premium "success" notification for
-  an Ascension) without pulling a package into the project.
-- The richer semantic set (selection/notification, not just impact) is what makes an iPhone game
-  feel native — and it is free from Apple's own API.
+- **Exact API surface** — the bridge exposes only what the game uses, with no deprecation risk from a package's opinion of the same API.
+- **No App Store review risk** — the plug-in is a thin shim over documented Apple frameworks (UIImpactFeedbackGenerator, UIAccessibility); no private API use.
+- **Compile-time safety on Linux** — the `DllImport` path is wrapped in `#if UNITY_IOS`, keeping EditMode tests headless-safe without conditional test logic.
+- **No package maintenance** — updating a haptics package for a new Xcode / Unity version is recurring overhead; a 30-line plug-in is a one-time write.
+
+## Scope
+
+The pattern covers at minimum:
+1. **Haptics** — `UIImpactFeedbackGenerator` (light / medium / heavy styles).
+2. **Reduce Motion** — `UIAccessibility.isReduceMotionEnabled` written to `PlayerPrefs` on change so `MotionHelper` callers can read it without bridging (see ADR-0003).
 
 ## Considered and rejected
 
-- **Nice Vibrations (free, Unity-owned)** — richer (author custom haptic *clips*, cross-platform
-  for a future Android port), but a real third-party dependency for capability we don't yet need.
-  Revisit if we want a bespoke custom-curve tribulation haptic, or ship on Android.
-- **Keep `Handheld.Vibrate()`** — it is the problem; no.
+- **Lofelt / Apple Core Haptics package** — full package with an App Store entitlement review; more than we need for three taps.
+- **UnityEngine.iOS.Haptic / Handheld.Vibrate** — only UINotificationFeedbackGenerator styles; no impact weights, no silence control.
+- **Runtime reflection on Apple.Core** — fragile and invisible to the compiler.
 
 ## Consequences
 
-- The bridge is iOS-native (`.mm` under `Assets/Plugins/iOS/`), so haptics can only be *felt* on
-  a device via Cloud Build → TestFlight; the editor/Linux path stays on `NullHaptics`. The C#
-  seam remains the test boundary.
-- `IHapticFeedback` grows beyond Light/Medium/Heavy to carry selection + notification semantics;
-  the cultural mapping (a Fall uses a soft pattern, **never** the harsh error haptic — ART_BIBLE
-  §3.2) lives behind that seam.
-- A bespoke escalating tribulation pattern, if wanted later, extends the same native bridge with
-  CoreHaptics — still no package.
+- A `Plugins/iOS/NativeBridge.mm` source file must ship in the build; Unity Cloud Build compiles it automatically.
+- The bridge is `#if UNITY_IOS`-gated so every call site on other platforms is a no-op.
+- Native author must run `xcodebuild test` against a physical device before signing off on a new capability.

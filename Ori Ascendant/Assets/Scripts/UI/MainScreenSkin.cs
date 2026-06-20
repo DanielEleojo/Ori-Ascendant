@@ -131,6 +131,12 @@ namespace OriAscendant.UI
         private Texture2D _barFillTex;  // tracked so it can be destroyed on re-theme
         private Color _themeAccent = Palette.AseGold; // drives advance glow + leading edge
 
+        // Hero idle breathing (ADR-0003): slow sine on scale + brightness.
+        private float _breathTime;
+        private const float BreathPeriodSeconds = 4.2f; // ~0.24 Hz — calm, never distracting
+        private const float BreathScaleAmp   = 0.012f;  // ±1.2% scale
+        private const float BreathBrightAmp  = 0.07f;   // ±7% brightness tint
+
         private void Start()
         {
             // A decorative skin must NEVER break gameplay or the boot smoke test —
@@ -178,6 +184,7 @@ namespace OriAscendant.UI
             for (int i = 0; i < _motes.Count; i++) _motes[i].Tick(dt);
 
             RefreshTribulationAtmosphere();
+            TickBreathing(dt);
 
             // CTA glow breathes only while advancing is actually possible.
             if (_advanceGlow != null)
@@ -453,6 +460,29 @@ namespace OriAscendant.UI
                 _stormEdgeVignette.color = c;
             }
         }
+
+        // ================= hero idle breathing (ADR-0003) =================
+
+        /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
+        /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
+        /// returns 0) so the bust is perfectly still.</summary>
+        private void TickBreathing(float dt)
+        {
+            if (_silhouette == null) return;
+            _breathTime += dt;
+            bool rm = IsReduceMotion();
+            float breathe = MotionHelper.BreathingSine(_breathTime, BreathPeriodSeconds, rm);
+            float scale = 1f + breathe * BreathScaleAmp;
+            _silhouette.rectTransform.localScale = new Vector3(scale, scale, 1f);
+            float bright = 1f + breathe * BreathBrightAmp;
+            _silhouette.color = new Color(bright, bright, bright, 1f);
+        }
+
+        /// <summary>Returns true when the player has enabled Reduce Motion.
+        /// Stored in PlayerPrefs so a native iOS bridge (ADR-0004) can write it;
+        /// defaults to false on all non-iOS platforms.</summary>
+        private static bool IsReduceMotion() =>
+            PlayerPrefs.GetInt("ReduceMotion", 0) != 0;
 
         // ================= silhouette aging =================
 
