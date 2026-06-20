@@ -106,6 +106,11 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(2.5f, config.revealSeconds);
             Assert.AreEqual(2.5f, config.ancestorCardSeconds);
             Assert.AreEqual(2.0f, config.finalBeatSeconds);
+            // Line-legacy compounding (issue #8): provisional values, awaiting balance sim.
+            Assert.AreEqual(0.05, config.lineLegacyBonusPerGen, 1e-12,
+                "lineLegacyBonusPerGen must be explicitly set by SceneBuilder — not left at 0 from a pre-issue-8 asset");
+            Assert.AreEqual(0.15, config.lineLegacyMaxBonus, 1e-12,
+                "lineLegacyMaxBonus must be explicitly set by SceneBuilder — not left at 0 from a pre-issue-8 asset");
         }
 
         [Test]
@@ -144,6 +149,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.GreaterOrEqual(config.DeckSize, 1, "the deck needs at least one card");
             Assert.IsTrue(config.GetMilestone() > BigNumber.Zero,
                 "milestone must be positive — a zero milestone fires immediately");
+            Assert.Greater(config.forebearSeedChance, 0f,
+                "forebearSeedChance must be explicitly set by SceneBuilder (issue #8) — 0 silently disables forebear seeding in production");
             foreach (var card in config.deck)
             {
                 Assert.IsNotEmpty(card.id, "every crossroads card needs a unique id");
