@@ -99,11 +99,11 @@ namespace OriAscendant.UI.Screens
 
         private void Confirm()
         {
-            if (_selectedIndex < 0 || _crossroadsSystem == null) return;
-            if (_crossroadsSystem.MakeChoice(_selectedIndex))
-            {
-                _transition.Close();
-            }
+            int idx = _selectedIndex;
+            if (idx < 0 || _crossroadsSystem == null) return;
+            _selectedIndex = -1;
+            if (_confirmButton != null) _confirmButton.interactable = false;
+            if (_crossroadsSystem.MakeChoice(idx)) _transition.Close();
         }
     }
 }
