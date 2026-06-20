@@ -160,6 +160,10 @@ namespace OriAscendant.EditorTools
             config.revealSeconds = 2.5f;
             config.ancestorCardSeconds = 2.5f;
             config.finalBeatSeconds = 2.0f;
+            // Line-legacy compounding (issue #8): provisional values, awaiting balance sim (#12).
+            // Explicit assignment prevents pre-issue-8 assets from silently keeping 0.
+            config.lineLegacyBonusPerGen = 0.05;
+            config.lineLegacyMaxBonus = 0.15;
             // Crowned Ascended reveal (Phase 6, issue #11): slot left null until the
             // bespoke appearance-0 portrait ships (funded + §7.10 native-speaker-cleared).
             // When the art lands, assign it here; gold-FX overlay is the fallback.
@@ -277,6 +281,9 @@ namespace OriAscendant.EditorTools
                     }
                 },
             };
+            // Forebear seeding (issue #8): explicit assignment prevents a pre-issue-8 asset
+            // from silently keeping 0 and disabling the dynasty compounding feature in production.
+            config.forebearSeedChance = 0.5f;
             EditorUtility.SetDirty(config);
             return config;
         }
