@@ -1,6 +1,7 @@
 using OriAscendant.Audio;
 using OriAscendant.Core;
 using OriAscendant.Save;
+using OriAscendant.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -59,6 +60,12 @@ namespace OriAscendant.UI.Screens
                 _root.SetActive(false);
                 _canvasGroup = _root.GetComponent<CanvasGroup>() ?? _root.AddComponent<CanvasGroup>();
             }
+            MotionPrefs.SyncOsFlag(); // mirror OS Reduce-Motion into PlayerPrefs on startup (ADR-0004 / #5)
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) MotionPrefs.SyncOsFlag(); // re-sync if user changed OS setting while app was backgrounded
         }
 
         private void OnDestroy()
