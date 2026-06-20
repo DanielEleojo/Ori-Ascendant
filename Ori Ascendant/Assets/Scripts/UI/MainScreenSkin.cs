@@ -451,7 +451,7 @@ namespace OriAscendant.UI
             ccrt.anchorMin = new Vector2(0.5f, 1f);
             ccrt.anchorMax = new Vector2(0.5f, 1f);
             ccrt.pivot = new Vector2(0.5f, 0f); // grows upward from the vessel top
-            ccrt.sizeDelta = new Vector2(28f, 0f);
+            ccrt.sizeDelta = new Vector2(CrossingColumnSpec.ColumnWidth, 0f);
             _crossingColumn.color = Color.clear;
 
             BuildConstellation(srt); // elder crown — toggled on at the final stage
@@ -675,7 +675,7 @@ namespace OriAscendant.UI
             float alpha = CrossingColumnSpec.ColumnAlpha(_lastProgressFraction);
 
             var crt = _crossingColumn.rectTransform;
-            crt.sizeDelta = new Vector2(28f, height);
+            crt.sizeDelta = new Vector2(CrossingColumnSpec.ColumnWidth, height);
             _crossingColumn.color = _themeAccent.WithAlpha(alpha * (0.55f + 0.45f * pulse));
         }
 

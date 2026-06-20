@@ -17,6 +17,9 @@ namespace OriAscendant.UI
         /// <summary>Maximum column height in pixels above the vessel top.</summary>
         public const float MaxColumnHeight = 200f;
 
+        /// <summary>Column width in pixels — narrow shaft, reads as a beam, not a bar.</summary>
+        public const float ColumnWidth = 28f;
+
         /// <summary>Stage index at which the overflow column activates (final stage in MVP).</summary>
         public const int ActiveFromStage = 5;
 
