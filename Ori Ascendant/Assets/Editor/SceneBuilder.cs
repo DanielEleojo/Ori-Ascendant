@@ -152,6 +152,9 @@ namespace OriAscendant.EditorTools
             config.aseThresholdExponent = 6;
             config.ambientFractions = new[] { 0.5f, 0.8f, 1.0f };
             config.holdToConfirmSeconds = 0.8;
+            // Line-legacy compounding (issue #8, balance-pass locked issue #12).
+            config.lineLegacyBonusPerGen = 0.05;
+            config.lineLegacyMaxBonus = 0.15;
             // Ceremony beats — GAMEPLAY §3.5 timing table.
             config.transitionSeconds = 2.0f;
             config.stormWaveCount = 3;
@@ -201,13 +204,26 @@ namespace OriAscendant.EditorTools
         // Beats are 1:1 with CrossroadsDeckConfig.beats (same order, same count).
         // Red lines honoured: no initiatory offices, no supreme deity, no witchcraft
         // framing; all scenarios are ordinary life-road dilemmas (ART_BIBLE §7).
-        // Milestone stays at 100 Àṣẹ for early playtest visibility (mid-Stage 1).
         // Human native-speaker sign-off required before launch (ART_BIBLE §7.10).
+        //
+        // Milestone placement (balance-pass, issue #12): 6 milestones, one per stage tier,
+        // so a crossroads surfaces throughout the life arc. Each milestone fires near the
+        // midpoint of its stage's active play time, giving ~2 crossroads per daily check-in
+        // for a casual idle player.
         private static CrossroadsConfig BuildCrossroadsConfig()
         {
             var config = EnsureAsset<CrossroadsConfig>(CrossroadsConfigPath);
             config.milestoneMantissa = 1.0;
-            config.milestoneExponent = 2; // 100 Àṣẹ
+            config.milestoneExponent = 2; // 100 Àṣẹ — Stage 1 boundary, earliest hook
+            config.forebearSeedChance = 0.5f;
+            config.extraMilestones = new[]
+            {
+                new CrossroadsMilestone { mantissa = 1.0, exponent = 3 }, // 1 000 — Stage 2
+                new CrossroadsMilestone { mantissa = 4.0, exponent = 3 }, // 4 000 — Stage 3
+                new CrossroadsMilestone { mantissa = 5.0, exponent = 4 }, // 50 000 — Stage 4
+                new CrossroadsMilestone { mantissa = 4.0, exponent = 5 }, // 400 000 — Stage 5
+                new CrossroadsMilestone { mantissa = 5.0, exponent = 6 }, // 5 000 000 — Stage 6
+            };
             config.deck = new[]
             {
                 new CrossroadsCard
