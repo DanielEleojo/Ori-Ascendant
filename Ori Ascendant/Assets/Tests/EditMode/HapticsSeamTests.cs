@@ -93,7 +93,7 @@ namespace OriAscendant.Tests.EditMode
         public void Ascended_TriggersNotifySuccess()
         {
             var spy = new SpyHaptics();
-            HapticRouter.RouteTribulationComplete(didAscend: true, spy);
+            HapticRouter.RouteTribulationComplete(spy, didAscend: true);
             Assert.AreEqual(1, spy.NotifyCalls.Count);
             Assert.AreEqual(NotificationStyle.Success, spy.NotifyCalls[0], "Ascended must fire Notify(Success)");
             Assert.AreEqual(0, spy.ImpactCalls.Count);
@@ -103,7 +103,7 @@ namespace OriAscendant.Tests.EditMode
         public void Fall_TriggersImpactLight_NeverError()
         {
             var spy = new SpyHaptics();
-            HapticRouter.RouteTribulationComplete(didAscend: false, spy);
+            HapticRouter.RouteTribulationComplete(spy, didAscend: false);
             // ART_BIBLE 3.2: a fall is not failure — must NOT use Notify(Warning/Error)
             Assert.AreEqual(0, spy.NotifyCalls.Count, "Fall must never fire a notification haptic (ART_BIBLE 3.2)");
             Assert.AreEqual(1, spy.ImpactCalls.Count);
@@ -126,7 +126,7 @@ namespace OriAscendant.Tests.EditMode
             // Regression guard for ART_BIBLE 3.2: ensure no future refactor
             // accidentally swaps Impact(Light) for Notify(Warning).
             var spy = new SpyHaptics();
-            HapticRouter.RouteTribulationComplete(didAscend: false, spy);
+            HapticRouter.RouteTribulationComplete(spy, didAscend: false);
             foreach (var n in spy.NotifyCalls)
                 Assert.AreNotEqual(NotificationStyle.Warning, n,
                     "Fall must never use the Warning notification haptic");

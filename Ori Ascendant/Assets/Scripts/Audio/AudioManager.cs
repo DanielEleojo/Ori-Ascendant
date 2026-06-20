@@ -120,7 +120,7 @@ namespace OriAscendant.Audio
         {
             PlaySfx(_tribulationStinger);
             PlaySfx(didAscend ? _sfxAscend : _sfxFall);
-            HapticRouter.RouteTribulationComplete(didAscend, _haptics);
+            HapticRouter.RouteTribulationComplete(_haptics, didAscend);
         }
 
         private void HandleChanneled(Core.BigNumber _)
@@ -140,7 +140,7 @@ namespace OriAscendant.Audio
         /// <summary>Selection tick for UI button presses. Call from UI components
         /// that lack a corresponding game-event (e.g. settings, navigation buttons).
         /// Channel tap and stage advance already route via their own game events.</summary>
-        public void PlaySelect() => HapticRouter.RouteChanneled(_haptics);
+        public void PlaySelect() => _haptics.Select();
 
         // ---- playback ----
 

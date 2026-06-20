@@ -15,7 +15,7 @@ namespace OriAscendant.Audio
 
         public static void RouteStageAdvanced(IHapticFeedback h) => h.Impact(ImpactStyle.Medium);
 
-        public static void RouteTribulationComplete(bool didAscend, IHapticFeedback h)
+        public static void RouteTribulationComplete(IHapticFeedback h, bool didAscend)
         {
             if (didAscend) RouteAscended(h);
             else RouteFall(h);
