@@ -73,14 +73,14 @@ namespace OriAscendant.Tests.EditMode
         }
 
         [Test]
-        public void StarIgnitionAlpha_Midpoint_IsPositiveAndAtMostOne()
+        public void StarIgnitionAlpha_DuringRise_IsPositiveAndAtMostOne()
         {
-            float mid = CrossingCeremonySpec.StarIgnitionAlpha(
+            float rising = CrossingCeremonySpec.StarIgnitionAlpha(
                 CrossingCeremonySpec.StarIgnitionSeconds * 0.25f,
                 CrossingCeremonySpec.StarIgnitionSeconds, true);
-            Assert.Greater(mid, 0f,
+            Assert.Greater(rising, 0f,
                 "Star must be rising at the first quarter of the ignition duration");
-            Assert.LessOrEqual(mid, 1f,
+            Assert.LessOrEqual(rising, 1f,
                 "Star alpha must never exceed 1 during the flash");
         }
 

@@ -33,6 +33,11 @@ namespace OriAscendant.UI
         /// permanent deep-field appearance without a visible snap.</summary>
         public const float EmberStarAlpha = 0.45f;
 
+        /// <summary>How much the ignition flash overshoots the settled alpha at its peak.
+        /// The kindling rises to (settle + this) — capped at 1.0 — before easing back to settle.
+        /// Most visible for fallen cultivators, where the ember settles well below 1.</summary>
+        public const float StarIgnitionPeakBoost = 0.55f;
+
         /// <summary>Returns the settled alpha the new star holds after the ceremony ends.</summary>
         public static float NewStarAlpha(bool didAscend) =>
             didAscend ? AscendedStarAlpha : EmberStarAlpha;
@@ -48,7 +53,7 @@ namespace OriAscendant.UI
             float settle = NewStarAlpha(didAscend);
             if (duration <= 0f || elapsed >= duration) return settle;
             double t = Math.Max(0.0, Math.Min(1.0, elapsed / (double)duration));
-            float peak = (float)Math.Min(1.0, settle + 0.55f);
+            float peak = (float)Math.Min(1.0, settle + StarIgnitionPeakBoost);
             return t < 0.5
                 ? Lerp(0f, peak, (float)(t * 2.0))
                 : Lerp(peak, settle, (float)((t - 0.5) * 2.0));
