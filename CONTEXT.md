@@ -41,17 +41,37 @@ _Avoid_: conflating with a probe.
 ## Look & motif
 
 **Silhouette of light**:
-The procedural cultivator standing in the portrait / tap-to-channel zone — a humanoid
-silhouette filled with gold light (rim-light + motes), whose proportions age across the six
-stages (child → adult → elder) and whose aura takes on the active path's character. Keeps the
-human ascent arc (ART_BIBLE §4) without painted portraits.
-_Avoid_: "the avatar", "the character art".
+The procedural cultivator at the centre of the main screen — a humanoid silhouette filled with
+gold light (rim-light + motes), whose proportions age across the six stages (child → adult →
+elder) and whose aura takes on the active path's character. Rendered **borderless**: no portrait
+box, no frame, no hard margins — its edges dissolve into the indigo so it reads as *emerging
+from* the dark, never as an image in a container. It stays modestly sized (not full-screen) —
+the fix is the missing border, not scale. Its light **fills the figure like an empty vessel**: barely a flicker
+at stage 0 (almost nonexistent), then a rising level of gold light that climbs through the body
+as you ascend, brimming and fully radiant by tribulation — where the full vessel then *overflows upward* in a
+rising column of light that serves as the tribulation gauge (GAMEPLAY §2.4). The vessel is the
+*only* progress display — a minimalist choice removed the separate progress bar; the exact
+number still lives in the Àṣẹ counter. Still tappable for channel via an
+invisible hit-area. Keeps the human ascent arc (ART_BIBLE §4) without painted portraits.
+_Avoid_: "the avatar", "the character art", "the portrait" (there is no portrait frame anymore).
 
 **Ascent signature**:
-The neutral, pre-path visual identity (stages 0–2) — a single Àṣẹ thread rising into a
-constellation, the ancestor-stars, and the proverb. Carries the cultural vibe before any path
-is chosen.
+The neutral, pre-path visual identity (stages 0–2) — a single Àṣẹ thread rising into the
+constellation and the proverb. That constellation is no longer a one-off backdrop: its
+ancestor-stars are the permanent, ever-growing bloodline sky (below). Carries the cultural vibe
+before any path is chosen.
 _Avoid_: "the default theme".
+
+**Bloodline sky** (a.k.a. the ancestral constellation):
+The night sky behind the main screen that holds every ancestor as a star and *grows each
+generation* — the visual replacement for the flat five-chip council strip. The handful nearest
+and brightest are the active Council (max 5) whose light reaches the living cultivator; when an
+elder is bumped past five it does not vanish — its star **recedes into the deepening field**,
+its light merged into the foundation of the house (its permanent bloodline blessing) — made
+visible. Gen 1 opens on a near-empty sky; an Ascended joins as a bright star in its path's
+colour, a fallen one as a low ember — never absent (no dead ends). The full, navigable sky is
+the Chronicle.
+_Avoid_: "the council chips", "the ancestor list" (it is a sky of light, not a roster).
 
 **Path re-theme** (a.k.a. motif-forward):
 On choosing a path, the main screen atmospherically takes on that orisha's natural force —
@@ -59,3 +79,22 @@ accent palette, ambient behaviour (Sango storm, Osun river-current, Ane earth/em
 fill, and the silhouette's aura all shift. This natural-force motif — not adire textile — is
 the game's primary cultural fingerprint.
 _Avoid_: "the path skin".
+
+## UI craft & feel
+
+**Minimalist chrome, luminous hero**:
+The UI discipline for the polish pass: apply Claude-style minimalism — flat clean surfaces,
+hairline borders, generous negative space, restrained type, one clear action per surface — to
+all *chrome* (counters, panels, menus, buttons), while the *only* thing allowed to glow or
+read as painterly is the hero (the silhouette of light + motes + the Àṣẹ counter). The dark
+indigo + Àṣẹ-gold palette stays; minimalism is a discipline layered on it, never a swap to
+Claude's cream/light palette (gold light only reads on dark). Sharpens — does not replace —
+the *cultural vibe* and the Art Bible's "generous negative space / restraint" §3.
+_Avoid_: "Claude theme", "cream/light mode", "flat design" (it is selective restraint, not flat-everywhere).
+
+**Cold open** (a.k.a. the kindling):
+The brief, skippable launch beat before the main screen — the silhouette kindling out of
+darkness, the proverb, and a single *tap to enter*. The whole story (emerge from the dark,
+become light) told in one breath; it sets the "App Store game, not a project" tone in the first
+three seconds. Honours iOS Reduce Motion (softens to a fade).
+_Avoid_: "splash screen" (it is a story beat, not a logo card); "intro cutscene" (one breath, skippable, not a movie).

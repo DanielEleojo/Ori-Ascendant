@@ -1,0 +1,12 @@
+# Root-level ignore (git root = /home/baba/ASE; Unity project is the "Ori Ascendant/" subdir,
+# which has its OWN .claudeignore for Library/, Temp/, generated csproj, binary assets).
+# Kept on purpose, do NOT add here: docs/ (ART_BIBLE, ASSET_MANIFEST, GEMINI_ASSET_PROMPTS,
+# art-probes) — retained per ADR-0001; CLAUDE.md; CONTEXT.md.
+
+# Sandcastle agent harness — 232 MB, 8.3k files, TEN full duplicate repo worktrees.
+# A search from the git root would otherwise match 10x every script. Pure token trap.
+.sandcastle/
+
+# Node tooling for the sandcastle harness — no signal for the game itself.
+node_modules/
+package-lock.json
