@@ -1446,13 +1446,13 @@ namespace OriAscendant.EditorTools
                 Stretch(rowTitle.rectTransform);
                 rowTitle.rectTransform.offsetMin = new Vector2(62f, 0f);
                 rowTitle.rectTransform.offsetMax = new Vector2(-70f, 0f);
-                var contribution = MakeText(row.rectTransform, "Contribution", "", 15f, TextAlignmentOptions.MidlineRight, Gold);
-                Inset(contribution.rectTransform, right: 12f);
+                var remembrance = MakeText(row.rectTransform, "Remembrance", "", 15f, TextAlignmentOptions.MidlineRight, Gold);
+                Inset(remembrance.rectTransform, right: 12f);
 
                 AssignPath(screen, $"_rows.Array.data[{i}].root", row.gameObject, ensureRowsSize: 5);
                 AssignPath(screen, $"_rows.Array.data[{i}].motif", motif, ensureRowsSize: 5);
                 AssignPath(screen, $"_rows.Array.data[{i}].title", rowTitle, ensureRowsSize: 5);
-                AssignPath(screen, $"_rows.Array.data[{i}].contribution", contribution, ensureRowsSize: 5);
+                AssignPath(screen, $"_rows.Array.data[{i}].remembrance", remembrance, ensureRowsSize: 5);
             }
 
             var foundation = MakeText(panelRt, "FoundationLine", "", 13f, TextAlignmentOptions.Center, TextDim);
@@ -1479,29 +1479,31 @@ namespace OriAscendant.EditorTools
             dim.raycastTarget = true;
             var panel = MakeImage(settingsRoot, "Panel", Panel);
             var panelRt = panel.rectTransform;
-            panelRt.anchorMin = new Vector2(0.08f, 0.26f);
-            panelRt.anchorMax = new Vector2(0.92f, 0.74f);
+            panelRt.anchorMin = new Vector2(0.08f, 0.16f);
+            panelRt.anchorMax = new Vector2(0.92f, 0.86f);
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
             var title = MakeText(panelRt, "Title", "Settings", 20f, TextAlignmentOptions.Center, Gold);
-            SetBand(title.rectTransform, 0.86f, 0.97f);
-            var bgmToggle = MakeToggle(panelRt, "BgmToggle", "Music", 0.70f, 0.82f);
-            var sfxToggle = MakeToggle(panelRt, "SfxToggle", "Sound effects", 0.56f, 0.68f);
+            SetBand(title.rectTransform, 0.90f, 0.99f);
+            var bgmToggle = MakeToggle(panelRt, "BgmToggle", "Music", 0.795f, 0.875f);
+            var sfxToggle = MakeToggle(panelRt, "SfxToggle", "Sound effects", 0.705f, 0.785f);
+            var hapticsToggle = MakeToggle(panelRt, "HapticsToggle", "Haptics", 0.615f, 0.695f);
+            var reduceMotionToggle = MakeToggle(panelRt, "ReduceMotionToggle", "Reduce motion", 0.525f, 0.605f);
             var cloudStatus = MakeText(panelRt, "CloudStatus", "Local save only", 13f, TextAlignmentOptions.Center, TextDim);
-            SetBand(cloudStatus.rectTransform, 0.44f, 0.52f);
+            SetBand(cloudStatus.rectTransform, 0.45f, 0.51f);
             var about = MakeButton(panelRt, "AboutButton", "About & Glossary", PanelLine, 15f);
             var aboutRt = (RectTransform)about.transform;
-            aboutRt.anchorMin = new Vector2(0.12f, 0.30f);
-            aboutRt.anchorMax = new Vector2(0.88f, 0.42f);
+            aboutRt.anchorMin = new Vector2(0.12f, 0.34f);
+            aboutRt.anchorMax = new Vector2(0.88f, 0.43f);
             aboutRt.offsetMin = Vector2.zero;
             aboutRt.offsetMax = Vector2.zero;
             var version = MakeText(panelRt, "Version", "v0.1.0", 12f, TextAlignmentOptions.Center, TextDim);
-            SetBand(version.rectTransform, 0.20f, 0.27f);
+            SetBand(version.rectTransform, 0.27f, 0.33f);
             var close = MakeButton(panelRt, "CloseButton", "Close", Gold, 16f);
             var closeRt = (RectTransform)close.transform;
-            closeRt.anchorMin = new Vector2(0.20f, 0.04f);
-            closeRt.anchorMax = new Vector2(0.80f, 0.16f);
+            closeRt.anchorMin = new Vector2(0.20f, 0.05f);
+            closeRt.anchorMax = new Vector2(0.80f, 0.15f);
             closeRt.offsetMin = Vector2.zero;
             closeRt.offsetMax = Vector2.zero;
             settingsRoot.gameObject.SetActive(false);
@@ -1512,6 +1514,8 @@ namespace OriAscendant.EditorTools
             Assign(screen, "_root", settingsRoot.gameObject);
             Assign(screen, "_bgmToggle", bgmToggle);
             Assign(screen, "_sfxToggle", sfxToggle);
+            Assign(screen, "_hapticsToggle", hapticsToggle);
+            Assign(screen, "_reduceMotionToggle", reduceMotionToggle);
             Assign(screen, "_cloudStatus", cloudStatus);
             Assign(screen, "_version", version);
             Assign(screen, "_aboutButton", about);

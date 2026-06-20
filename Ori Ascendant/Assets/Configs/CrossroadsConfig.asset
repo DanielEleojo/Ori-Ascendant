@@ -1,0 +1,95 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f75b2cb4108211e79141edbb4e9099c, type: 3}
+  m_Name: CrossroadsConfig
+  m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.CrossroadsConfig
+  milestoneMantissa: 1
+  milestoneExponent: 2
+  extraMilestones:
+  - mantissa: 1
+    exponent: 3
+  - mantissa: 4
+    exponent: 3
+  - mantissa: 5
+    exponent: 4
+  - mantissa: 4
+    exponent: 5
+  - mantissa: 5
+    exponent: 6
+  deck:
+  - id: road_stranger
+    prompt: A stranger sits blocking the narrow road, eyes closed. They do not move.
+    options:
+    - virtueIndex: 0
+      optionText: Sit beside them. The road will keep.
+    - virtueIndex: 1
+      optionText: "Speak firmly \u2014 this road must not be held."
+    - virtueIndex: 2
+      optionText: Step around and leave them in peace.
+  - id: elder_call
+    prompt: Word comes that an elder of your lineage is ill and calls for you. The
+      road you walk is long, and the task ahead is urgent.
+    options:
+    - virtueIndex: 0
+      optionText: "Turn back \u2014 the elder may not wait; the task will."
+    - virtueIndex: 1
+      optionText: "Send word of comfort and press on \u2014 you cannot be in two
+        places."
+    - virtueIndex: 2
+      optionText: Begin the journey to the elder at once.
+  - id: market_debt
+    prompt: "A market-woman calls to you \u2014 she says you owe a debt from a deal
+      you cannot remember making."
+    options:
+    - virtueIndex: 0
+      optionText: Wait, and hear the full account before you answer.
+    - virtueIndex: 1
+      optionText: Refuse clearly; a debt you did not make is not yours to carry.
+    - virtueIndex: 2
+      optionText: Offer something small to close the matter, even if you owe nothing.
+  - id: market_accusation
+    prompt: A man of standing in the marketplace declares publicly that you stole
+      from him. You know you did not. The crowd has heard.
+    options:
+    - virtueIndex: 0
+      optionText: "Stand quietly \u2014 the truth will find its own weight."
+    - virtueIndex: 1
+      optionText: 'Speak clearly: your name is not his to take without contest.'
+    - virtueIndex: 2
+      optionText: Ask to settle it in private, to spare him the shame of being wrong
+        in public.
+  - id: hungry_child
+    prompt: A child you do not know sits in the road, clearly hungry. Your provisions
+      are enough for yourself alone.
+    options:
+    - virtueIndex: 0
+      optionText: "Sit with them and wait \u2014 someone who knows this child will
+        come."
+    - virtueIndex: 1
+      optionText: Speak into the market until you find who is responsible for this
+        child.
+    - virtueIndex: 2
+      optionText: Share what you have and go lighter for the rest of the road.
+  - id: brothers_land
+    prompt: "Two brothers have brought their dispute to you \u2014 their father's
+      land, unresolved before he crossed the river. Both have cause; both ask you
+      to judge."
+    options:
+    - virtueIndex: 0
+      optionText: Hear them out fully, over days if needed, before you speak.
+    - virtueIndex: 1
+      optionText: Name what is right and say it plainly, even if one brother will
+        not thank you.
+    - virtueIndex: 2
+      optionText: Find a middle road where neither brother fully wins, and neither
+        fully loses.
+  forebearSeedChance: 0.5

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OriAscendant.Core;
 using UnityEngine;
 
 namespace OriAscendant.Data
