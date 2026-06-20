@@ -12,11 +12,11 @@ namespace OriAscendant.UI
 {
     /// <summary>
     /// Interactive MainScreen surfaces (GAMEPLAY §3.2 zones 4–6): the Advance
-    /// CTA, the stage/tribulation progress bar, tap-to-channel on the portrait,
-    /// and the one-time channel hint. Reads state every frame (cheap struct
-    /// compares, strings rebuilt only on change). Writes go through system APIs
+    /// CTA, tap-to-channel on the portrait, and the one-time channel hint. Reads
+    /// state every frame (cheap struct compares). Writes go through system APIs
     /// (TryAdvance / ChoosePath / ChannelTap) and, for the hint lifetime, directly
     /// to the add-only channelHintShownAt / seenFlags fields on SaveData.
+    /// Progress is conveyed by the vessel fill in MainScreenSkin (issue #28).
     /// </summary>
     public class MainScreenController : MonoBehaviour
     {
@@ -24,9 +24,6 @@ namespace OriAscendant.UI
         [SerializeField] private TribulationConfig _tribulationConfig;
         [SerializeField] private Image _stormVignette;
         [SerializeField] private TribulationScreen _tribulationScreen;
-        [SerializeField] private GameObject _progressRoot;
-        [SerializeField] private Image _barFill;
-        [SerializeField] private TMP_Text _progressLabel;
         [SerializeField] private GameObject _ctaRoot;
         [SerializeField] private Button _advanceButton;
         [SerializeField] private TMP_Text _advanceLabel;
@@ -48,7 +45,6 @@ namespace OriAscendant.UI
         private Systems.CrossroadsSystem _crossroadsSystem;
 
         private float _secondsSinceLaunch;
-        private string _lastProgressText;
         private string _lastCtaText;
 
         private const float HintAppearSeconds = 10f;
@@ -79,7 +75,6 @@ namespace OriAscendant.UI
             ServiceLocator.TryGet(out _oriSystem);
             ServiceLocator.TryGet(out _crossroadsSystem);
 
-            if (_progressRoot != null) _progressRoot.SetActive(true);
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
         }
 
@@ -112,42 +107,14 @@ namespace OriAscendant.UI
             _crossroadsScreen.Show();
         }
 
-        // ---- progress bar (zone 5) ----
+        // ---- storm vignette (driven from within-stage progress) ----
 
         private void RefreshProgress()
         {
-            var save = _saveManager?.Current;
-            if (save == null) return;
-
-            BigNumber ase = _aseGeneration.CurrentAse;
             BigNumber target = _cultivation.CurrentTarget;
             if (target.IsZero) return;
 
-            double ratio = (ase / target).ToDouble();
-            float fill = Mathf.Clamp01((float)ratio);
-            if (_barFill != null) _barFill.fillAmount = fill;
-
-            string text;
-            if (_cultivation.IsAtFinalStage)
-            {
-                // Tribulation bar: one-decimal percent so a 2-min session always
-                // visibly moves (GAMEPLAY §2.4 condition).
-                text = $"Ìrékọjá — {System.Math.Min(ratio, 1.0) * 100.0:0.0}%";
-            }
-            else
-            {
-                string next = _cultivation.PeekStageName(save.currentStage + 1);
-                text = next != null
-                    ? $"Next: {next} — {ase} / {target}"
-                    : $"{ase} / {target}";
-            }
-
-            if (text != _lastProgressText)
-            {
-                _lastProgressText = text;
-                if (_progressLabel != null) _progressLabel.text = text;
-            }
-
+            double ratio = (_aseGeneration.CurrentAse / target).ToDouble();
             RefreshStormVignette(ratio);
         }
 

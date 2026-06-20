@@ -27,8 +27,8 @@ namespace OriAscendant.UI
     ///   • The silhouette of light — a luminous procedural bust in the portrait /
     ///     tap-to-channel zone (§4); the tap target flares warm on touch.
     ///   • The primary CTA — rounded gold face with a soft pulsing glow.
-    ///   • The progress bar — rounded indigo trough, vertical-gradient "liquid gold"
-    ///     fill, a bright leading edge that tracks the fill front.
+    ///   • The vessel waterline glow — a soft horizontal band riding the fill
+    ///     front as the vessel rises (bar removed in issue #28; glow migrated here).
     ///   • The council slots — rounded chips with persistent gold rims (the strip
     ///     view recolours the fill at runtime; rims/sprites survive that).
     ///
@@ -49,7 +49,7 @@ namespace OriAscendant.UI
         // Two layers driven from TribulationAtmosphere pure fns:
         //   _stormSkyTint     — fullscreen warm-amber tint (SkyOverlayColor)
         //   _stormEdgeVignette — edge darkening vignette  (VignetteAlpha)
-        // Both read _barFill.fillAmount (controller keeps it live) and stage ≥ 5.
+        // Both read _lastProgressFraction (TickVesselFill keeps it live) and stage ≥ 5.
         private Image _stormSkyTint;
         private Image _stormEdgeVignette; // reference to SceneBuilder's StormVignette
 
@@ -115,8 +115,7 @@ namespace OriAscendant.UI
         private float _pulseT;
         private Button _advanceButton;
         private Image _advanceGlow;
-        private Image _barFill;
-        private Image _barLeadingEdge;
+        private Image _vesselWaterlineGlow; // leading-edge glow on the vessel's rising waterline (issue #28)
 
         // The silhouette of light ages with the cultivation stage (ART_BIBLE §4).
         private SaveManager _save;
@@ -129,13 +128,13 @@ namespace OriAscendant.UI
         private int _currentPath = -2;
         private Image _pathOverlay;     // horizon bloom between sky and motes; tinted per path
         private Image _silhouetteAura;  // soft glow behind the bust; tinted per path
-        private Texture2D _barFillTex;  // tracked so it can be destroyed on re-theme
-        private Color _themeAccent = Palette.AseGold; // drives advance glow + leading edge
+        private Color _themeAccent = Palette.AseGold; // drives advance glow + waterline glow
 
         // Vessel fill (issue #25, PRD W2): gold-light fill driven by VesselFillRatio.
         private Image _vesselFillImage;
         private CultivationSystem _cultivation;
         private AseGenerationSystem _aseGen;
+        private double _lastProgressFraction; // within-stage fraction; read by RefreshTribulationAtmosphere
 
         // Hero idle breathing (ADR-0003): slow sine on scale + brightness.
         private float _breathTime;
@@ -217,16 +216,16 @@ namespace OriAscendant.UI
                 _advanceGlow.color = _themeAccent.WithAlpha(a);
             }
 
-            // Bright leading edge rides the fill front (liquid-gold wavefront).
-            if (_barLeadingEdge != null && _barFill != null)
+            // Waterline glow rides the rising fill front of the vessel (issue #28).
+            if (_vesselWaterlineGlow != null && _vesselFillImage != null)
             {
-                float f = _barFill.fillAmount;
-                var rt = _barLeadingEdge.rectTransform;
-                rt.anchorMin = new Vector2(f, 0f);
-                rt.anchorMax = new Vector2(f, 1f);
+                float f = _vesselFillImage.fillAmount;
+                var rt = _vesselWaterlineGlow.rectTransform;
+                rt.anchorMin = new Vector2(0f, f);
+                rt.anchorMax = new Vector2(1f, f);
                 rt.anchoredPosition = Vector2.zero;
                 float vis = (f > 0.015f && f < 0.995f) ? 1f : 0f;
-                _barLeadingEdge.color = _themeAccent.WithAlpha(vis * (0.55f + 0.35f * pulse));
+                _vesselWaterlineGlow.color = _themeAccent.WithAlpha(vis * (0.55f + 0.35f * pulse));
             }
         }
 
@@ -355,7 +354,6 @@ namespace OriAscendant.UI
 
             SkinPortrait(root);
             SkinAdvance(root);
-            SkinBar(root);
             SkinCouncil(root);
             SkinButtons(root);
         }
@@ -390,6 +388,17 @@ namespace OriAscendant.UI
             _vesselFillImage.fillOrigin = (int)Image.OriginVertical.Bottom;
             _vesselFillImage.fillAmount = 0f;
             _vesselFillImage.color = Palette.AseCore;
+
+            // Waterline glow: horizontal soft-dot at the fill front, rides upward with the fill.
+            // Replaces the old bar's leading-edge glow (issue #28). Positioned via anchor-Y each frame.
+            _vesselWaterlineGlow = NewChildImage(srt, "VesselWaterlineGlow");
+            _vesselWaterlineGlow.sprite = _dotSprite;
+            var wrt = _vesselWaterlineGlow.rectTransform;
+            wrt.anchorMin = new Vector2(0f, 0f);
+            wrt.anchorMax = new Vector2(1f, 0f);
+            wrt.pivot = new Vector2(0.5f, 0.5f);
+            wrt.sizeDelta = new Vector2(0f, 14f); // full-width band; height is the glow falloff
+            _vesselWaterlineGlow.color = Palette.AseCore.WithAlpha(0f);
 
             BuildConstellation(srt); // elder crown — toggled on at the final stage
             BuildStaff(srt);         // elder staff — toggled on at the elder tiers
@@ -431,38 +440,6 @@ namespace OriAscendant.UI
             grt.offsetMax = brt.offsetMax + new Vector2(18f, 16f);
             _advanceGlow.color = Palette.AseGold.WithAlpha(0.2f);
             _advanceGlow.rectTransform.SetSiblingIndex(0);
-        }
-
-        /// <summary>Flat gold pill → rounded indigo trough + liquid-gold fill + a
-        /// bright leading edge that tracks the fill front.</summary>
-        private void SkinBar(Transform root)
-        {
-            var trough = FindComp<Image>(root, "BarBackground");
-            if (trough == null) return;
-            trough.sprite = _roundedSmall;
-            trough.type = Image.Type.Sliced;
-            trough.color = Palette.IndigoNight.WithAlpha(0.9f);
-
-            _barFill = FindComp<Image>(root, "BarFill");
-            if (_barFill != null)
-            {
-                _barFill.sprite = VGradientSprite(64, Palette.AseDeep, Palette.AseCore);
-                _barFillTex = _barFill.sprite.texture; // tracked for destruction on re-theme
-                _barFill.type = Image.Type.Filled;            // controller drives fillAmount
-                _barFill.fillMethod = Image.FillMethod.Horizontal;
-                _barFill.color = Color.white;                 // show the gradient's true colours
-                _barFill.rectTransform.offsetMin = new Vector2(3f, 3f); // sit inside the rounded trough
-                _barFill.rectTransform.offsetMax = new Vector2(-3f, -3f);
-
-                _barLeadingEdge = NewChildImage(trough.rectTransform, "BarLeadingEdge");
-                _barLeadingEdge.sprite = _dotSprite;
-                var lrt = _barLeadingEdge.rectTransform;
-                lrt.anchorMin = new Vector2(0f, 0f);
-                lrt.anchorMax = new Vector2(0f, 1f);
-                lrt.pivot = new Vector2(0.5f, 0.5f);
-                lrt.sizeDelta = new Vector2(16f, 12f);
-                _barLeadingEdge.color = Palette.AseCore.WithAlpha(0f);
-            }
         }
 
         /// <summary>Five flat squares → ancestor-star dots (issue #22). Each slot
@@ -539,13 +516,11 @@ namespace OriAscendant.UI
         // ================= Wave 3: tribulation atmosphere =================
 
         /// <summary>Drives both storm atmosphere layers from the tribulation fraction.
-        /// Fraction sourced from _barFill.fillAmount (controller keeps it live).
+        /// Fraction sourced from _lastProgressFraction (TickVesselFill keeps it live).
         /// At stages 0-4 fraction stays 0 so both layers remain transparent.</summary>
         private void RefreshTribulationAtmosphere()
         {
-            double fraction = CurrentStage() >= 5 && _barFill != null
-                ? _barFill.fillAmount
-                : 0.0;
+            double fraction = CurrentStage() >= 5 ? _lastProgressFraction : 0.0;
 
             if (_stormSkyTint != null)
                 _stormSkyTint.color = TribulationAtmosphere.SkyOverlayColor(fraction);
@@ -562,7 +537,6 @@ namespace OriAscendant.UI
 
         /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
         /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
-<<<<<<< HEAD
         /// returns 0) so the bust is perfectly still. The tap-pulse scale (issue #24)
         /// is multiplied in so both motions compose without clamping. VesselFill is a
         /// child of the silhouette so it inherits the scale; its color is pulsed here too.</summary>
@@ -587,7 +561,6 @@ namespace OriAscendant.UI
             }
         }
 
-<<<<<<< HEAD
         /// <summary>Ticks all micro-feedback timers and applies their visual outputs
         /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash on value change.</summary>
         private void TickMicroFeedback(float dt)
@@ -610,7 +583,8 @@ namespace OriAscendant.UI
 
         /// <summary>Drives the vessel fill Image from the monotonic fill ratio.
         /// Fill rises continuously as Àṣẹ accrues and never recedes across stage
-        /// boundaries (guaranteed by VesselFillRatio.Compute).</summary>
+        /// boundaries (guaranteed by VesselFillRatio.Compute). Stores the within-stage
+        /// fraction so RefreshTribulationAtmosphere can read it without a bar.</summary>
         private void TickVesselFill()
         {
             if (_vesselFillImage == null) return;
@@ -623,6 +597,7 @@ namespace OriAscendant.UI
                 ? 0.0
                 : (_aseGen.CurrentAse / target).ToDouble();
 
+            _lastProgressFraction = progressFraction;
             _vesselFillImage.fillAmount =
                 VesselFillRatio.Compute(CurrentStage(), progressFraction, _cultivation.StageCount);
         }
@@ -656,16 +631,6 @@ namespace OriAscendant.UI
 
             if (_silhouetteAura != null)
                 _silhouetteAura.color = t.Aura.WithAlpha(0.24f);
-
-            if (_barFill != null)
-            {
-                var oldSprite = _barFill.sprite;
-                var oldTex = _barFillTex;
-                _barFill.sprite = VGradientSprite(64, t.BarBot, t.BarTop);
-                _barFillTex = _barFill.sprite.texture;
-                if (oldSprite != null) Destroy(oldSprite);
-                if (oldTex != null) Destroy(oldTex);
-            }
 
             _themeAccent = t.Aura;
 

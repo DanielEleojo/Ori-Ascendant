@@ -666,23 +666,8 @@ namespace OriAscendant.EditorTools
             SetBand(hint.rectTransform, 0.00f, 0.12f);
             hint.gameObject.SetActive(false);
 
-            // Zone 5 — progress bar (ACTIVE from Phase B).
-            var progressZone = Zone(root, "ProgressZone", 0.58f, 0.64f);
-            var barBg = MakeImage(progressZone, "BarBackground", PanelLine);
-            var barBgRt = barBg.rectTransform;
-            Stretch(barBgRt);
-            barBgRt.offsetMin = new Vector2(24f, 12f);
-            barBgRt.offsetMax = new Vector2(-24f, -12f);
-            var barFill = MakeImage(barBgRt, "BarFill", Gold);
-            Stretch(barFill.rectTransform);
-            barFill.type = Image.Type.Filled;
-            barFill.fillMethod = Image.FillMethod.Horizontal;
-            barFill.fillAmount = 0f;
-            barFill.sprite = WhiteSprite(); // Filled type requires a sprite
-            var progressLabel = MakeText(barBgRt, "ProgressLabel", "Next: —", 13f, TextAlignmentOptions.Center, Text);
-            Stretch(progressLabel.rectTransform);
-
             // Zone 6 — primary CTA (ACTIVE from Phase B; tribulation flow Phase C).
+            // Zone 5 (progress bar) removed — vessel is the gauge (issue #28).
             var ctaZone = Zone(root, "CtaZone", 0.66f, 0.76f);
             var advance = MakeButton(ctaZone, "AdvanceButton", "Advance", Gold, 22f);
             var advanceRt = (RectTransform)advance.transform;
@@ -866,9 +851,6 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_tribulationConfig", tribulation);
             Assign(controller, "_stormVignette", vignette);
             Assign(controller, "_tribulationScreen", tribulationScreen);
-            Assign(controller, "_progressRoot", progressZone.gameObject);
-            Assign(controller, "_barFill", barFill);
-            Assign(controller, "_progressLabel", progressLabel);
             Assign(controller, "_ctaRoot", ctaZone.gameObject);
             Assign(controller, "_advanceButton", advance);
             Assign(controller, "_advanceLabel", advanceLabel);
