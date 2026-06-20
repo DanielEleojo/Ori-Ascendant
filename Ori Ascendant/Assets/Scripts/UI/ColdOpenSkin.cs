@@ -50,13 +50,7 @@ namespace OriAscendant.UI
             if (ColdOpenPrefs.HasSeen) return;
 
             // Only run when a main canvas is present (not in test scenes).
-            var canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
-            bool hasMainCanvas = false;
-            foreach (var c in canvases)
-            {
-                if (c.isRootCanvas) { hasMainCanvas = true; break; }
-            }
-            if (!hasMainCanvas) return;
+            if (!HasRootCanvas()) return;
 
             try
             {
@@ -66,6 +60,16 @@ namespace OriAscendant.UI
             {
                 Debug.LogWarning($"[ColdOpenSkin] bootstrap failed, skipping cold open: {e.Message}");
             }
+        }
+
+        private static bool HasRootCanvas()
+        {
+            var canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var c in canvases)
+            {
+                if (c.isRootCanvas) return true;
+            }
+            return false;
         }
 
         private static void Build()
@@ -135,8 +139,8 @@ namespace OriAscendant.UI
                 return;
             }
 
-            bool rm = MotionHelper.IsReduceMotion();
-            var (silhouette, proverb, _) = _beat.Tick(dt, rm);
+            bool reduceMotion = MotionHelper.IsReduceMotion();
+            var (silhouette, proverb, _) = _beat.Tick(dt, reduceMotion);
 
             if (_silhouette != null)
                 _silhouette.color = Palette.AseGold.WithAlpha(silhouette);
