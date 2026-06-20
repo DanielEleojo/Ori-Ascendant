@@ -116,6 +116,7 @@ namespace OriAscendant.UI
         private Button _advanceButton;
         private Image _advanceGlow;
         private Image _vesselWaterlineGlow; // leading-edge glow on the vessel's rising waterline (issue #28)
+        private Image _crossingColumn;       // overflow column above the vessel: the Crossing gauge (issue #33)
 
         // The silhouette of light ages with the cultivation stage (ART_BIBLE §4).
         private SaveManager _save;
@@ -208,6 +209,7 @@ namespace OriAscendant.UI
             RefreshDeepField();
             TickBreathing(dt);
             TickVesselFill();
+            TickCrossingColumn(pulse);
 
             // CTA glow breathes only while advancing is actually possible.
             if (_advanceGlow != null)
@@ -441,6 +443,17 @@ namespace OriAscendant.UI
             wrt.sizeDelta = new Vector2(0f, 14f); // full-width band; height is the glow falloff
             _vesselWaterlineGlow.color = Palette.AseCore.WithAlpha(0f);
 
+            // Overflow column: rises above the vessel at the final stage as the
+            // Crossing gauge — replaces the removed bar for tribulation (issue #33, PRD W2).
+            _crossingColumn = NewChildImage(srt, "CrossingColumn");
+            _crossingColumn.sprite = _dotSprite;
+            var ccrt = _crossingColumn.rectTransform;
+            ccrt.anchorMin = new Vector2(0.5f, 1f);
+            ccrt.anchorMax = new Vector2(0.5f, 1f);
+            ccrt.pivot = new Vector2(0.5f, 0f); // grows upward from the vessel top
+            ccrt.sizeDelta = new Vector2(28f, 0f);
+            _crossingColumn.color = Color.clear;
+
             BuildConstellation(srt); // elder crown — toggled on at the final stage
             BuildStaff(srt);         // elder staff — toggled on at the elder tiers
             // The bust sprite itself is built on the first Update tick, once the real
@@ -641,6 +654,29 @@ namespace OriAscendant.UI
             _lastProgressFraction = progressFraction;
             _vesselFillImage.fillAmount =
                 VesselFillRatio.Compute(CurrentStage(), progressFraction, _cultivation.StageCount);
+        }
+
+        // ================= crossing column: overflow gauge at final stage (issue #33) =================
+
+        /// <summary>Drives the overflow column from the tribulation fraction. The column
+        /// is invisible at stages 0-4; at stage 5 it rises from zero to full height as
+        /// the Àṣẹ threshold is approached, reaching its apex at tribulation eligibility.
+        /// Glow breathes with the main pulse so it reads as alive, not static.</summary>
+        private void TickCrossingColumn(float pulse)
+        {
+            if (_crossingColumn == null) return;
+            if (!CrossingColumnSpec.IsActive(CurrentStage()))
+            {
+                _crossingColumn.color = Color.clear;
+                return;
+            }
+
+            float height = CrossingColumnSpec.ColumnHeight(_lastProgressFraction);
+            float alpha = CrossingColumnSpec.ColumnAlpha(_lastProgressFraction);
+
+            var crt = _crossingColumn.rectTransform;
+            crt.sizeDelta = new Vector2(28f, height);
+            _crossingColumn.color = _themeAccent.WithAlpha(alpha * (0.55f + 0.45f * pulse));
         }
 
         private static bool IsReduceMotion() => MotionPrefs.ReduceMotionEnabled;
