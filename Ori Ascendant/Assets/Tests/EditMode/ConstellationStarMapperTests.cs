@@ -10,7 +10,7 @@ namespace OriAscendant.Tests.EditMode
     /// ConstellationStarMapper is pure (no MonoBehaviour, no scene), so all
     /// paths are coverable in EditMode without any host setup.
     /// </summary>
-    public class ConstellationStarViewTests
+    public class ConstellationStarMapperTests
     {
         private static AncestorData Ancestor(int path, bool ascended) => new AncestorData
         {
