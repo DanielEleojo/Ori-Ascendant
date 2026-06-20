@@ -143,8 +143,9 @@ namespace OriAscendant.UI
         private const float BreathScaleAmp   = 0.012f;  // ±1.2% scale
         private const float BreathBrightAmp  = 0.07f;   // ±7% brightness tint
 
-        // Micro-feedback motions (issue #24)
+        // Micro-feedback motions (issue #24) + hero counter glow (issue #30)
         private TMP_Text _aseCounter;               // the hero Àṣẹ counter — watched for changes
+        private Image _aseCounterGlow;              // faint gold glow behind the hero number
         private string _lastAseCounterValue;        // triggers flash when the value changes
         private float _aseFlashElapsed = float.MaxValue;       // large = no active flash
         private float _silhouettePulseElapsed = float.MaxValue; // large = no active pulse
@@ -262,8 +263,34 @@ namespace OriAscendant.UI
                     hero = t;
                 }
             }
-            if (hero != null) hero.color = Palette.AseGold;
+            if (hero != null)
+            {
+                hero.color = Palette.AseGold;
+                AddHeroCounterGlow(hero); // faint glow behind the number (issue #30)
+            }
             _aseCounter = hero; // owned by TickMicroFeedback for the flash animation
+        }
+
+        /// <summary>Adds a soft radial glow image as a sibling behind the hero
+        /// Àṣẹ counter (issue #30, PRD W4). The glow is structural — set once at
+        /// Start, never animated — to keep the number luminous without a heavy disc.</summary>
+        private void AddHeroCounterGlow(TMP_Text counter)
+        {
+            if (_dotSprite == null || counter.transform.parent == null) return;
+            _aseCounterGlow = NewChildImage(counter.transform.parent, "AseCounterGlow");
+            _aseCounterGlow.sprite = _dotSprite;
+            _aseCounterGlow.color = Palette.AseGold.WithAlpha(AseHeroSpec.HeroGlowAlpha);
+            // Match the counter's anchored position and expand by padding.
+            var brt = counter.rectTransform;
+            var grt = _aseCounterGlow.rectTransform;
+            grt.anchorMin = brt.anchorMin;
+            grt.anchorMax = brt.anchorMax;
+            float pad = AseHeroSpec.HeroGlowPadding;
+            grt.offsetMin = brt.offsetMin + new Vector2(-pad, -pad);
+            grt.offsetMax = brt.offsetMax + new Vector2(pad, pad);
+            // Place behind the text: insert just before the counter in sibling order.
+            int idx = brt.GetSiblingIndex();
+            grt.SetSiblingIndex(idx > 0 ? idx - 1 : 0);
         }
 
         private static bool Approx(Color a, Color b) =>
@@ -358,6 +385,20 @@ namespace OriAscendant.UI
             SkinBar(root);
             SkinCouncil(root);
             SkinButtons(root);
+            SkinChrome(root);
+        }
+
+        /// <summary>Minimalist chrome pass (issue #30, PRD W4): flatten secondary
+        /// chrome elements so the Àṣẹ counter reads as the sole luminous element.
+        /// Modal panels are untouched — they need their backgrounds for legibility
+        /// as overlays. Only persistent main-screen chrome is flattened here.</summary>
+        private static void SkinChrome(Transform root)
+        {
+            // Settings button: icon-only — clear the filled panel background so
+            // the ⚙ glyph floats on the sky without a heavy dark rectangle behind it.
+            var settingsImg = FindComp<Image>(root, "SettingsButton");
+            if (settingsImg != null)
+                settingsImg.color = Color.clear;
         }
 
         /// <summary>The portrait Image is a transparent raycast-only hit-area; all
@@ -562,7 +603,6 @@ namespace OriAscendant.UI
 
         /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
         /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
-<<<<<<< HEAD
         /// returns 0) so the bust is perfectly still. The tap-pulse scale (issue #24)
         /// is multiplied in so both motions compose without clamping. VesselFill is a
         /// child of the silhouette so it inherits the scale; its color is pulsed here too.</summary>
@@ -587,7 +627,6 @@ namespace OriAscendant.UI
             }
         }
 
-<<<<<<< HEAD
         /// <summary>Ticks all micro-feedback timers and applies their visual outputs
         /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash on value change.</summary>
         private void TickMicroFeedback(float dt)
