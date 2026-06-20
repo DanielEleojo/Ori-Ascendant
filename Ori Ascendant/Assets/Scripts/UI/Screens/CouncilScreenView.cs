@@ -92,22 +92,21 @@ namespace OriAscendant.UI.Screens
             {
                 if (_rows[i].root != null) _rows[i].root.SetActive(true);
 
+                ShrineAncestorRow row;
                 if (i >= save.council.Count)
                 {
-                    var empty = ShrineAncestorPresenter.EmptySeat;
-                    if (_rows[i].motif        != null) _rows[i].motif.color    = empty.SilhouetteColor;
-                    if (_rows[i].title        != null) _rows[i].title.text     = empty.Title;
-                    if (_rows[i].remembrance  != null) _rows[i].remembrance.text = empty.Remembrance;
-                    continue;
+                    row = ShrineAncestorPresenter.EmptySeat;
+                }
+                else
+                {
+                    var ancestor = save.council[i];
+                    int generationNumber = save.lineage.generationCount - (save.council.Count - 1 - i);
+                    row = ShrineAncestorPresenter.Map(ancestor, generationNumber);
                 }
 
-                var ancestor = save.council[i];
-                int generationNumber = save.lineage.generationCount - (save.council.Count - 1 - i);
-                var row = ShrineAncestorPresenter.Map(ancestor, generationNumber);
-
-                if (_rows[i].motif       != null) _rows[i].motif.color       = row.SilhouetteColor;
-                if (_rows[i].title       != null) _rows[i].title.text        = row.Title;
-                if (_rows[i].remembrance != null) _rows[i].remembrance.text  = row.Remembrance;
+                if (_rows[i].motif != null) _rows[i].motif.color = row.SilhouetteColor;
+                if (_rows[i].title != null) _rows[i].title.text = row.Title;
+                if (_rows[i].remembrance != null) _rows[i].remembrance.text = row.Remembrance;
             }
 
             if (_foundationLine != null)
