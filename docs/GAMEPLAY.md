@@ -89,12 +89,65 @@ Tier 0 (path-less, identical for all): Stage 1 → 100s, Stage 2 → 280s, Stage
 | | tapChannelSeconds | 5.0 |
 | | welcomeBackMinSeconds | 60 |
 | | autosaveIntervalSeconds | 30 |
-| TribulationConfig | baseAscendChance | 0.60 |
+| TribulationConfig | baseAscendChance | 0.60 (midpoint anchor, ADR-0004) |
+| | ascendFloor | 0.25 (balance-sim derived, §2.6) |
+| | ascendCeiling | 0.90 (balance-sim derived, §2.6) |
 | | aseThreshold | 25,000,000 |
 | | ambientFractions | 0.50 / 0.80 / 1.00 |
 | | holdToConfirmSeconds | 0.8 |
+| | lineLegacyBonusPerGen | 0.05 (balance-sim derived, ADR-0005, §2.6) |
+| | lineLegacyMaxBonus | 0.15 (= 3-gen streak cap, ADR-0005, §2.6) |
 | CouncilConfig | ancestorBaseBonus (W) | 0.25 |
 | | maxCouncil | 5 |
+| CrossroadsConfig | milestones | 100 / 1K / 4K / 50K / 400K / 5M Àṣẹ (balance-sim derived, §2.6) |
+| | forebearSeedChance | 0.5 |
+
+### 2.6 Dynasty pacing (balance-pass derived — issue #12)
+
+Numbers derived analytically from the GAMEPLAY §2.2 rate table. Locked into config (SceneBuilder) and guarded by `DynastyPacingContractTests`.
+
+**Steadfastness curve (ADR-0004):**
+```
+AscendChance = ascendFloor + (ascendCeiling − ascendFloor) × (oriHeld / oriTrials)
+             = 0.25 + 0.65 × rate       (clamp to 0.90 after line-legacy bonus)
+```
+Floor 0.25 keeps the wavering life a genuine crossing; ceiling 0.90 keeps the steadfast uncertain. Midpoint rate (= old flat 60% anchor): held/trials = (0.60−0.25)/0.65 ≈ 0.538. At 3-of-6 crossroads held: 57.5%; 4-of-6: 68.3% — each crossroads moves the odds by ~10.8 pp.
+
+**Crossroads density (one per stage):**
+
+| # | Stage | Àṣẹ milestone | Notes |
+|---|---|---|---|
+| 1 | Ọmọ Ayé (idx 0) | 100 | Stage 1 boundary — earliest hook |
+| 2 | Akẹ́kọ̀ọ́ (idx 1) | 1,000 | ~180s into Stage 2 at base rate |
+| 3 | Awo (idx 2) | 4,000 | ~125s into Stage 3 |
+| 4 | Aláàṣẹ (idx 3) | 50,000 | ~556s into Stage 4 |
+| 5 | Àgbà (idx 4) | 400,000 | ~937s into Stage 5 |
+| 6 | Aṣẹ́gun (idx 5) | 5,000,000 | Early Stage 6 grind, arms steadfastness before Tribulation |
+
+Six milestones matches the 6-card production deck. A casual idle player sees ~2 crossroads per daily check-in (one milestone per offline night phase + one mid-session).
+
+**First-Crossing pacing:**
+
+| Path | Offline rate | 8h bank | Gate (25M) | Result |
+|---|---|---|---|---|
+| Ane | Stage 6 × 1.5 = 1,875 Àṣẹ/s | 54,000,000 | 25,000,000 | ✓ ready next morning |
+| Sango | Stage 6 × 1.0 = 1,250 Àṣẹ/s | 36,000,000 | 25,000,000 | ✓ ready next morning |
+| Osun | Stage 6 × 1.0 = 1,250 Àṣẹ/s | 36,000,000 | 25,000,000 | ✓ ready next morning |
+
+All paths clear the 25M gate after one overnight at Stage 6 — first Crossing within a day for every player.
+
+**Dynasty acceleration (weeks):**
+
+| Gen | Ascended in council | Lineage factor (non-Osun) | Tier-0 time |
+|---|---|---|---|
+| 1 | 0 | 1.00× | 580s |
+| 2 | 1 | 1.25× | 464s |
+| 5 | 4 | 2.00× | 290s |
+| 6+ | 5 (full) | 2.25× | 258s |
+
+Gen 5 clears Tier-0 in 290s — half of gen 1's 580s. Full ascended council is a 2.25× multiplier; bloodline acceleration is visceral within the first ~10 days of casual play.
+
+**Line-legacy cap (ADR-0005):** lineLegacyBonusPerGen = 0.05 per consecutive gen same Ori; max 0.15 (= 3-gen streak). Floor + max-legacy = 0.40, well below the 0.90 ceiling — even a wavering life in a perfect dynasty remains a genuine Crossing.
 
 ---
 

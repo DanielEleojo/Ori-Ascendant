@@ -216,6 +216,20 @@ namespace OriAscendant.Tests.EditMode
                 "Sango: even with ×0.5 offline the storm banks 36M — first Crossing within a day for all paths");
         }
 
+        [Test]
+        public void FirstCrossing_OsunOfflineNight_ArmsTheTribulationGate()
+        {
+            // Osun: online=×1.0, offline modifier=×1.0 (river path; council bonus ×2 is a
+            // multiplier on the lineage term, not the base rate, so gen-1 with no council is
+            // the conservative case). Banked = 1250 × 1.0 × 28800 = 36 000 000 > 25M gate.
+            const double stage6RateOsun = 1250.0 * 1.0; // ×1.0 online, no council gen-1
+            const double offlineModOsun = 1.0;
+            const double offlineCap = 28_800.0;
+            double banked = stage6RateOsun * offlineModOsun * offlineCap;
+            Assert.Greater(banked, TribulationGate,
+                "Osun: river path banks 36M overnight — first Crossing within a day for all three paths");
+        }
+
         // ---- §5: Dynasty pacing (weeks) ----
 
         [Test]
