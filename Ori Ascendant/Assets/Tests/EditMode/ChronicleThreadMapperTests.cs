@@ -183,5 +183,16 @@ namespace OriAscendant.Tests.EditMode
             Assert.Greater(ChronicleThreadMapper.ThreadLineColor.a, 0f,
                 "thread line must always be visible — the unbroken light");
         }
+
+        // ---- issue #7: canonical fallen alpha agrees with PathMotif.FallenAlpha ----
+
+        [Test]
+        public void Fallen_Alpha_AgreesWithPathMotifCanonical()
+        {
+            float chronicleAlpha = ChronicleThreadMapper.Map(Entry(ascended: false)).NodeColor.a;
+            Assert.AreEqual(PathMotif.FallenAlpha, chronicleAlpha, 1e-4f,
+                "ChronicleThreadMapper fallen alpha must equal PathMotif.FallenAlpha — " +
+                "EmberWarm hue is kept by design, but the alpha must be canonical (#7)");
+        }
     }
 }
