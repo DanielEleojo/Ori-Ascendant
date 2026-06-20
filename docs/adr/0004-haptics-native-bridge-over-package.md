@@ -12,8 +12,12 @@ iOS system APIs that lack a Unity managed equivalent (haptics, accessibility set
 ## Scope
 
 The pattern covers at minimum:
-1. **Haptics** — `UIImpactFeedbackGenerator` (light / medium / heavy styles).
-2. **Reduce Motion** — `UIAccessibility.isReduceMotionEnabled` written to `PlayerPrefs` on change so `MotionHelper` callers can read it without bridging (see ADR-0003).
+1. **Haptics** — `UIImpactFeedbackGenerator` (light / medium / heavy styles) in `OriHaptics.mm`.
+2. **Reduce Motion** — `UIAccessibility.isReduceMotionEnabled` read via `OriAccessibility.mm`.
+   The native side only *reads* the OS flag; Unity C# owns all `PlayerPrefs` writes to avoid
+   version-specific key-encoding issues. `MotionPrefs.SyncOsFlag()` writes to `"ReduceMotionOS"`,
+   and `MotionPrefs.ReduceMotionEnabled` returns `InAppToggle OR OsFlag` so neither clobbers the
+   other (issue #5, ADR-0005).
 
 ## Considered and rejected
 
@@ -23,6 +27,7 @@ The pattern covers at minimum:
 
 ## Consequences
 
-- A `Plugins/iOS/NativeBridge.mm` source file must ship in the build; Unity Cloud Build compiles it automatically.
+- `Plugins/iOS/OriHaptics.mm` and `Plugins/iOS/OriAccessibility.mm` must ship in the build; Unity Cloud Build compiles them automatically.
 - The bridge is `#if UNITY_IOS`-gated so every call site on other platforms is a no-op.
+- The Reduce Motion bridge is **device-only** — validate via Cloud Build → TestFlight at iOS export.
 - Native author must run `xcodebuild test` against a physical device before signing off on a new capability.

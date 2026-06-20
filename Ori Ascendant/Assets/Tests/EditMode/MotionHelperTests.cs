@@ -4,7 +4,7 @@ using OriAscendant.UI;
 namespace OriAscendant.Tests.EditMode
 {
     /// <summary>
-    /// Pure-seam tests for MotionHelper (issue #20 / ADR-0003).
+    /// Pure-seam tests for MotionHelper (issue #20 / ADR-0005).
     /// No scene, no MonoBehaviour — easing and reduce-motion gating are pure math.
     /// </summary>
     public class MotionHelperTests
