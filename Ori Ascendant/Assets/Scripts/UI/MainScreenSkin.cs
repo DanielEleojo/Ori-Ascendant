@@ -63,23 +63,23 @@ namespace OriAscendant.UI
 
         private struct PathTheme
         {
-            public Color Horizon, Mote, BarBot, BarTop, Aura;
+            public Color Horizon, Mote, Aura;
             public MoteStyle Style;
-            public PathTheme(Color h, Color m, Color bb, Color bt, Color a, MoteStyle s)
-            { Horizon = h; Mote = m; BarBot = bb; BarTop = bt; Aura = a; Style = s; }
+            public PathTheme(Color h, Color m, Color a, MoteStyle s)
+            { Horizon = h; Mote = m; Aura = a; Style = s; }
         }
 
         // Index = currentPath + 1 so -1 (neutral) maps to [0].
         private static readonly PathTheme[] _themes = new PathTheme[]
         {
             // [0] Neutral (no path yet): gold ascent signature
-            new PathTheme(Palette.AseGold,        Palette.AseCore,       Palette.AseDeep,         Palette.AseCore,       Palette.AseGold,        MoteStyle.Neutral),
+            new PathTheme(Palette.AseGold,        Palette.AseCore,       Palette.AseGold,        MoteStyle.Neutral),
             // [1] Ane (earth/endurance): warm ochre ground, slow ember motes
-            new PathTheme(Palette.AneOchre,        Palette.AneMaize,      Palette.AneClay,         Palette.AneOchre,      Palette.AneEarthGreen,  MoteStyle.Earth),
+            new PathTheme(Palette.AneOchre,        Palette.AneMaize,      Palette.AneEarthGreen,  MoteStyle.Earth),
             // [2] Sango (thunder/force): hot amber storm, fast crackling motes
-            new PathTheme(Palette.SangoStormAmber, Palette.SangoHotWhite, Palette.SangoThunderRed, Palette.SangoStormAmber, Palette.SangoStormAmber, MoteStyle.Storm),
+            new PathTheme(Palette.SangoStormAmber, Palette.SangoHotWhite, Palette.SangoStormAmber, MoteStyle.Storm),
             // [3] Osun (river/flow): cool teal current, gentle flowing motes
-            new PathTheme(Palette.OsunRiverTeal,   Palette.OsunPale,      Palette.OsunRiverTeal,   Palette.OsunPale,      Palette.OsunRiverTeal,  MoteStyle.River),
+            new PathTheme(Palette.OsunRiverTeal,   Palette.OsunPale,      Palette.OsunRiverTeal,  MoteStyle.River),
         };
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -108,7 +108,7 @@ namespace OriAscendant.UI
         // Shared generated sprites (built once at Start).
         private Sprite _dotSprite;       // soft radial dot — auras, stars, motes, leading edge
         private Sprite _roundedBig;      // r16 rounded rect (9-sliced) — button, council chips
-        private Sprite _roundedSmall;    // r8 rounded rect (9-sliced) — bar trough
+        private Sprite _roundedSmall;    // r8 rounded rect (9-sliced) — constellation lines, staff
         private Sprite _ring;            // r16 rounded border (9-sliced) — council rims
 
         // Animated references (driven in Update).
@@ -857,24 +857,6 @@ namespace OriAscendant.UI
             float ox = Mathf.Max(qx, 0f);
             float oy = Mathf.Max(qy, 0f);
             return Mathf.Sqrt(ox * ox + oy * oy) + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
-        }
-
-        /// <summary>Thin vertical gradient (stretched horizontally → uniform sheen).</summary>
-        private static Sprite VGradientSprite(int h, Color bottom, Color top)
-        {
-            const int w = 8;
-            var tex = new Texture2D(w, h, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            for (int y = 0; y < h; y++)
-            {
-                Color c = Color.Lerp(bottom, top, y / (h - 1f));
-                for (int x = 0; x < w; x++) tex.SetPixel(x, y, c);
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
         }
 
         /// <summary>Per-stage proportions of the bust. Child → elder, sampled at
