@@ -1,3 +1,4 @@
+using System;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -18,6 +19,11 @@ namespace OriAscendant.UI.Screens
     /// </summary>
     public class TribulationScreen : MonoBehaviour
     {
+        /// <summary>Fires in Finish() after HideAllRoots() — the overlay is fully down.
+        /// MainScreenSkin subscribes to start the star-ignition ceremony at this moment
+        /// rather than when OnTribulationComplete fires (which is while the overlay is still up).</summary>
+        public event Action OnCeremonyClosed;
+
         private enum Phase { Hidden, Confirm, ClosingConfirm, Transition, StormWaves, Silence, Reveal, AncestorCard, Summary, FinalBeat }
 
         [SerializeField] private TribulationConfig _config;
@@ -81,6 +87,7 @@ namespace OriAscendant.UI.Screens
             if (_confirmRoot != null)
                 _confirmCanvasGroup = _confirmRoot.GetComponent<CanvasGroup>() ?? _confirmRoot.AddComponent<CanvasGroup>();
             HideAllRoots();
+            ServiceLocator.Register(this);
         }
 
         private void OnDestroy()
@@ -407,6 +414,7 @@ namespace OriAscendant.UI.Screens
             HideAllRoots();
             _phase = Phase.Hidden;
             _result = null;
+            OnCeremonyClosed?.Invoke();
         }
 
         private void SetCeremonyVisuals(float flashAlpha, float whiteAlpha, bool showReveal)

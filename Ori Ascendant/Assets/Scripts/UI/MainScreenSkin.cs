@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using OriAscendant.Core;
 using OriAscendant.Save;
 using OriAscendant.Systems;
+using OriAscendant.UI.Screens;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -119,10 +120,15 @@ namespace OriAscendant.UI
         private Image _crossingColumn;       // overflow column above the vessel: the Crossing gauge (issue #33)
 
         // Crossing ceremony (issue #34, PRD W3): column resolves into a new star at the apex.
+        // Ignition starts on OnCeremonyClosed (overlay fully down) — not on OnTribulationComplete
+        // (which fires while the overlay is still opaque, making the flash invisible). (#4)
         private Image _crossingNewStar;                              // flash image at the column apex during ceremony
         private float _crossingCeremonyElapsed = float.MaxValue;     // large = no ceremony in progress
         private bool  _crossingCeremonyDidAscend;
         private int   _crossingCeremonyPath = -1;
+        private bool  _crossingCeremonyPending;                      // stashed until overlay closes
+
+        private Button _portraitButton; // cached for OnDestroy RemoveListener (#8)
 
         // The silhouette of light ages with the cultivation stage (ART_BIBLE §4).
         private SaveManager _save;
@@ -143,7 +149,7 @@ namespace OriAscendant.UI
         private AseGenerationSystem _aseGen;
         private double _lastProgressFraction; // within-stage fraction; read by RefreshTribulationAtmosphere
 
-        // Hero idle breathing (ADR-0003): slow sine on scale + brightness.
+        // Hero idle breathing (ADR-0005): slow sine on scale + brightness.
         private float _breathTime;
         private const float BreathPeriodSeconds = 4.2f; // ~0.24 Hz — calm, never distracting
         private const float BreathScaleAmp   = 0.012f;  // ±1.2% scale
@@ -180,9 +186,12 @@ namespace OriAscendant.UI
                 BuildBackground();
                 SkinForeground();
 
-                // Subscribe to the Crossing event so the ceremony fires on resolve.
+                // OnTribulationComplete fires while the tribulation overlay is still opaque.
+                // Stash the result there; start the star-ignition only on OnCeremonyClosed (#4).
                 if (ServiceLocator.TryGet(out TribulationSystem trib))
                     trib.OnTribulationComplete += OnCeremonyFired;
+                if (ServiceLocator.TryGet(out TribulationScreen tribScreen))
+                    tribScreen.OnCeremonyClosed += StartCeremony;
             }
             catch (System.Exception e)
             {
@@ -194,13 +203,26 @@ namespace OriAscendant.UI
         {
             if (ServiceLocator.TryGet(out TribulationSystem trib))
                 trib.OnTribulationComplete -= OnCeremonyFired;
+            if (ServiceLocator.TryGet(out TribulationScreen tribScreen))
+                tribScreen.OnCeremonyClosed -= StartCeremony;
+            if (_portraitButton != null)
+                _portraitButton.onClick.RemoveListener(OnPortraitTapped);
         }
 
+        // Stash result from the tribulation event (fires while overlay is still opaque).
         private void OnCeremonyFired(bool didAscend, AncestorData ancestor)
         {
-            _crossingCeremonyElapsed = 0f;
             _crossingCeremonyDidAscend = didAscend;
             _crossingCeremonyPath = ancestor?.path ?? -1;
+            _crossingCeremonyPending = true;
+        }
+
+        // Start ignition only after the overlay fully closes so the flash is visible (#4).
+        private void StartCeremony()
+        {
+            if (!_crossingCeremonyPending) return;
+            _crossingCeremonyPending = false;
+            _crossingCeremonyElapsed = 0f;
         }
 
         private void Update()
@@ -494,9 +516,9 @@ namespace OriAscendant.UI
             // cultivation stage is known — avoids a stage-0 flash before the save loads.
 
             // Wire tap-pulse: restart the pulse when the portrait button is tapped.
-            var portraitBtn = portrait.GetComponent<Button>();
-            if (portraitBtn != null)
-                portraitBtn.onClick.AddListener(OnPortraitTapped);
+            _portraitButton = portrait.GetComponent<Button>();
+            if (_portraitButton != null)
+                _portraitButton.onClick.AddListener(OnPortraitTapped);
         }
 
         /// <summary>Flat amber rectangle → rounded gold face, dark label, soft glow.</summary>
@@ -621,7 +643,7 @@ namespace OriAscendant.UI
             }
         }
 
-        // ================= hero idle breathing (ADR-0003) =================
+        // ================= hero idle breathing (ADR-0005) =================
 
         /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
         /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
@@ -693,9 +715,10 @@ namespace OriAscendant.UI
         // ================= crossing ceremony: vessel light ignites a new star (issue #34) =================
 
         /// <summary>Drives the ceremony flash when the Crossing resolves. The overflow column
-        /// fades out while a new star kindling at the apex — Ascended = bright path colour,
-        /// fallen = warm ember. Once the flash settles, RefreshDeepField() has already added
-        /// the permanent deep-field star (written to save before this ceremony frame runs).</summary>
+        /// fades out while a new star kindles at the apex — Ascended = bright path colour,
+        /// fallen = warm ember. Once the flash settles, the star becomes the new council
+        /// near-star (gens 1–5) or a deep-field star (gen 6+); the council strip refreshes
+        /// after the ceremony so the new near-star is present. (#10)</summary>
         private void TickCeremony(float dt)
         {
             _crossingCeremonyElapsed += dt;

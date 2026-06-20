@@ -1,6 +1,9 @@
 using System.Reflection;
 using NUnit.Framework;
+using OriAscendant.Core;
 using OriAscendant.UI;
+using OriAscendant.UI.Screens;
+using UnityEngine;
 
 namespace OriAscendant.Tests.EditMode
 {
@@ -170,6 +173,57 @@ namespace OriAscendant.Tests.EditMode
                 .GetField("_crossingCeremonyElapsed", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.IsNotNull(field,
                 "_crossingCeremonyElapsed must exist in MainScreenSkin — tracks ceremony animation progress (issue #34)");
+        }
+
+        // ---- issue #4: ceremony plays after overlay, not beneath it ----
+
+        [Test]
+        public void TribulationScreen_HasOnCeremonyClosed_Event()
+        {
+            var evt = typeof(TribulationScreen)
+                .GetEvent("OnCeremonyClosed", BindingFlags.Instance | BindingFlags.Public);
+            Assert.IsNotNull(evt,
+                "TribulationScreen must expose public event OnCeremonyClosed — fires in Finish() " +
+                "so MainScreenSkin can start the star-ignition after the overlay closes (#4)");
+        }
+
+        [Test]
+        public void TribulationScreen_Finish_FiresOnCeremonyClosed()
+        {
+            ServiceLocator.Clear();
+            var host = new GameObject("TribScreenTest");
+            try
+            {
+                var screen = host.AddComponent<TribulationScreen>();
+                bool fired = false;
+                screen.OnCeremonyClosed += () => fired = true;
+
+                var finish = typeof(TribulationScreen)
+                    .GetMethod("Finish", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.IsNotNull(finish, "TribulationScreen.Finish() must exist");
+                finish.Invoke(screen, null);
+
+                Assert.IsTrue(fired,
+                    "Finish() must fire OnCeremonyClosed — ceremony must play after overlay, not beneath it (#4)");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                ServiceLocator.Clear();
+            }
+        }
+
+        [Test]
+        public void MainScreenSkin_HasCeremonyStashFields()
+        {
+            var didAscend = typeof(MainScreenSkin)
+                .GetField("_crossingCeremonyDidAscend", BindingFlags.Instance | BindingFlags.NonPublic);
+            var path = typeof(MainScreenSkin)
+                .GetField("_crossingCeremonyPath", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(didAscend,
+                "_crossingCeremonyDidAscend must exist — stashed by OnCeremonyFired, used when overlay closes");
+            Assert.IsNotNull(path,
+                "_crossingCeremonyPath must exist — stashed by OnCeremonyFired, used when overlay closes");
         }
     }
 }
