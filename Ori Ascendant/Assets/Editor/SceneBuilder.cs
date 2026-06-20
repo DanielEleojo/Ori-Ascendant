@@ -630,8 +630,11 @@ namespace OriAscendant.EditorTools
             steadfastnessText.gameObject.SetActive(false);
 
             // Zone 4 — portrait = the channel-tap target (GAMEPLAY §5.3).
+            // The Image is fully transparent — it is a raycast-only hit area.
+            // All visuals (aura, silhouette, motes) come from child Images that
+            // MainScreenSkin builds at runtime; no sprite is ever assigned here.
             var portraitZone = Zone(root, "PortraitZone", 0.24f, 0.58f);
-            var portrait = MakeImage(portraitZone, "PortraitImage", Panel);
+            var portrait = MakeImage(portraitZone, "PortraitImage", Color.clear);
             var portraitRt = portrait.rectTransform;
             portraitRt.anchorMin = new Vector2(0.5f, 0.5f);
             portraitRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -639,7 +642,7 @@ namespace OriAscendant.EditorTools
             portrait.raycastTarget = true;
             var portraitButton = portrait.gameObject.AddComponent<Button>();
             portraitButton.targetGraphic = portrait;
-            portraitButton.transition = Selectable.Transition.ColorTint;
+            portraitButton.transition = Selectable.Transition.None;
 
             // One-time channel hint (seenFlags bit 0).
             var hint = MakeText(portraitZone, "ChannelHint", "Touch your cultivator to channel àṣẹ", 14f,
@@ -854,7 +857,6 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_advanceButton", advance);
             Assign(controller, "_advanceLabel", advanceLabel);
             Assign(controller, "_portraitButton", portraitButton);
-            Assign(controller, "_portraitImage", portrait);
             Assign(controller, "_floatingTextAnchor", portraitZone);
             Assign(controller, "_hintRoot", hint.gameObject);
             Assign(controller, "_pathScreen", pathScreen);

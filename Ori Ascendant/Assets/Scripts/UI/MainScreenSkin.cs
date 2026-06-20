@@ -322,32 +322,12 @@ namespace OriAscendant.UI
             SkinCouncil(root);
         }
 
-        /// <summary>The empty portrait box → a luminous bust standing in a soft gold
-        /// aura; the tap target (still full-rect) flares warm on touch.</summary>
+        /// <summary>The portrait Image is a transparent raycast-only hit-area; all
+        /// visible light (aura, silhouette, motes) comes from child Images.</summary>
         private void SkinPortrait(Transform root)
         {
             var portrait = FindComp<Image>(root, "PortraitImage");
             if (portrait == null) return;
-
-            // The portrait Image is both the channel-tap target and the aura.
-            portrait.sprite = _dotSprite;
-            portrait.type = Image.Type.Simple;
-            portrait.color = Palette.AseGold;
-
-            // The Button tints the aura per state: dim at rest, full flare on press.
-            // (Tint multiplies image.color, so a bright base + dim normal = a flare.)
-            var btn = portrait.GetComponent<Button>();
-            if (btn != null)
-            {
-                var cb = btn.colors;
-                cb.normalColor = new Color(1f, 1f, 1f, 0.12f);
-                cb.highlightedColor = new Color(1f, 1f, 1f, 0.16f);
-                cb.pressedColor = new Color(1f, 1f, 1f, 1f);
-                cb.selectedColor = new Color(1f, 1f, 1f, 0.12f);
-                cb.fadeDuration = 0.3f;
-                btn.colors = cb;
-                portrait.CrossFadeColor(cb.normalColor, 0f, true, true); // apply rest state now
-            }
 
             // Path-accent aura behind the bust — a soft glow that tints per path.
             _silhouetteAura = NewChildImage(portrait.rectTransform, "SilhouetteAura");
