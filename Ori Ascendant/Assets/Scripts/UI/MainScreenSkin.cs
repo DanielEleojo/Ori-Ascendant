@@ -118,6 +118,12 @@ namespace OriAscendant.UI
         private Image _vesselWaterlineGlow; // leading-edge glow on the vessel's rising waterline (issue #28)
         private Image _crossingColumn;       // overflow column above the vessel: the Crossing gauge (issue #33)
 
+        // Crossing ceremony (issue #34, PRD W3): column resolves into a new star at the apex.
+        private Image _crossingNewStar;                              // flash image at the column apex during ceremony
+        private float _crossingCeremonyElapsed = float.MaxValue;     // large = no ceremony in progress
+        private bool  _crossingCeremonyDidAscend;
+        private int   _crossingCeremonyPath = -1;
+
         // The silhouette of light ages with the cultivation stage (ART_BIBLE §4).
         private SaveManager _save;
         private Image _silhouette;
@@ -173,11 +179,28 @@ namespace OriAscendant.UI
                 ThemeText();
                 BuildBackground();
                 SkinForeground();
+
+                // Subscribe to the Crossing event so the ceremony fires on resolve.
+                if (ServiceLocator.TryGet(out TribulationSystem trib))
+                    trib.OnTribulationComplete += OnCeremonyFired;
             }
             catch (System.Exception e)
             {
                 Debug.LogWarning($"[MainScreenSkin] skin pass failed, leaving base UI: {e.Message}");
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (ServiceLocator.TryGet(out TribulationSystem trib))
+                trib.OnTribulationComplete -= OnCeremonyFired;
+        }
+
+        private void OnCeremonyFired(bool didAscend, AncestorData ancestor)
+        {
+            _crossingCeremonyElapsed = 0f;
+            _crossingCeremonyDidAscend = didAscend;
+            _crossingCeremonyPath = ancestor?.path ?? -1;
         }
 
         private void Update()
@@ -210,6 +233,7 @@ namespace OriAscendant.UI
             TickBreathing(dt);
             TickVesselFill();
             TickCrossingColumn(pulse);
+            TickCeremony(dt);
 
             // CTA glow breathes only while advancing is actually possible.
             if (_advanceGlow != null)
@@ -454,6 +478,16 @@ namespace OriAscendant.UI
             ccrt.sizeDelta = new Vector2(CrossingColumnSpec.ColumnWidth, 0f);
             _crossingColumn.color = Color.clear;
 
+            // Ceremony new-star: flashes at the column apex when the Crossing resolves (issue #34).
+            _crossingNewStar = NewChildImage(srt, "CrossingNewStar");
+            _crossingNewStar.sprite = _dotSprite;
+            var nsrt = _crossingNewStar.rectTransform;
+            nsrt.anchorMin = nsrt.anchorMax = new Vector2(0.5f, 1f); // above the silhouette top, same as column
+            nsrt.pivot = new Vector2(0.5f, 0.5f);
+            nsrt.sizeDelta = new Vector2(12f, 12f);
+            nsrt.anchoredPosition = new Vector2(0f, CrossingColumnSpec.MaxColumnHeight); // at column apex
+            _crossingNewStar.color = Color.clear;
+
             BuildConstellation(srt); // elder crown — toggled on at the final stage
             BuildStaff(srt);         // elder staff — toggled on at the elder tiers
             // The bust sprite itself is built on the first Update tick, once the real
@@ -656,6 +690,42 @@ namespace OriAscendant.UI
                 VesselFillRatio.Compute(CurrentStage(), progressFraction, _cultivation.StageCount);
         }
 
+        // ================= crossing ceremony: vessel light ignites a new star (issue #34) =================
+
+        /// <summary>Drives the ceremony flash when the Crossing resolves. The overflow column
+        /// fades out while a new star kindling at the apex — Ascended = bright path colour,
+        /// fallen = warm ember. Once the flash settles, RefreshDeepField() has already added
+        /// the permanent deep-field star (written to save before this ceremony frame runs).</summary>
+        private void TickCeremony(float dt)
+        {
+            _crossingCeremonyElapsed += dt;
+
+            if (_crossingNewStar == null) return;
+
+            if (!CrossingCeremonySpec.IsActive(_crossingCeremonyElapsed))
+            {
+                _crossingNewStar.color = Color.clear;
+                return;
+            }
+
+            // Drive new-star ignition flash
+            float starAlpha = CrossingCeremonySpec.StarIgnitionAlpha(
+                _crossingCeremonyElapsed, CrossingCeremonySpec.StarIgnitionSeconds,
+                _crossingCeremonyDidAscend);
+            Color starBase = _crossingCeremonyDidAscend && _crossingCeremonyPath >= 0
+                ? PathMotif.ColorOf(_crossingCeremonyPath)
+                : PathMotif.Ember;
+            _crossingNewStar.color = starBase.WithAlpha(starAlpha);
+
+            // Drive column exit fade — the light "rises" out of the column into the star
+            if (_crossingColumn != null)
+            {
+                float colAlpha = CrossingCeremonySpec.ColumnExitAlpha(
+                    _crossingCeremonyElapsed, CrossingCeremonySpec.ColumnFadeSeconds);
+                _crossingColumn.color = _themeAccent.WithAlpha(colAlpha);
+            }
+        }
+
         // ================= crossing column: overflow gauge at final stage (issue #33) =================
 
         /// <summary>Drives the overflow column from the tribulation fraction. The column
@@ -665,6 +735,8 @@ namespace OriAscendant.UI
         private void TickCrossingColumn(float pulse)
         {
             if (_crossingColumn == null) return;
+            // During the ceremony, TickCeremony owns the column's exit fade.
+            if (CrossingCeremonySpec.IsActive(_crossingCeremonyElapsed)) return;
             if (!CrossingColumnSpec.IsActive(CurrentStage()))
             {
                 _crossingColumn.color = Color.clear;
