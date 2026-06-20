@@ -270,7 +270,7 @@ namespace OriAscendant.Tests.EditMode
             // is 0.575 — close enough to the 0.60 anchor to feel "about even odds."
             // At 4/6 (a single drift above midpoint), chance rises to 0.683 — noticeably better.
             const int crossroadsPerLife = 6;
-            double midpointChance = Floor + (Ceiling - Floor) * (crossroadsPerLife / 2.0 / crossroadsPerLife);
+            double midpointChance = Floor + (Ceiling - Floor) * (3.0 / crossroadsPerLife);
             Assert.AreEqual(0.575, midpointChance, 1e-9,
                 "3-of-6 steadfastness → 57.5% ascend chance — honest midpoint sample, close to the 60% anchor");
             double aboveMidChance = Floor + (Ceiling - Floor) * (4.0 / crossroadsPerLife);
