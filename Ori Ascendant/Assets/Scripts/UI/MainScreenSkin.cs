@@ -420,22 +420,21 @@ namespace OriAscendant.UI
             }
         }
 
-        /// <summary>Five flat squares → rounded chips with persistent gold rims. The
-        /// strip view recolours the fill (.color) at runtime; the rounded sprite and
-        /// the rim child are untouched, so the craft survives every refresh.</summary>
+        /// <summary>Five flat squares → ancestor-star dots (issue #22). Each slot
+        /// becomes a soft radial dot so the strip reads as a constellation, not a
+        /// chip row. CouncilStripView drives .color at runtime via
+        /// ConstellationStarMapper; the dot sprite and Simple type survive that.</summary>
         private void SkinCouncil(Transform root)
         {
             for (int i = 1; i <= 5; i++)
             {
                 var slot = FindComp<Image>(root, $"CouncilSlot{i}");
                 if (slot == null) continue;
-                slot.sprite = _roundedBig;
-                slot.type = Image.Type.Sliced;
-
-                var rim = NewChildImage(slot.rectTransform, "SlotRim");
-                rim.sprite = _ring;
-                rim.type = Image.Type.Sliced;
-                rim.color = Palette.AseDeep;
+                slot.sprite = _dotSprite;
+                slot.type = Image.Type.Simple;
+                // Initial colour: empty-seat faint point; CouncilStripView overwrites
+                // this each council Version tick so the star reflects real data.
+                slot.color = ConstellationStarMapper.EmptySeatColor();
             }
         }
 
