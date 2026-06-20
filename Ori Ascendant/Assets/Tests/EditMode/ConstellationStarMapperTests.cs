@@ -224,5 +224,15 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(gold.g, deepColor.g, 0.01f, "deep-field green channel must match AseGold");
             Assert.AreEqual(gold.b, deepColor.b, 0.01f, "deep-field blue channel must match AseGold");
         }
+
+        // ---- issue #7: canonical fallen alpha agrees with PathMotif.FallenAlpha ----
+
+        [Test]
+        public void Fallen_Alpha_AgreesWithPathMotifCanonical()
+        {
+            float mapperAlpha = ConstellationStarMapper.StarColor(Ancestor(1, ascended: false)).a;
+            Assert.AreEqual(PathMotif.FallenAlpha, mapperAlpha, 1e-4f,
+                "ConstellationStarMapper fallen alpha must equal PathMotif.FallenAlpha — route through AncestorTint (#7)");
+        }
     }
 }

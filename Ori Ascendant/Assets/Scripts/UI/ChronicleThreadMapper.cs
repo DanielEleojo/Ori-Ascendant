@@ -32,7 +32,7 @@ namespace OriAscendant.UI
     public static class ChronicleThreadMapper
     {
         private const float AscendedAlpha = 1.00f;
-        private const float FallenAlpha   = 0.55f;
+        private const float FallenAlpha   = PathMotif.FallenAlpha; // canonical 0.45; EmberWarm hue kept by design
 
         /// <summary>
         /// Colour for the continuous vertical thread that connects all nodes.

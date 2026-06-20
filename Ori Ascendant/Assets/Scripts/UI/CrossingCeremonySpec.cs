@@ -29,9 +29,9 @@ namespace OriAscendant.UI
         public const float AscendedStarAlpha = 1.0f;
 
         /// <summary>Final alpha of the new star after a fall (warm ember — present, honoured, softer).
-        /// Matches ConstellationStarMapper.FallenAlpha so the ceremony settles into the
-        /// permanent deep-field appearance without a visible snap.</summary>
-        public const float EmberStarAlpha = 0.45f;
+        /// Equals PathMotif.FallenAlpha so the ceremony settles into the council/deep-field star
+        /// appearance without a visible snap. (#7 canonical alpha, #10 comment fix)</summary>
+        public const float EmberStarAlpha = PathMotif.FallenAlpha;
 
         /// <summary>How much the ignition flash overshoots the settled alpha at its peak.
         /// The kindling rises to (settle + this) — capped at 1.0 — before easing back to settle.

@@ -29,9 +29,7 @@ namespace OriAscendant.UI
     /// </summary>
     public static class ShrineAncestorPresenter
     {
-        private const float AscendedAlpha = 1.00f;
-        private const float FallenAlpha   = 0.45f;
-        private const float EmptyAlpha    = 0.18f;
+        private const float EmptyAlpha = 0.18f;
 
         public static readonly ShrineAncestorRow EmptySeat = new ShrineAncestorRow
         {
@@ -47,18 +45,14 @@ namespace OriAscendant.UI
         /// </summary>
         public static ShrineAncestorRow Map(AncestorData ancestor, int generationNumber)
         {
-            Color pathColor = ancestor.path < 0 ? Palette.AseGold : PathMotif.ColorOf(ancestor.path);
-            float alpha     = ancestor.didAscend ? AscendedAlpha : FallenAlpha;
-
             string emberMark = ancestor.didAscend ? string.Empty : "  (ember)";
             string title     = $"Gen {generationNumber} — Aṣẹ́gun of {PathMotif.TitleOf(ancestor.path)}{emberMark}";
-            string remembrance = ancestor.remembrance ?? string.Empty;
 
             return new ShrineAncestorRow
             {
-                SilhouetteColor = pathColor.WithAlpha(alpha),
+                SilhouetteColor = PathMotif.AncestorTint(ancestor.path, ancestor.didAscend),
                 Title           = title,
-                Remembrance     = remembrance,
+                Remembrance     = ancestor.remembrance ?? string.Empty,
             };
         }
     }

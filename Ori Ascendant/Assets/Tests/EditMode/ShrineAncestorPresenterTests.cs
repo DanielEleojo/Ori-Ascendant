@@ -186,5 +186,16 @@ namespace OriAscendant.Tests.EditMode
             Assert.Less(ShrineAncestorPresenter.EmptySeat.SilhouetteColor.a, fallenAlpha,
                 "an empty seat must be fainter than even a fallen ancestor");
         }
+
+        // ---- issue #7: canonical fallen alpha agrees with PathMotif.FallenAlpha ----
+
+        [Test]
+        public void Fallen_Alpha_AgreesWithPathMotifCanonical()
+        {
+            float shrineAlpha =
+                ShrineAncestorPresenter.Map(Ancestor(1, ascended: false), 1).SilhouetteColor.a;
+            Assert.AreEqual(PathMotif.FallenAlpha, shrineAlpha, 1e-4f,
+                "ShrineAncestorPresenter fallen alpha must equal PathMotif.FallenAlpha — route through AncestorTint (#7)");
+        }
     }
 }

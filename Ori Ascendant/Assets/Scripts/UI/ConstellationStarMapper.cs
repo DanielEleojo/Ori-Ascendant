@@ -22,19 +22,14 @@ namespace OriAscendant.UI
     /// </summary>
     public static class ConstellationStarMapper
     {
-        private const float AscendedAlpha          = 1.00f;
-        private const float FallenAlpha            = 0.45f;
         private const float EmptyAlpha             = 0.18f;
         private const float DeepFieldAscendedAlpha = 0.28f;
         private const float DeepFieldFallenAlpha   = 0.13f;
 
-        /// <summary>Star colour for an active council ancestor.</summary>
-        public static Color StarColor(AncestorData ancestor)
-        {
-            Color pathColor = ancestor.path < 0 ? Palette.AseGold : PathMotif.ColorOf(ancestor.path);
-            float alpha = ancestor.didAscend ? AscendedAlpha : FallenAlpha;
-            return pathColor.WithAlpha(alpha);
-        }
+        /// <summary>Star colour for an active council ancestor.
+        /// Routes through PathMotif.AncestorTint so FallenAlpha stays canonical.</summary>
+        public static Color StarColor(AncestorData ancestor) =>
+            PathMotif.AncestorTint(ancestor.path, ancestor.didAscend);
 
         /// <summary>Colour for an empty council seat — a faint unlit point.</summary>
         public static Color EmptySeatColor() => Palette.AseCore.WithAlpha(EmptyAlpha);
