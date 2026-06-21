@@ -177,10 +177,10 @@ namespace OriAscendant.UI
             // "always fall through" rule).
             try
             {
-                _dotSprite = BuildDotSprite(64);
-                _roundedBig = RoundedRectSprite(48, 16f);
-                _roundedSmall = RoundedRectSprite(24, 8f);
-                _ring = RoundedBorderSprite(48, 16f, 3.5f);
+                _dotSprite = ProceduralSprites.BuildDot(64);
+                _roundedBig = ProceduralSprites.RoundedRect(48, 16f);
+                _roundedSmall = ProceduralSprites.RoundedRect(24, 8f);
+                _ring = ProceduralSprites.RoundedBorder(48, 16f, 3.5f);
 
                 ThemeText();
                 BuildBackground();
@@ -324,7 +324,7 @@ namespace OriAscendant.UI
         private void AddHeroCounterGlow(TMP_Text counter)
         {
             if (_dotSprite == null || counter.transform.parent == null) return;
-            _aseCounterGlow = NewChildImage(counter.transform.parent, "AseCounterGlow");
+            _aseCounterGlow = UiBuilder.NewChildImage(counter.transform.parent, "AseCounterGlow");
             _aseCounterGlow.sprite = _dotSprite;
             _aseCounterGlow.color = Palette.AseGold.WithAlpha(AseHeroSpec.HeroGlowAlpha);
             // Match the counter's anchored position and expand by padding.
@@ -352,14 +352,14 @@ namespace OriAscendant.UI
             var canvas = FindRootCanvas();
             if (canvas == null) return;
 
-            var sky = NewStretchImage("SkyBackground", canvas.transform);
-            sky.sprite = BuildSkySprite(180, 360);
+            var sky = UiBuilder.NewStretchImage("SkyBackground", canvas.transform);
+            sky.sprite = ProceduralSprites.BuildSky(180, 360);
             sky.color = Color.white;
             sky.rectTransform.SetSiblingIndex(0); // behind every existing UI element
 
             // Path-accent horizon bloom — a soft elliptical glow at the bottom of the
             // sky that tints per path (gold neutral / ochre earth / amber storm / teal river).
-            _pathOverlay = NewStretchImage("PathOverlay", canvas.transform);
+            _pathOverlay = UiBuilder.NewStretchImage("PathOverlay", canvas.transform);
             _pathOverlay.sprite = _dotSprite;
             var por = _pathOverlay.rectTransform;
             por.anchorMin = new Vector2(0f, 0f);
@@ -380,18 +380,18 @@ namespace OriAscendant.UI
 
             // Deep-field layer — retired ancestors recede here (issue #26).
             // Stars are added dynamically in RefreshDeepField() as generations complete.
-            var dfLayer = NewStretchImage("DeepFieldLayer", sky.rectTransform);
+            var dfLayer = UiBuilder.NewStretchImage("DeepFieldLayer", sky.rectTransform);
             dfLayer.color = Color.clear;
             _deepFieldLayer = dfLayer.rectTransform;
 
             // Drifting Àṣẹ motes: soft gold points above the sky, below the UI.
-            var moteLayer = NewStretchImage("MoteLayer", canvas.transform);
+            var moteLayer = UiBuilder.NewStretchImage("MoteLayer", canvas.transform);
             moteLayer.color = Color.clear;
             moteLayer.rectTransform.SetSiblingIndex(2);
 
             // Wave 3 — storm-sky tint: a warm amber-dark overlay, transparent until
             // the tribulation fraction exceeds 50% at the final stage.
-            _stormSkyTint = NewStretchImage("StormSkyTint", canvas.transform);
+            _stormSkyTint = UiBuilder.NewStretchImage("StormSkyTint", canvas.transform);
             _stormSkyTint.sprite = _dotSprite; // soft radial falloff; stretched full-screen
             _stormSkyTint.color = Color.clear; // RefreshTribulationAtmosphere() drives this
             _stormSkyTint.rectTransform.SetSiblingIndex(3); // above motes, below all UI zones
@@ -399,7 +399,7 @@ namespace OriAscendant.UI
             // Wave 3 — edge vignette: the skin takes over the SceneBuilder-built
             // StormVignette Image so TribulationAtmosphere.VignetteAlpha() drives
             // it (same step values as the controller stub, now from the named fn).
-            _stormEdgeVignette = FindComp<Image>(canvas.transform, "StormVignette");
+            _stormEdgeVignette = UiBuilder.FindComp<Image>(canvas.transform, "StormVignette");
             const int count = 10;
             for (int i = 0; i < count; i++)
                 _motes.Add(Mote.Create(moteLayer.rectTransform, _dotSprite, i / (float)count));
@@ -442,7 +442,7 @@ namespace OriAscendant.UI
         {
             // Settings button: icon-only — clear the filled panel background so
             // the ⚙ glyph floats on the sky without a heavy dark rectangle behind it.
-            var settingsImg = FindComp<Image>(root, "SettingsButton");
+            var settingsImg = UiBuilder.FindComp<Image>(root, "SettingsButton");
             if (settingsImg != null)
                 settingsImg.color = Color.clear;
         }
@@ -451,11 +451,11 @@ namespace OriAscendant.UI
         /// visible light (aura, silhouette, motes) comes from child Images.</summary>
         private void SkinPortrait(Transform root)
         {
-            var portrait = FindComp<Image>(root, "PortraitImage");
+            var portrait = UiBuilder.FindComp<Image>(root, "PortraitImage");
             if (portrait == null) return;
 
             // Path-accent aura behind the bust — a soft glow that tints per path.
-            _silhouetteAura = NewChildImage(portrait.rectTransform, "SilhouetteAura");
+            _silhouetteAura = UiBuilder.NewChildImage(portrait.rectTransform, "SilhouetteAura");
             var art = _silhouetteAura.rectTransform;
             art.anchorMin = art.anchorMax = new Vector2(0.5f, 0.5f);
             art.sizeDelta = new Vector2(310f, 310f); // slightly larger than the bust
@@ -463,7 +463,7 @@ namespace OriAscendant.UI
             _silhouetteAura.sprite = _dotSprite;
             _silhouetteAura.color = Color.clear; // ApplyPathTheme() sets this
 
-            _silhouette = NewChildImage(portrait.rectTransform, "SilhouetteOfLight");
+            _silhouette = UiBuilder.NewChildImage(portrait.rectTransform, "SilhouetteOfLight");
             var srt = _silhouette.rectTransform;
             srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f);
             srt.sizeDelta = new Vector2(250f, 250f); // SQUARE → the bust texture isn't vertically stretched
@@ -471,7 +471,7 @@ namespace OriAscendant.UI
 
             // Vessel fill: bright gold light that rises from the feet as Àṣẹ accrues.
             // Must be the first child so constellation/staff render above it.
-            _vesselFillImage = NewChildImage(srt, "VesselFill");
+            _vesselFillImage = UiBuilder.NewChildImage(srt, "VesselFill");
             _vesselFillImage.type = Image.Type.Filled;
             _vesselFillImage.fillMethod = Image.FillMethod.Vertical;
             _vesselFillImage.fillOrigin = (int)Image.OriginVertical.Bottom;
@@ -480,7 +480,7 @@ namespace OriAscendant.UI
 
             // Waterline glow: horizontal soft-dot at the fill front, rides upward with the fill.
             // Replaces the old bar's leading-edge glow (issue #28). Positioned via anchor-Y each frame.
-            _vesselWaterlineGlow = NewChildImage(srt, "VesselWaterlineGlow");
+            _vesselWaterlineGlow = UiBuilder.NewChildImage(srt, "VesselWaterlineGlow");
             _vesselWaterlineGlow.sprite = _dotSprite;
             var wrt = _vesselWaterlineGlow.rectTransform;
             wrt.anchorMin = new Vector2(0f, 0f);
@@ -491,7 +491,7 @@ namespace OriAscendant.UI
 
             // Overflow column: rises above the vessel at the final stage as the
             // Crossing gauge — replaces the removed bar for tribulation (issue #33, PRD W2).
-            _crossingColumn = NewChildImage(srt, "CrossingColumn");
+            _crossingColumn = UiBuilder.NewChildImage(srt, "CrossingColumn");
             _crossingColumn.sprite = _dotSprite;
             var ccrt = _crossingColumn.rectTransform;
             ccrt.anchorMin = new Vector2(0.5f, 1f);
@@ -501,7 +501,7 @@ namespace OriAscendant.UI
             _crossingColumn.color = Color.clear;
 
             // Ceremony new-star: flashes at the column apex when the Crossing resolves (issue #34).
-            _crossingNewStar = NewChildImage(srt, "CrossingNewStar");
+            _crossingNewStar = UiBuilder.NewChildImage(srt, "CrossingNewStar");
             _crossingNewStar.sprite = _dotSprite;
             var nsrt = _crossingNewStar.rectTransform;
             nsrt.anchorMin = nsrt.anchorMax = new Vector2(0.5f, 1f); // above the silhouette top, same as column
@@ -524,7 +524,7 @@ namespace OriAscendant.UI
         /// <summary>Flat amber rectangle → rounded gold face, dark label, soft glow.</summary>
         private void SkinAdvance(Transform root)
         {
-            var advance = FindDeep(root, "AdvanceButton");
+            var advance = UiBuilder.FindDeep(root, "AdvanceButton");
             if (advance == null) return;
 
             var img = advance.GetComponent<Image>();
@@ -541,7 +541,7 @@ namespace OriAscendant.UI
 
             // Glow sits behind the button (earlier sibling in the same zone).
             var brt = (RectTransform)advance;
-            _advanceGlow = NewChildImage(advance.parent, "AdvanceGlow");
+            _advanceGlow = UiBuilder.NewChildImage(advance.parent, "AdvanceGlow");
             _advanceGlow.sprite = _dotSprite;
             var grt = _advanceGlow.rectTransform;
             grt.anchorMin = brt.anchorMin;
@@ -560,7 +560,7 @@ namespace OriAscendant.UI
         {
             for (int i = 1; i <= 5; i++)
             {
-                var slot = FindComp<Image>(root, $"CouncilSlot{i}");
+                var slot = UiBuilder.FindComp<Image>(root, $"CouncilSlot{i}");
                 if (slot == null) continue;
                 slot.sprite = _dotSprite;
                 slot.type = Image.Type.Simple;
@@ -812,7 +812,7 @@ namespace OriAscendant.UI
 
         private void RebuildSilhouette(int stage)
         {
-            var sprite = BuildBustSprite(256, ProfileForStage(stage));
+            var sprite = ProceduralSprites.BuildBust(256, ProceduralSprites.ProfileForStage(stage));
             var old = _silhouette.sprite;
             _silhouette.sprite = sprite;
             // VesselFill shares the same sprite so the fill is clipped to the bust shape.
@@ -850,7 +850,7 @@ namespace OriAscendant.UI
 
         private void AddConstellationStar(RectTransform parent, Vector2 pos)
         {
-            var img = NewChildImage(parent, "CStar");
+            var img = UiBuilder.NewChildImage(parent, "CStar");
             img.sprite = _dotSprite;
             img.color = Palette.AseCore;
             var rt = img.rectTransform;
@@ -861,7 +861,7 @@ namespace OriAscendant.UI
 
         private void AddConstellationLine(RectTransform parent, Vector2 a, Vector2 b)
         {
-            var img = NewChildImage(parent, "CLine");
+            var img = UiBuilder.NewChildImage(parent, "CLine");
             img.sprite = _roundedSmall;
             img.type = Image.Type.Sliced;
             img.color = Palette.AseGold.WithAlpha(0.55f);
@@ -875,7 +875,7 @@ namespace OriAscendant.UI
 
         private void BuildStaff(RectTransform parent)
         {
-            var img = NewChildImage(parent, "Staff");
+            var img = UiBuilder.NewChildImage(parent, "Staff");
             img.sprite = _roundedSmall;
             img.type = Image.Type.Sliced;
             img.color = Palette.AseDeep;
@@ -885,284 +885,6 @@ namespace OriAscendant.UI
             rt.anchoredPosition = Vector2.zero;
             _staff = img.gameObject;
             _staff.SetActive(false);
-        }
-
-        // ================= UGUI builders =================
-
-        private static Image NewStretchImage(string name, Transform parent)
-        {
-            var img = NewChildImage(parent, name);
-            return img;
-        }
-
-        private static Image NewChildImage(Transform parent, string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            var img = go.GetComponent<Image>();
-            img.raycastTarget = false; // decorative — never eat touches
-            return img;
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name) return root;
-            for (int i = 0; i < root.childCount; i++)
-            {
-                var found = FindDeep(root.GetChild(i), name);
-                if (found != null) return found;
-            }
-            return null;
-        }
-
-        private static T FindComp<T>(Transform root, string name) where T : Component
-        {
-            var t = FindDeep(root, name);
-            return t != null ? t.GetComponent<T>() : null;
-        }
-
-        // ================= procedural textures =================
-
-        private static Sprite BuildSkySprite(int w, int h)
-        {
-            var tex = new Texture2D(w, h, TextureFormat.RGB24, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            for (int y = 0; y < h; y++)
-            {
-                float vy = y / (h - 1f); // 0 = bottom (horizon), 1 = top
-                Color sky = vy > 0.5f
-                    ? Color.Lerp(Palette.IndigoBase, Palette.IndigoNight, (vy - 0.5f) / 0.5f)
-                    : Color.Lerp(Palette.DuskViolet, Palette.IndigoBase, vy / 0.5f);
-                for (int x = 0; x < w; x++)
-                {
-                    float gx = (x / (w - 1f)) - 0.5f;
-                    // Warm horizon-glow: a soft ellipse hottest at bottom-centre.
-                    float d = Mathf.Sqrt(gx * gx * 1.7f + vy * vy * 2.6f);
-                    float glow = Mathf.Clamp01(1f - d);
-                    glow *= glow;
-                    Color c = sky + Palette.AseGold * (glow * 0.85f) + Palette.AseCore * (glow * glow * glow * 0.5f);
-                    tex.SetPixel(x, y, c);
-                }
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
-        }
-
-        private static Sprite BuildDotSprite(int size)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            float r = size * 0.5f;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float dx = x + 0.5f - r;
-                float dy = y + 0.5f - r;
-                float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) / r);
-                a *= a; // smooth falloff to a soft glow
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        }
-
-        /// <summary>9-sliced rounded rectangle (solid white; tint via Image.color).</summary>
-        private static Sprite RoundedRectSprite(int size, float radius)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            float half = size * 0.5f;
-            float bx = half - radius, by = half - radius;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float d = RoundedDist(x + 0.5f - half, y + 0.5f - half, bx, by, radius);
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(0.5f - d)));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f,
-                0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
-        }
-
-        /// <summary>9-sliced rounded border (hollow centre) for rims.</summary>
-        private static Sprite RoundedBorderSprite(int size, float radius, float thickness)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            float half = size * 0.5f;
-            float bx = half - radius, by = half - radius;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float d = RoundedDist(x + 0.5f - half, y + 0.5f - half, bx, by, radius);
-                float outer = Mathf.Clamp01(0.5f - d);
-                float inner = Mathf.Clamp01(0.5f - (d + thickness));
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(outer - inner)));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f,
-                0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
-        }
-
-        // Signed distance to a rounded box centred at origin (negative inside).
-        private static float RoundedDist(float px, float py, float bx, float by, float radius)
-        {
-            float qx = Mathf.Abs(px) - bx;
-            float qy = Mathf.Abs(py) - by;
-            float ox = Mathf.Max(qx, 0f);
-            float oy = Mathf.Max(qy, 0f);
-            return Mathf.Sqrt(ox * ox + oy * oy) + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
-        }
-
-        /// <summary>Per-stage proportions of the bust. Child → elder, sampled at
-        /// stage/5: the figure grows taller and broader, the head shrinks in
-        /// proportion, and the light goes from a faint spark to "made of light"
-        /// (ART_BIBLE §4 ascent arc). All coords are normalised (0..1, y up).</summary>
-        private struct BustProfile
-        {
-            public float HeadRx, HeadRy, HeadCy;
-            public float NeckHalf, NeckTop, NeckBot;
-            public float BodyHalfW, BodyTop, ShoulderR; // body is ONE rounded-shouldered shape
-            public float LightCy, CoreBright, BodyAlpha, Halo;
-        }
-
-        private static BustProfile ProfileForStage(int stage)
-        {
-            float t = Mathf.Clamp01(stage / 5f); // 0 = Ọmọ Ayé (child), 1 = Aṣẹ́gun (elder)
-            return new BustProfile
-            {
-                HeadRx = Mathf.Lerp(0.100f, 0.128f, t),
-                HeadRy = Mathf.Lerp(0.115f, 0.145f, t),
-                HeadCy = Mathf.Lerp(0.640f, 0.800f, t),
-                NeckHalf = Mathf.Lerp(0.046f, 0.064f, t),
-                NeckTop = Mathf.Lerp(0.540f, 0.680f, t),
-                NeckBot = Mathf.Lerp(0.420f, 0.580f, t),
-                BodyHalfW = Mathf.Lerp(0.160f, 0.290f, t),
-                BodyTop = Mathf.Lerp(0.450f, 0.630f, t),
-                ShoulderR = Mathf.Lerp(0.085f, 0.150f, t),
-                LightCy = Mathf.Lerp(0.250f, 0.310f, t),
-                CoreBright = Mathf.Lerp(0.60f, 1.00f, t), // faint spark → made of light
-                BodyAlpha = Mathf.Lerp(0.66f, 0.97f, t),
-                Halo = Mathf.Lerp(0.16f, 0.40f, t),
-            };
-        }
-
-        /// <summary>The silhouette of light: a head-and-shoulders bust filled with
-        /// gold that glows from the chest, wrapped in a soft halo, edged by a bright
-        /// lit rim. Two passes — coverage (supersampled), then shading + rim from the
-        /// coverage gradient — so the outline reads as light, not a cutout.</summary>
-        private static Sprite BuildBustSprite(int size, BustProfile p)
-        {
-            int n = size;
-            var cov = new float[n * n];
-            for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-            {
-                float c = 0f;
-                for (int sy = 0; sy < 2; sy++)
-                for (int sx = 0; sx < 2; sx++)
-                {
-                    float nx = (x + (sx == 0 ? 0.25f : 0.75f)) / n;
-                    float ny = (y + (sy == 0 ? 0.25f : 0.75f)) / n;
-                    if (InsideBust(nx, ny, p)) c += 0.25f;
-                }
-                cov[y * n + x] = c;
-            }
-
-            var px = new Color[n * n];
-            const int k = 2; // rim sampling distance (px)
-            for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-            {
-                int idx = y * n + x;
-                float c = cov[idx];
-
-                float nxc = (x + 0.5f) / n, nyc = (y + 0.5f) / n;
-                float cx = nxc - 0.5f, dyl = nyc - p.LightCy;
-                float dist = Mathf.Sqrt(cx * cx + dyl * dyl);
-                float gB = Mathf.Clamp01(1f - dist / 0.70f);
-                float core = gB * p.CoreBright;
-                float bottomFade = Mathf.Clamp01(nyc / 0.10f);
-
-                Color bustCol = Color.Lerp(Palette.AseDeep, Palette.AseCore, 0.22f + 0.78f * core);
-                float bustA = c * p.BodyAlpha * (0.80f + 0.20f * gB) * bottomFade;
-
-                float halo = Mathf.Clamp01(1f - dist / 0.62f);
-                halo = halo * halo * p.Halo;
-
-                float baseA = bustA + halo * (1f - bustA);
-                Color baseCol = Color.Lerp(Palette.AseGold, bustCol, bustA);
-
-                // Lit rim: a bright edge where coverage falls off (the light outline).
-                float up = cov[Mathf.Min(y + k, n - 1) * n + x];
-                float dn = cov[Mathf.Max(y - k, 0) * n + x];
-                float lf = cov[y * n + Mathf.Max(x - k, 0)];
-                float rg = cov[y * n + Mathf.Min(x + k, n - 1)];
-                float edge = Mathf.Clamp01((c - (up + dn + lf + rg) * 0.25f) * 2.2f) * bottomFade;
-                float rimA = edge * 0.75f;
-
-                Color outCol = Color.Lerp(baseCol, Palette.AseCore, rimA);
-                float outA = Mathf.Clamp01(baseA + rimA * (1f - baseA));
-                px[idx] = new Color(outCol.r, outCol.g, outCol.b, outA);
-            }
-
-            var tex = new Texture2D(n, n, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            tex.SetPixels(px);
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
-        }
-
-        // A single clean silhouette: one oval head, a narrow neck, and ONE
-        // rounded-shouldered body (a rectangle with rounded top corners), cut off at
-        // the bottom by the frame. No overlapping sub-shapes → no visible seams.
-        private static bool InsideBust(float nx, float ny, BustProfile p)
-        {
-            float cx = nx - 0.5f, acx = Mathf.Abs(cx);
-            // Head (slightly tall oval).
-            if (Oval(cx, ny, 0f, p.HeadCy, p.HeadRx, p.HeadRy)) return true;
-            // Neck.
-            if (acx <= p.NeckHalf && ny >= p.NeckBot && ny <= p.NeckTop) return true;
-            // Body: one rounded-shouldered shape. Inside the straight rect, except the
-            // two top corners which are rounded off (the shoulders).
-            if (acx <= p.BodyHalfW && ny >= 0f && ny <= p.BodyTop)
-            {
-                float cornerX = p.BodyHalfW - p.ShoulderR;
-                float cornerY = p.BodyTop - p.ShoulderR;
-                if (acx > cornerX && ny > cornerY)
-                {
-                    float dx = acx - cornerX, dy = ny - cornerY;
-                    return dx * dx + dy * dy <= p.ShoulderR * p.ShoulderR;
-                }
-                return true;
-            }
-            return false;
-        }
-
-        private static bool Oval(float x, float y, float cxc, float cyc, float rx, float ry)
-        {
-            float dx = (x - cxc) / rx, dy = (y - cyc) / ry;
-            return dx * dx + dy * dy <= 1f;
         }
 
         /// <summary>One drifting Àṣẹ mote: rises through the portrait zone, fading in
