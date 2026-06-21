@@ -113,42 +113,82 @@ namespace OriAscendant.Systems
         }
 
         /// <summary>
-        /// The atomic Crossing. Mutation order (GAMEPLAY §4.4): roll → ancestor
-        /// built from pre-reset state → council induction (retire-first, via
-        /// AncestralCouncilSystem's synchronous API — see its ownership note) →
-        /// generation reset → rate recompute (AseGen, sole writer) → eligibility
-        /// re-arm → SAVE TO DISK → notify. Returns null when ineligible.
+        /// The atomic Crossing. Mutation order (GAMEPLAY §4.4) is unchanged — it is now
+        /// expressed as named phases for locality: roll → name draw → remembrance →
+        /// ancestor (from pre-reset state) → forebear id → chronicle → pre-reset result
+        /// snapshot → <see cref="CommitAtomicWrite"/> (the single, un-reorderable atomic
+        /// block: induct → reset → recompute rate → re-arm → SAVE → cloud push) → notify.
+        /// Returns null when ineligible. All random draws stay in the same order so the
+        /// FakeRandom sequence in tests is preserved.
         /// </summary>
         public TribulationResult Resolve()
         {
             if (!CanResolve()) return null;
 
-            ServiceLocator.TryGet(out CultivationSystem cultivation);
-            ServiceLocator.TryGet(out AncestralCouncilSystem council);
-            ServiceLocator.TryGet(out AseGenerationSystem aseGen);
+            ResolveServices(out CultivationSystem cultivation,
+                            out AncestralCouncilSystem council,
+                            out AseGenerationSystem aseGen);
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            bool ascended = _random.NextDouble() < AscendChance;
 
-            // Second draw for personal-name selection (ascend-only; fall uses no randomness).
-            // Drawn BEFORE the reset so the random sequence is deterministic with respect to
-            // the FakeRandom used in tests.
-            int nameIndex = 0;
-            if (ascended && _remembranceConfig?.personalNames?.Length > 0)
-            {
-                double nameRoll = _random.NextDouble();
-                nameIndex = (int)(nameRoll * _remembranceConfig.personalNames.Length);
-                nameIndex = Math.Min(nameIndex, _remembranceConfig.personalNames.Length - 1);
-            }
+            bool ascended = RollOutcome();
+            int nameIndex = DrawPersonalName(ascended);
+            string remembrance = DeriveRemembrance(ascended, cultivation, nameIndex);
+            AncestorData ancestor = BuildAncestor(ascended, now, remembrance);
+            string forebearCrossroadsId = FindForebearCrossroadsId();
+            AppendChronicle(ascended, now, remembrance, forebearCrossroadsId);
 
-            // Capture honorific and derive remembrance BEFORE the atomic reset —
-            // the deeds list is still intact here.
+            TribulationResult result = BuildResultPreReset(ascended, ancestor, council, now);
+
+            CommitAtomicWrite(result, ancestor, council, aseGen, cultivation, now);
+
+            NotifyComplete(ascended, ancestor);
+            return result;
+        }
+
+        // ---- Crossing phases — extracted from Resolve for locality (GAMEPLAY §4.4).
+        //      Order, randomness sequence, and the atomic-write boundary are unchanged. ----
+
+        /// <summary>Resolves the three sibling systems the Crossing touches. Any may be
+        /// null on a bare test host — TryGet keeps them neutral, exactly as the old inline
+        /// gets did.</summary>
+        private static void ResolveServices(out CultivationSystem cultivation,
+            out AncestralCouncilSystem council, out AseGenerationSystem aseGen)
+        {
+            ServiceLocator.TryGet(out cultivation);
+            ServiceLocator.TryGet(out council);
+            ServiceLocator.TryGet(out aseGen);
+        }
+
+        /// <summary>The single ascend roll (roll-once rule), against the exact AscendChance
+        /// the confirm sheet showed.</summary>
+        private bool RollOutcome() => _random.NextDouble() < AscendChance;
+
+        /// <summary>Second random draw — personal-name selection for an ascended cultivator
+        /// (a fall uses no randomness). Drawn BEFORE the reset so the sequence stays
+        /// deterministic against the test FakeRandom. Returns 0 with no name pool or a fall.</summary>
+        private int DrawPersonalName(bool ascended)
+        {
+            if (!ascended || !(_remembranceConfig?.personalNames?.Length > 0)) return 0;
+            double nameRoll = _random.NextDouble();
+            int nameIndex = (int)(nameRoll * _remembranceConfig.personalNames.Length);
+            return Math.Min(nameIndex, _remembranceConfig.personalNames.Length - 1);
+        }
+
+        /// <summary>Derives how this life is remembered from the honorific + deeds, BEFORE
+        /// the atomic reset clears them. Pure presentation — never touches odds.</summary>
+        private string DeriveRemembrance(bool ascended, CultivationSystem cultivation, int nameIndex)
+        {
             string honorific = cultivation?.PeekStageName(_save.currentStage) ?? string.Empty;
-            string remembrance = Remembrance.Derive(
+            return Remembrance.Derive(
                 ascended, honorific, _save.deeds,
                 _crossroadsDeck, _remembranceConfig, nameIndex);
+        }
 
-            var ancestor = new AncestorData
+        /// <summary>Builds the ancestor record from pre-reset state. A fall still produces an
+        /// ancestor (bonusMultiplier 0.4) — never a dead end (locked, PRD §6).</summary>
+        private AncestorData BuildAncestor(bool ascended, long now, string remembrance) =>
+            new AncestorData
             {
                 peakStage = _save.currentStage,
                 path = _save.currentPath,
@@ -158,24 +198,21 @@ namespace OriAscendant.Systems
                 remembrance = remembrance,
             };
 
-            // Forebear compounding (issue #8): find the Defining Deed's card ID (first stray)
-            // to store in the chronicle so descendants may be offered the same crossroads.
-            string forebearCrossroadsId = "";
-            if (_save.deeds != null)
-            {
-                foreach (var deed in _save.deeds)
-                {
-                    if (deed.strayed && !string.IsNullOrEmpty(deed.crossroadsId))
-                    {
-                        forebearCrossroadsId = deed.crossroadsId;
-                        break;
-                    }
-                }
-            }
+        /// <summary>Forebear compounding (issue #8): the Defining Deed's card ID (first stray),
+        /// stored in the chronicle so descendants may be offered the same crossroads.</summary>
+        private string FindForebearCrossroadsId()
+        {
+            if (_save.deeds == null) return "";
+            foreach (var deed in _save.deeds)
+                if (deed.strayed && !string.IsNullOrEmpty(deed.crossroadsId))
+                    return deed.crossroadsId;
+            return "";
+        }
 
-            // Chronicle: unbounded saga record — survives Council retirement (issue #7).
-            // Appended before the reset so pre-reset fields (chosenOri, generationCount)
-            // are captured intact.
+        /// <summary>Appends the unbounded saga record BEFORE the reset so pre-reset fields
+        /// (chosenOri, generationCount) are captured intact. Survives Council retirement (issue #7).</summary>
+        private void AppendChronicle(bool ascended, long now, string remembrance, string forebearCrossroadsId)
+        {
             _save.chronicle.Add(new ChronicleEntry
             {
                 generationNumber = _save.lineage.generationCount + 1,
@@ -185,13 +222,19 @@ namespace OriAscendant.Systems
                 completedTimestamp = now,
                 forebearCrossroadsId = forebearCrossroadsId,
             });
+        }
 
-            double w = council != null ? council.W : 0.25;
+        /// <summary>Captures everything the post-Crossing UI needs from pre-reset state. The
+        /// OldStage1Rate uses a NEUTRAL (path-less) basis — the honest comparable, since
+        /// generation N+1 starts with no path.</summary>
+        private TribulationResult BuildResultPreReset(
+            bool ascended, AncestorData ancestor, AncestralCouncilSystem council, long now)
+        {
             double sumBefore = council?.ActiveCouncilSum ?? 0.0;
             double permBefore = _save.lineage.permanentAseBonus;
             double baseRate = _gameplayConfig != null ? _gameplayConfig.baseRate : 1.0;
 
-            var result = new TribulationResult
+            return new TribulationResult
             {
                 DidAscend = ascended,
                 Ancestor = ancestor,
@@ -204,7 +247,17 @@ namespace OriAscendant.Systems
                 LineageFactorBefore = 1.0 + (permBefore + sumBefore),
                 OldStage1Rate = RateCalculator.ComputeRate(baseRate, 1.0, 1.0, 1.0, permBefore, sumBefore),
             };
+        }
 
+        /// <summary>The atomic Crossing write — kept as ONE method by design so the
+        /// persist-before-notify boundary cannot be accidentally reordered. Induct →
+        /// reset to generation N+1 → recompute rate (AseGen, sole writer) → re-arm the
+        /// once-per-generation announcement → fill after-rates → SAVE TO DISK →
+        /// opportunistic cloud push. If the app dies mid-ceremony, the outcome is already
+        /// persisted.</summary>
+        private void CommitAtomicWrite(TribulationResult result, AncestorData ancestor,
+            AncestralCouncilSystem council, AseGenerationSystem aseGen, CultivationSystem cultivation, long now)
+        {
             // ---- atomic write begins ----
             result.RetiredAncestor = council != null ? council.InductAncestor(ancestor) : null;
 
@@ -235,9 +288,10 @@ namespace OriAscendant.Systems
             // opportunistic + silent, inert when no provider is available.
             if (ServiceLocator.TryGet(out CloudSaveManager cloud)) cloud.PushLatest();
             // ---- atomic write ends ----
-
-            OnTribulationComplete?.Invoke(ascended, ancestor);
-            return result;
         }
+
+        /// <summary>Fires the locked notification — all state is already written and saved.</summary>
+        private void NotifyComplete(bool ascended, AncestorData ancestor) =>
+            OnTribulationComplete?.Invoke(ascended, ancestor);
     }
 }
