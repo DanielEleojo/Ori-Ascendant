@@ -106,13 +106,14 @@ namespace OriAscendant.Systems
                 activeCouncilSum = council.ActiveCouncilSum;
             }
 
-            BigNumber rate = RateCalculator.ComputeRate(
+            var inputs = new RateInputs(
                 _config.baseRate,
                 stageMultiplier,
                 pathMultiplier,
                 councilBonusModifier,
                 _save.lineage.permanentAseBonus,
                 activeCouncilSum);
+            BigNumber rate = RateCalculator.ComputeRate(in inputs);
 
             _save.SetAsePerSecond(rate);
             StateVersion++;

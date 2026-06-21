@@ -29,5 +29,17 @@ namespace OriAscendant.Systems
             double rate = baseRate * stageProductionMultiplier * pathOnlineMultiplier * lineageFactor;
             return BigNumber.FromDouble(rate);
         }
+
+        /// <summary>Gathered-input overload (Phase B): the explicit one-call form, so the
+        /// caller assembles the six inputs in one place (<see cref="RateInputs"/>). Delegates
+        /// to the positional overload above, so both share byte-identical arithmetic.</summary>
+        public static BigNumber ComputeRate(in RateInputs inputs) =>
+            ComputeRate(
+                inputs.BaseRate,
+                inputs.StageProductionMultiplier,
+                inputs.PathOnlineMultiplier,
+                inputs.CouncilBonusModifier,
+                inputs.PermanentAseBonus,
+                inputs.ActiveCouncilSum);
     }
 }
