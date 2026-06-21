@@ -43,10 +43,10 @@ namespace OriAscendant.UI
                 var screens = Object.FindObjectsByType<TitleScreen>(FindObjectsSortMode.None);
                 if (screens == null || screens.Length == 0) return;
 
-                var titleRoot = FindDeep(screens[0].transform, "TitleRoot");
+                var titleRoot = UiBuilder.FindDeep(screens[0].transform, "TitleRoot");
                 if (titleRoot == null) return;
 
-                var dot = BuildDotSprite(64);
+                var dot = ProceduralSprites.BuildDot(64);
 
                 // ThreadLayer sits above TitleBackground (index 0) and below all text.
                 var layer = new GameObject("ThreadLayer", typeof(RectTransform)).transform;
@@ -84,7 +84,7 @@ namespace OriAscendant.UI
                     ? Mathf.Lerp(0.12f, 0.72f, mid / 0.55f)
                     : Mathf.Lerp(0.72f, 0.30f, (mid - 0.55f) / 0.45f);
 
-                var img = NewChildImage(parent, "Thread");
+                var img = UiBuilder.NewChildImage(parent, "Thread");
                 img.sprite = dot; // soft circular glow; stretched thin → glowing filament
                 img.raycastTarget = false;
                 img.color = Palette.AseGold.WithAlpha(alpha);
@@ -109,7 +109,7 @@ namespace OriAscendant.UI
         {
             foreach (var pt in TitleArc.ConstellationPoints())
             {
-                var img = NewChildImage(parent, "CStar");
+                var img = UiBuilder.NewChildImage(parent, "CStar");
                 img.sprite = dot;
                 img.raycastTarget = false;
                 img.color = Palette.AseCore.WithAlpha(pt.Alpha);
@@ -121,48 +121,6 @@ namespace OriAscendant.UI
                 float px = pt.Size * CanvasH;
                 rt.sizeDelta = new Vector2(px, px);
             }
-        }
-
-        // ---- UGUI helpers ----
-
-        private static Image NewChildImage(Transform parent, string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            go.transform.SetParent(parent, false);
-            return go.GetComponent<Image>();
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name) return root;
-            for (int i = 0; i < root.childCount; i++)
-            {
-                var found = FindDeep(root.GetChild(i), name);
-                if (found != null) return found;
-            }
-            return null;
-        }
-
-        // ---- procedural texture (mirrors MainScreenSkin.BuildDotSprite) ----
-
-        private static Sprite BuildDotSprite(int size)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            float r = size * 0.5f;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float dx = x + 0.5f - r, dy = y + 0.5f - r;
-                float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) / r);
-                a *= a;
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
     }
 }

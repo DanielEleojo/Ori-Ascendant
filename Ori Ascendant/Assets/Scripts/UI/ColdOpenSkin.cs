@@ -183,36 +183,36 @@ namespace OriAscendant.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            var dot = BuildDotSprite(128);
+            var dot = ProceduralSprites.BuildDot(128);
             var font = Resources.Load<TMP_FontAsset>("Fonts/NotoSans-Regular SDF");
 
             // ---- Dark backdrop ----
-            var bg = NewImage("Background", transform);
+            var bg = UiBuilder.NewStretchImage("Background", transform);
             bg.color = Palette.IndigoNight;
             bg.raycastTarget = true; // the whole surface is the tap target
-            Stretch(bg.rectTransform);
+            UiBuilder.Stretch(bg.rectTransform);
 
             // Tap detection lives on the background image via this component.
             bg.gameObject.AddComponent<ColdOpenTapForwarder>().Owner = this;
 
             // ---- Silhouette: aura (behind) then bust glow ----
-            _aura = NewImage("SilhouetteAura", transform);
+            _aura = UiBuilder.NewStretchImage("SilhouetteAura", transform);
             _aura.sprite = dot;
             _aura.raycastTarget = false;
             _aura.color = Color.clear;
-            PlaceAt(_aura.rectTransform, AuraCentreX, AuraCentreY, AuraSize, AuraSize);
+            UiBuilder.PlaceAt(_aura.rectTransform, AuraCentreX, AuraCentreY, AuraSize, AuraSize);
 
-            _silhouette = NewImage("SilhouetteGlow", transform);
+            _silhouette = UiBuilder.NewStretchImage("SilhouetteGlow", transform);
             _silhouette.sprite = dot;
             _silhouette.raycastTarget = false;
             _silhouette.color = Color.clear;
-            PlaceAt(_silhouette.rectTransform, BustCentreX, BustCentreY, BustSize, BustSize);
+            UiBuilder.PlaceAt(_silhouette.rectTransform, BustCentreX, BustCentreY, BustSize, BustSize);
 
             // ---- Proverb + prompt group (alpha driven together) ----
             var proverbRoot = new GameObject("ProverbGroup",
                 typeof(RectTransform), typeof(CanvasGroup)).GetComponent<RectTransform>();
             proverbRoot.SetParent(transform, false);
-            Stretch(proverbRoot);
+            UiBuilder.Stretch(proverbRoot);
             _proverbGroup = proverbRoot.GetComponent<CanvasGroup>();
             _proverbGroup.alpha = 0f;
             _proverbGroup.interactable = false;
@@ -223,24 +223,16 @@ namespace OriAscendant.UI
                 16f, proverbRoot, font);
             proverb.alignment = TextAlignmentOptions.Center;
             proverb.color = Palette.TextSecondary;
-            SetBand(proverb.rectTransform, 0.30f, 0.42f);
+            UiBuilder.SetBand(proverb.rectTransform, 0.30f, 0.42f);
 
             var prompt = NewText("TapPrompt", "Touch to enter",
                 15f, proverbRoot, font);
             prompt.alignment = TextAlignmentOptions.Center;
             prompt.color = Palette.TextPrimary.WithAlpha(0.6f);
-            SetBand(prompt.rectTransform, 0.10f, 0.18f);
+            UiBuilder.SetBand(prompt.rectTransform, 0.10f, 0.18f);
         }
 
         // ---- UGUI helpers ----
-
-        private static Image NewImage(string name, Transform parent)
-        {
-            var go = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            go.transform.SetParent(parent, false);
-            return go.GetComponent<Image>();
-        }
 
         private static TMP_Text NewText(string name, string text, float size,
             RectTransform parent, TMP_FontAsset font)
@@ -254,50 +246,6 @@ namespace OriAscendant.UI
             if (font != null) t.font = font;
             t.raycastTarget = false;
             return t;
-        }
-
-        /// <summary>Anchor + size a rect at a normalised screen position.</summary>
-        private static void PlaceAt(RectTransform rt, float ax, float ay, float w, float h)
-        {
-            rt.anchorMin = rt.anchorMax = new Vector2(ax, ay);
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(w, h);
-        }
-
-        /// <summary>Horizontal-band anchor: full width, clamped y-band.</summary>
-        private static void SetBand(RectTransform rt, float yMin, float yMax)
-        {
-            rt.anchorMin = new Vector2(0.05f, yMin);
-            rt.anchorMax = new Vector2(0.95f, yMax);
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private static void Stretch(RectTransform rt)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        /// <summary>Soft radial dot sprite (mirrors TitleScreenSkin.BuildDotSprite).</summary>
-        private static Sprite BuildDotSprite(int size)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            float r = size * 0.5f;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float dx = x + 0.5f - r, dy = y + 0.5f - r;
-                float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) / r);
-                a *= a;
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
-            }
-            tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
         }
     }
 
