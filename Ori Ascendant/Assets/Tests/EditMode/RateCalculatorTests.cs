@@ -79,5 +79,36 @@ namespace OriAscendant.Tests.EditMode
             var rate = RateCalculator.ComputeRate(1.0, 1.0, 1.0, 1.0, 0.0, 1.25);
             Assert.AreEqual(BigNumber.FromDouble(2.25), rate);
         }
+
+        // ---- Phase B: the gathered-input (RateInputs) overload ----
+
+        [Test]
+        public void RateInputs_Overload_MatchesPositional()
+        {
+            // The gathered-input overload must be a faithful delegate of the positional form,
+            // so funnelling RecalculateRate through RateInputs cannot drift the economy.
+            var inputs = new RateInputs(1.0, 320.0, 2.0, 2.0, 0.25, 0.35);
+            var viaStruct = RateCalculator.ComputeRate(in inputs);
+            var viaPositional = RateCalculator.ComputeRate(1.0, 320.0, 2.0, 2.0, 0.25, 0.35);
+            Assert.AreEqual(viaPositional, viaStruct);
+        }
+
+        [TestCase(1.0)]
+        [TestCase(2.0)] // Osun — the case the joint wrap exists for
+        public void RateInputs_Retirement_IsAseNeutral_UnderAnyCouncilModifier(double councilModifier)
+        {
+            // The same neutrality property, now pinned at the RateInputs boundary: retiring
+            // moves W×bonus from the active sum into permanentAseBonus, and the joint wrap
+            // must leave the rate unchanged.
+            const double retiringBonus = 0.25 * 1.0;
+
+            var before = new RateInputs(1.0, 80.0, 1.0, councilModifier,
+                permanentAseBonus: 0.0, activeCouncilSum: retiringBonus + 0.35);
+            var after = new RateInputs(1.0, 80.0, 1.0, councilModifier,
+                permanentAseBonus: retiringBonus, activeCouncilSum: 0.35);
+
+            Assert.AreEqual(RateCalculator.ComputeRate(in before), RateCalculator.ComputeRate(in after),
+                $"retirement changed the rate at councilModifier={councilModifier}");
+        }
     }
 }
