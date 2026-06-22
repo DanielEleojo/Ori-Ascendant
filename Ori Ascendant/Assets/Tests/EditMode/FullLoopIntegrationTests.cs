@@ -169,5 +169,33 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsTrue(_save.GetAsePerSecond() > BigNumber.One,
                 "gen 2 is strictly stronger even after a fall");
         }
+
+        /// <summary>Capstone for this architecture pass: six ascending generations fill the
+        /// Council past its cap of five, retiring the oldest into lineage.permanentAseBonus.
+        /// The rate is read back through AseGenerationSystem (the RateInputs gather, B), proving
+        /// the retired ancestor's bonus is baked into permanence and still feeds production —
+        /// end-to-end, not just at the RateCalculator unit level.</summary>
+        [Test]
+        public void SixGenerations_CouncilCapsAtFive_RetiredBonusStaysInTheRate()
+        {
+            for (int gen = 0; gen < 6; gen++)
+            {
+                ClimbToArmedPeak(pathIndex: 0); // Ane — council modifier ×1.0
+                _random.Value = 0.0;            // ascend every time
+                Assert.IsNotNull(_tribulation.Resolve(), $"gen {gen + 1} must resolve");
+            }
+
+            Assert.AreEqual(6, _save.lineage.generationCount);
+            Assert.AreEqual(5, _save.council.Count, "the Council caps at five");
+            Assert.AreEqual(0.25 * 1.0, _save.lineage.permanentAseBonus, 1e-12,
+                "the oldest ancestor retired into permanence (W × 1.0)");
+
+            // Gen 7 starts at stage 0 with no path: rate = 1 × (1 + 1.0 × (perm + activeSum))
+            //   perm = 0.25 (one retired ascended), active = 5 × 0.25 = 1.25 → factor 2.5.
+            // Had retirement dropped the bonus, perm would be 0 and the rate only 2.25 — so 2.5
+            // is the end-to-end proof that retirement is Àṣẹ-neutral through the gathered rate.
+            Assert.AreEqual(BigNumber.FromDouble(2.5), _save.GetAsePerSecond(),
+                "retired bonus is baked into permanence and still feeds the gathered rate");
+        }
     }
 }
