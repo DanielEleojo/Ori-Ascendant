@@ -122,11 +122,9 @@ namespace OriAscendant.UI
         // Crossing ceremony (issue #34, PRD W3): column resolves into a new star at the apex.
         // Ignition starts on OnCeremonyClosed (overlay fully down) — not on OnTribulationComplete
         // (which fires while the overlay is still opaque, making the flash invisible). (#4)
+        // CeremonyDriver owns the ceremony clock + stashed outcome; the skin keeps the star Image.
         private Image _crossingNewStar;                              // flash image at the column apex during ceremony
-        private float _crossingCeremonyElapsed = float.MaxValue;     // large = no ceremony in progress
-        private bool  _crossingCeremonyDidAscend;
-        private int   _crossingCeremonyPath = -1;
-        private bool  _crossingCeremonyPending;                      // stashed until overlay closes
+        private CeremonyDriver _ceremony;
 
         private Button _portraitButton; // cached for OnDestroy RemoveListener (#8)
 
@@ -149,19 +147,14 @@ namespace OriAscendant.UI
         private AseGenerationSystem _aseGen;
         private double _lastProgressFraction; // within-stage fraction; read by RefreshTribulationAtmosphere
 
-        // Hero idle breathing (ADR-0005): slow sine on scale + brightness.
-        private float _breathTime;
-        private const float BreathPeriodSeconds = 4.2f; // ~0.24 Hz — calm, never distracting
-        private const float BreathScaleAmp   = 0.012f;  // ±1.2% scale
-        private const float BreathBrightAmp  = 0.07f;   // ±7% brightness tint
+        // Hero idle breathing (ADR-0005): BreathingDriver owns the breath clock + constants.
+        private BreathingDriver _breathing;
 
         // Micro-feedback motions (issue #24) + hero counter glow (issue #30)
-        private TMP_Text _aseCounter;               // the hero Àṣẹ counter — watched for changes
+        private TMP_Text _aseCounter;               // the hero Àṣẹ counter — AseFlashDriver watches its text
         private Image _aseCounterGlow;              // faint gold glow behind the hero number
-        private string _lastAseCounterValue;        // triggers flash when the value changes
-        private float _aseFlashElapsed = float.MaxValue;       // large = no active flash
-        private float _silhouettePulseElapsed = float.MaxValue; // large = no active pulse
-        private const float AseFlashDuration          = 0.5f;
+        private AseFlashDriver _aseFlash;           // counter-change flash clock + last-seen value
+        private float _silhouettePulseElapsed = float.MaxValue; // large = no active pulse (tap-response)
         private const float SilhouettePulseDuration   = 0.25f;
         private const float SilhouettePulseAmplitude  = 0.04f; // ±4% scale burst
 
@@ -212,18 +205,11 @@ namespace OriAscendant.UI
         // Stash result from the tribulation event (fires while overlay is still opaque).
         private void OnCeremonyFired(bool didAscend, AncestorData ancestor)
         {
-            _crossingCeremonyDidAscend = didAscend;
-            _crossingCeremonyPath = ancestor?.path ?? -1;
-            _crossingCeremonyPending = true;
+            _ceremony.Stash(didAscend, ancestor?.path ?? -1);
         }
 
         // Start ignition only after the overlay fully closes so the flash is visible (#4).
-        private void StartCeremony()
-        {
-            if (!_crossingCeremonyPending) return;
-            _crossingCeremonyPending = false;
-            _crossingCeremonyElapsed = 0f;
-        }
+        private void StartCeremony() => _ceremony.Start();
 
         private void Update()
         {
@@ -653,15 +639,11 @@ namespace OriAscendant.UI
         private void TickBreathing(float dt)
         {
             if (_silhouette == null) return;
-            _breathTime += dt;
             bool rm = IsReduceMotion();
-            float breathe = MotionHelper.BreathingSine(_breathTime, BreathPeriodSeconds, rm);
-            float breathScale = 1f + breathe * BreathScaleAmp;
-            float pulseScale = MotionHelper.TapPulseScale(
+            float tapPulse = MotionHelper.TapPulseScale(
                 _silhouettePulseElapsed, SilhouettePulseDuration, SilhouettePulseAmplitude, rm);
-            float scale = breathScale * pulseScale;
+            var (scale, bright) = _breathing.Tick(dt, tapPulse, rm);
             _silhouette.rectTransform.localScale = new Vector3(scale, scale, 1f);
-            float bright = 1f + breathe * BreathBrightAmp;
             _silhouette.color = new Color(bright, bright, bright, 1f);
             // Vessel fill pulses with the same rhythm — AseCore tinted by breathing.
             if (_vesselFillImage != null)
@@ -675,17 +657,11 @@ namespace OriAscendant.UI
         /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash on value change.</summary>
         private void TickMicroFeedback(float dt)
         {
-            _silhouettePulseElapsed += dt;
-            _aseFlashElapsed += dt;
+            _silhouettePulseElapsed += dt; // tap-response pulse clock (consumed by TickBreathing)
 
             if (_aseCounter == null) return;
 
-            string val = _aseCounter.text;
-            if (val != _lastAseCounterValue && _lastAseCounterValue != null)
-                _aseFlashElapsed = 0f; // counter just changed — start a fresh flash
-            _lastAseCounterValue = val;
-
-            float alpha = MotionHelper.FlashAlpha(_aseFlashElapsed, AseFlashDuration, IsReduceMotion());
+            float alpha = _aseFlash.Tick(dt, _aseCounter.text, IsReduceMotion());
             _aseCounter.color = Color.Lerp(Palette.AseGold, Palette.AseCore, alpha);
         }
 
@@ -721,32 +697,20 @@ namespace OriAscendant.UI
         /// after the ceremony so the new near-star is present. (#10)</summary>
         private void TickCeremony(float dt)
         {
-            _crossingCeremonyElapsed += dt;
+            bool active = _ceremony.Tick(dt, out float starAlpha, out Color starBase, out float columnExitAlpha);
 
             if (_crossingNewStar == null) return;
 
-            if (!CrossingCeremonySpec.IsActive(_crossingCeremonyElapsed))
+            if (!active)
             {
                 _crossingNewStar.color = Color.clear;
                 return;
             }
 
-            // Drive new-star ignition flash
-            float starAlpha = CrossingCeremonySpec.StarIgnitionAlpha(
-                _crossingCeremonyElapsed, CrossingCeremonySpec.StarIgnitionSeconds,
-                _crossingCeremonyDidAscend);
-            Color starBase = _crossingCeremonyDidAscend && _crossingCeremonyPath >= 0
-                ? PathMotif.ColorOf(_crossingCeremonyPath)
-                : PathMotif.Ember;
+            // New-star ignition flash; the column hands its light up into the star.
             _crossingNewStar.color = starBase.WithAlpha(starAlpha);
-
-            // Drive column exit fade — the light "rises" out of the column into the star
             if (_crossingColumn != null)
-            {
-                float colAlpha = CrossingCeremonySpec.ColumnExitAlpha(
-                    _crossingCeremonyElapsed, CrossingCeremonySpec.ColumnFadeSeconds);
-                _crossingColumn.color = _themeAccent.WithAlpha(colAlpha);
-            }
+                _crossingColumn.color = _themeAccent.WithAlpha(columnExitAlpha);
         }
 
         // ================= crossing column: overflow gauge at final stage (issue #33) =================
@@ -759,7 +723,7 @@ namespace OriAscendant.UI
         {
             if (_crossingColumn == null) return;
             // During the ceremony, TickCeremony owns the column's exit fade.
-            if (CrossingCeremonySpec.IsActive(_crossingCeremonyElapsed)) return;
+            if (_ceremony.IsActive) return;
             if (!CrossingColumnSpec.IsActive(CurrentStage()))
             {
                 _crossingColumn.color = Color.clear;
