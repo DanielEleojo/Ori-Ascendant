@@ -42,7 +42,10 @@ change needs a recompile**:
 
 - The "no magic numbers" rule (`csharp.md`) is satisfied by *both* homes — a literal inlined in
   a MonoBehaviour `Update()` belongs in one or the other.
-- The animation drivers extracted from `MainScreenSkin` consume `*Spec` constants and must not
-  reintroduce inline magic numbers.
+- The animation drivers extracted from `MainScreenSkin` keep their tuning as named `const`s —
+  either owned by the driver struct (as `ColdOpenBeat`/`OverlayTransition` do, and as ADR-0005
+  already established for the breathing constants) or read from a `*Spec` (as `CeremonyDriver`
+  reads `CrossingCeremonySpec`). Either way they must not reintroduce inline magic numbers
+  (unnamed literals).
 - Moving a gameplay-balance value out of a `*Config` into a `*Spec` to dodge the playtesting
   gate is a smell, not a shortcut.
