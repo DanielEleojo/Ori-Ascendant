@@ -11,8 +11,9 @@ namespace OriAscendant.Tests.EditMode
     /// Issue #34: Crossing ceremony — vessel light rises to ignite a new star (PRD W3).
     /// Headless gate — CrossingCeremonySpec is pure math, no scene, no MonoBehaviour.
     /// Tests pin: trigger alignment with column apex, new-star alpha hierarchy,
-    /// star ignition flash curve, column exit curve, IsActive predicate, and
-    /// reflection gates confirming MainScreenSkin wires the ceremony fields.
+    /// star ignition flash curve, column exit curve, and the IsActive predicate.
+    /// (The ceremony clock + stashed-outcome behaviour now lives in CeremonyDriverTests;
+    /// MainScreenSkin keeps only the star Image, still gated below.)
     /// </summary>
     public class CrossingCeremonySpecTests
     {
@@ -166,15 +167,6 @@ namespace OriAscendant.Tests.EditMode
                 "_crossingNewStar must exist in MainScreenSkin — ceremony ignites the new star (issue #34)");
         }
 
-        [Test]
-        public void MainScreenSkin_Has_CrossingCeremonyElapsedField()
-        {
-            var field = typeof(MainScreenSkin)
-                .GetField("_crossingCeremonyElapsed", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field,
-                "_crossingCeremonyElapsed must exist in MainScreenSkin — tracks ceremony animation progress (issue #34)");
-        }
-
         // ---- issue #4: ceremony plays after overlay, not beneath it ----
 
         [Test]
@@ -211,19 +203,6 @@ namespace OriAscendant.Tests.EditMode
                 Object.DestroyImmediate(host);
                 ServiceLocator.Clear();
             }
-        }
-
-        [Test]
-        public void MainScreenSkin_HasCeremonyStashFields()
-        {
-            var didAscend = typeof(MainScreenSkin)
-                .GetField("_crossingCeremonyDidAscend", BindingFlags.Instance | BindingFlags.NonPublic);
-            var path = typeof(MainScreenSkin)
-                .GetField("_crossingCeremonyPath", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(didAscend,
-                "_crossingCeremonyDidAscend must exist — stashed by OnCeremonyFired, used when overlay closes");
-            Assert.IsNotNull(path,
-                "_crossingCeremonyPath must exist — stashed by OnCeremonyFired, used when overlay closes");
         }
     }
 }
