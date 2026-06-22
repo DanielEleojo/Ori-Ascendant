@@ -31,6 +31,12 @@ namespace OriAscendant.EditorTools
             PlayerSettings.iOS.targetOSVersionString = MinIosVersion;
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneOnly;
 
+            // iOS is IL2CPP-only; set it explicitly so a Cloud Build is deterministic and
+            // never relies on the project default. Signing (team id, distribution cert,
+            // provisioning profile) and the per-upload build number are owned by Unity
+            // Cloud Build, not committed here — see docs/RELEASE_CHECKLIST.md.
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
+
             // Portrait lock (idle game, single screen).
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
