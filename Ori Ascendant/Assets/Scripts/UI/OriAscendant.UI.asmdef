@@ -1,10 +1,7 @@
 {
-    "name": "OriAscendant",
-    "rootNamespace": "OriAscendant",
-    "references": [
-        "UnityEngine.UI",
-        "Unity.TextMeshPro"
-    ],
+    "name": "OriAscendant.UI",
+    "rootNamespace": "OriAscendant.UI",
+    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save", "OriAscendant.Systems", "OriAscendant.Audio", "UnityEngine.UI", "Unity.TextMeshPro"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

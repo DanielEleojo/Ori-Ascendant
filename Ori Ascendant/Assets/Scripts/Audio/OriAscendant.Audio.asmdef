@@ -1,0 +1,14 @@
+{
+    "name": "OriAscendant.Audio",
+    "rootNamespace": "OriAscendant.Audio",
+    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save", "OriAscendant.Systems"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

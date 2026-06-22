@@ -2,7 +2,12 @@
     "name": "OriAscendant.Tests.PlayMode",
     "rootNamespace": "OriAscendant.Tests.PlayMode",
     "references": [
-        "OriAscendant",
+        "OriAscendant.Core",
+        "OriAscendant.Data",
+        "OriAscendant.Save",
+        "OriAscendant.Systems",
+        "OriAscendant.Audio",
+        "OriAscendant.UI",
         "UnityEngine.TestRunner"
     ],
     "includePlatforms": [],

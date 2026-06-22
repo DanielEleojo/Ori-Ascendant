@@ -1,10 +1,10 @@
 using System;
 using OriAscendant.Data;
 using OriAscendant.Save;
-using OriAscendant.Systems;
+using OriAscendant.Core;
 using UnityEngine;
 
-namespace OriAscendant.Core
+namespace OriAscendant.Systems
 {
     /// <summary>
     /// App lifecycle orchestration (TECH_DESIGN §4): load → offline progress →
