@@ -46,7 +46,7 @@ namespace OriAscendant.UI.Screens
                 if (_aseCounterText != null) _aseCounterText.text = counter;
             }
 
-            string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ/s";
+            string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ per breath";
             if (rate != _lastRate)
             {
                 _lastRate = rate;

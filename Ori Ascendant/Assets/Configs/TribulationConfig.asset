@@ -31,4 +31,6 @@ MonoBehaviour:
   revealSeconds: 2.5
   ancestorCardSeconds: 2.5
   finalBeatSeconds: 2
+  ascendRenownGrant: 0.05
+  fallRenownGrant: 0.02
   crownedAscendedRevealPortrait: {fileID: 0}

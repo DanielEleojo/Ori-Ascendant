@@ -103,10 +103,10 @@ namespace OriAscendant.Tests.EditMode
         }
 
         [Test]
-        public void Map_Fallen_LabelContainsFell()
+        public void Map_Fallen_LabelContainsReturnedToTheSource()
         {
             var state = ChronicleThreadMapper.Map(Entry(ascended: false, gen: 2));
-            StringAssert.Contains("Fell", state.Label);
+            StringAssert.Contains("Returned to the source", state.Label);
         }
 
         [Test]

@@ -172,7 +172,6 @@ namespace OriAscendant.UI.Screens
             _canSkipWaves = save != null && save.HasSeen(seenBit);
             save?.MarkSeen(seenBit);
 
-            // Snap the confirm root off — ceremony starts immediately.
             if (_confirmRoot != null) _confirmRoot.SetActive(false);
             if (_ceremonyRoot != null) _ceremonyRoot.SetActive(true);
             SetCeremonyVisuals(flashAlpha: 0f, whiteAlpha: 0f, showReveal: false);
@@ -205,7 +204,6 @@ namespace OriAscendant.UI.Screens
 
         private void TickHold()
         {
-            // Drive the open animation while the player is deciding.
             Transform rootT = _confirmRoot != null ? _confirmRoot.transform : null;
             _confirmTransition.TickAndApply(_confirmCanvasGroup, rootT,
                 Time.unscaledDeltaTime, MotionHelper.IsReduceMotion());
@@ -389,13 +387,13 @@ namespace OriAscendant.UI.Screens
                     : "No path walked";
                 long h = _result.TimeInGenerationSeconds / 3600;
                 long m = (_result.TimeInGenerationSeconds % 3600) / 60;
-                _summaryStats.text = $"{pathName}\nTime on the road: {h}h {m:D2}m\nPeak Àṣẹ: {_result.PeakAse}";
+                _summaryStats.text = $"{pathName}\nTime on the road: {h}h {m:D2}m\nPeak Àṣẹ: {_result.PeakAse}\nRenown gained: +{_result.RenownGranted:0.00}";
             }
 
             if (_ratePreview != null)
             {
                 _ratePreview.text =
-                    $"Stage 1 rate: {_result.OldStage1Rate}/s → {_result.NewStage1Rate}/s";
+                    $"Stage 1 rate: {_result.OldStage1Rate} → {_result.NewStage1Rate} Àṣẹ per breath";
             }
         }
 

@@ -26,18 +26,11 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _bonusLineText;
         [SerializeField] private Button _collectButton;
 
-        private CanvasGroup _canvasGroup;
-        private OverlayTransition _transition;
-
         private void Awake()
         {
             OfflineProgressCalculator.OnOfflineProgressApplied += HandleOfflineProgress;
             if (_collectButton != null) _collectButton.onClick.AddListener(Hide);
-            if (_modalRoot != null)
-            {
-                _modalRoot.SetActive(false);
-                _canvasGroup = _modalRoot.GetComponent<CanvasGroup>() ?? _modalRoot.AddComponent<CanvasGroup>();
-            }
+            if (_modalRoot != null) _modalRoot.SetActive(false);
         }
 
         private void OnDestroy()
@@ -57,6 +50,8 @@ namespace OriAscendant.UI.Screens
             if (earned.IsZero) return;
 
             if (_timeAwayText != null) _timeAwayText.text = "Away " + FormatDuration(countedSeconds);
+            // Count-up animation (GAMEPLAY §3.4): from 0 to earned, tap-to-skip
+            // via Collect. Cosmetic only — the Àṣẹ is already credited.
             _earnedTarget = earned;
             _countUpElapsed = 0f;
             _countingUp = true;
@@ -64,9 +59,10 @@ namespace OriAscendant.UI.Screens
             RefreshBonusLine(earned);
             if (_rateContextText != null)
             {
+                // The cached rate the calculation actually used (recalc happens after).
                 if (ServiceLocator.TryGet(out AseGenerationSystem gen))
                 {
-                    _rateContextText.text = "at " + gen.CurrentRate + " Àṣẹ/s";
+                    _rateContextText.text = "at " + gen.CurrentRate + " Àṣẹ per breath";
                 }
                 else
                 {
@@ -75,10 +71,12 @@ namespace OriAscendant.UI.Screens
             }
 
             if (_modalRoot != null) _modalRoot.SetActive(true);
-            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
-            _transition.Open();
         }
 
+        /// <summary>Ane's legibility moment (GAMEPLAY §2.3): itemize the offline
+        /// bonus as its own highlighted line. earned already INCLUDES the
+        /// modifier, so the bonus portion = earned − earned/modifier; the event
+        /// signature stays unchanged.</summary>
         private void RefreshBonusLine(BigNumber earned)
         {
             if (_bonusLineText == null) return;
@@ -102,16 +100,8 @@ namespace OriAscendant.UI.Screens
 
         private void Update()
         {
-            if (_modalRoot == null || !_modalRoot.activeSelf) return;
-
-            if (_transition.TickAndApply(_canvasGroup, _modalRoot.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
-            {
-                _modalRoot.SetActive(false);
-                return;
-            }
-
-            // Count-up animation (GAMEPLAY §3.4).
             if (!_countingUp || _earnedText == null) return;
+
             _countUpElapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(_countUpElapsed / CountUpSeconds);
             BigNumber shown = t >= 1f ? _earnedTarget : _earnedTarget * (double)t;
@@ -127,7 +117,7 @@ namespace OriAscendant.UI.Screens
                 _earnedText.text = "+" + _earnedTarget + " Àṣẹ";
                 _countingUp = false;
             }
-            _transition.Close();
+            if (_modalRoot != null) _modalRoot.SetActive(false);
         }
 
         /// <summary>"6h 12m" / "4m 03s"; exactly at the cap: "8h (cap)" — honesty

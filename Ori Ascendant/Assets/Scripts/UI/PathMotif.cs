@@ -9,8 +9,7 @@ namespace OriAscendant.UI
     /// </summary>
     public static class PathMotif
     {
-        /// <summary>Canonical fallen-ancestor alpha shared by all mappers (ConstellationStarMapper,
-        /// ShrineAncestorPresenter, CrossingCeremonySpec.EmberStarAlpha) — 0.45 = present,
+        /// <summary>Canonical fallen-ancestor alpha shared by all mappers — 0.45 = present,
         /// honoured, softer. ChronicleThreadMapper uses this same value on its EmberWarm base.</summary>
         public const float FallenAlpha = 0.45f;
 
@@ -33,14 +32,23 @@ namespace OriAscendant.UI
         /// <summary>"Aṣẹ́gun of {…}" card title fragment.</summary>
         public static string TitleOf(int pathIndex) => pathIndex switch
         {
-            0 => "Earth",
-            1 => "Thunder",
-            2 => "the River",
-            _ => "the First Road", // gen with no path recorded (defensive)
+            0 => "the Mountain Path",  // Ane — earth, endurance
+            1 => "the Storm Path",     // Sango — thunder, force
+            2 => "the River Path",     // Osun — lineage, flow
+            _ => "the First Road",     // gen with no path recorded (defensive)
         };
 
-        /// <summary>Canonical ancestor tint: path colour at full alpha (ascended) or FallenAlpha
-        /// (fallen). Path -1 uses Palette.AseGold, consistent with ConstellationStarMapper.</summary>
+        /// <summary>Long display name for UI badges and skin layer — title-cased.</summary>
+        public static string LongNameOf(int pathIndex) => pathIndex switch
+        {
+            0 => "The Earth Path",
+            1 => "The Thunder Path",
+            2 => "The River Path",
+            _ => "No path walked",
+        };
+
+        /// <summary>Strip/card tint: fallen ancestors render dimmed (FallenAlpha
+        /// treatment per GAMEPLAY §3.2) — present, honored, softer.</summary>
         public static Color AncestorTint(int pathIndex, bool didAscend)
         {
             Color c = pathIndex < 0 ? Palette.AseGold : ColorOf(pathIndex);

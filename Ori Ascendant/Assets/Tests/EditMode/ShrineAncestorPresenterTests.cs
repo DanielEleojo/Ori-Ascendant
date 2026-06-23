@@ -122,8 +122,8 @@ namespace OriAscendant.Tests.EditMode
             StringAssert.Contains("ember", row.Title);
         }
 
-        [TestCase(0, "Earth")]
-        [TestCase(1, "Thunder")]
+        [TestCase(0, "Mountain Path")]
+        [TestCase(1, "Storm Path")]
         [TestCase(2, "River")]
         public void Title_ContainsPathName(int pathIndex, string pathName)
         {

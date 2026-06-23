@@ -32,6 +32,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsEmpty(save.council);
             Assert.AreEqual(0.0, save.lineage.permanentAseBonus, "ADDITIVE accumulator defaults to 0.0");
             Assert.AreEqual(0, save.lineage.generationCount);
+            Assert.AreEqual(0.0, save.lineage.renown, "renown accumulator defaults to 0.0");
         }
 
         [TestCase(1.234, 10)]
@@ -67,6 +68,7 @@ namespace OriAscendant.Tests.EditMode
             save.SetAsePerSecond(new BigNumber(1.875, 3));
             save.lineage.permanentAseBonus = 0.35;
             save.lineage.generationCount = 7;
+            save.lineage.renown = 12.5;
             save.council.Add(new AncestorData
             {
                 peakStage = 5,
@@ -98,6 +100,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1781000000, restored.council[0].completedTimestamp);
             Assert.AreEqual(0.35, restored.lineage.permanentAseBonus);
             Assert.AreEqual(7, restored.lineage.generationCount);
+            Assert.AreEqual(12.5, restored.lineage.renown, "renown survives a round-trip");
         }
 
         [Test]
@@ -425,6 +428,71 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1, restored.chronicle.Count);
             Assert.IsTrue(string.IsNullOrEmpty(restored.chronicle[0].forebearCrossroadsId),
                 "legacy ChronicleEntry without forebearCrossroadsId loads as null/empty (ADR-0001)");
+        }
+
+        // ---- PendingContest (issue #38) ----
+
+        [Test]
+        public void PendingContest_RoundTrips()
+        {
+            var save = new SaveData();
+            save.pendingContest = new PendingContest
+            {
+                houseName = "Adé",
+                housePath = 1,
+                housePowerRatio = 0.9,
+                houseStance = 2,
+            };
+            save.contestsResolved = 3;
+
+            var restored = RoundTrip(save);
+
+            Assert.IsNotNull(restored.pendingContest, "pendingContest must survive round-trip");
+            Assert.AreEqual("Adé", restored.pendingContest.houseName);
+            Assert.AreEqual(1, restored.pendingContest.housePath);
+            Assert.AreEqual(0.9, restored.pendingContest.housePowerRatio, 1e-12);
+            Assert.AreEqual(2, restored.pendingContest.houseStance);
+            Assert.AreEqual(3, restored.contestsResolved, "contestsResolved must survive round-trip");
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithNullPendingContest()
+        {
+            // A save written before issue #38 has no pendingContest / contestsResolved fields.
+            // Add-only (ADR-0001): pendingContest loads as null and contestsResolved as 0.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0,\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.0,\"generationCount\":0}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(1, restored.schemaVersion, "schema version stays at 1 (add-only, ADR-0001)");
+            Assert.IsNull(restored.pendingContest,
+                "legacy save without pendingContest must load as null (no pending House)");
+            Assert.AreEqual(0, restored.contestsResolved,
+                "legacy save without contestsResolved must default to 0");
+        }
+
+        [Test]
+        public void PreExistingV1Save_LoadsWithRenownZero()
+        {
+            // A save written before issue #35 has no renown field on LineageData.
+            // Add-only (ADR-0001): loads as 0.0 — no Marketplace standing yet.
+            string legacyJson = "{\"schemaVersion\":1,\"aseMantissa\":0.0,\"aseExponent\":0," +
+                                "\"asePerSecondMantissa\":0.0,\"asePerSecondExponent\":0," +
+                                "\"currentStage\":0,\"currentPath\":-1,\"lastSaveTimestamp\":0," +
+                                "\"generationStartTimestamp\":0,\"seenFlags\":0,\"council\":[]," +
+                                "\"lineage\":{\"permanentAseBonus\":0.35,\"generationCount\":7}}";
+
+            var restored = SaveSerializer.FromJson(legacyJson);
+
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(0.35, restored.lineage.permanentAseBonus, "existing lineage fields still load");
+            Assert.AreEqual(0.0, restored.lineage.renown,
+                "legacy save without renown loads with 0.0 (add-only, ADR-0001)");
         }
     }
 }

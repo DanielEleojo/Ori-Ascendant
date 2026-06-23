@@ -94,6 +94,8 @@ namespace OriAscendant.Tests.EditMode
             config.aseThresholdExponent = 6;
             config.lineLegacyBonusPerGen = 0.05;
             config.lineLegacyMaxBonus = 0.15;
+            config.ascendRenownGrant = 0.05;
+            config.fallRenownGrant = 0.02;
             return config;
         }
 
@@ -168,6 +170,33 @@ namespace OriAscendant.Tests.EditMode
                 new CrossroadsBeat { fallenEpithet = "The Divided" },
                 new CrossroadsBeat { fallenEpithet = "The Turned" },
             };
+            return config;
+        }
+
+        public static OriAscendant.Data.ContestConfig MakeContestConfig()
+        {
+            var config = ScriptableObject.CreateInstance<OriAscendant.Data.ContestConfig>();
+            config.stanceTilt = 0.20;
+            config.powerWeight = 0.30;
+            config.oddsMin = 0.10;
+            config.oddsMax = 0.90;
+            config.stakeBase = 0.10;
+            config.lossSoftness = 0.5;
+            config.housePowerMin = 0.75;
+            config.housePowerMax = 1.25;
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new OriAscendant.Data.ContestMilestone[0];
+            config.holdToConfirmSeconds = 0.8;
+            config.revealSeconds = 2.0;
+            return config;
+        }
+
+        /// <summary>Two-milestone contest config (Àṣẹ 1 000 and 5 000) for patient-queue tests.</summary>
+        public static OriAscendant.Data.ContestConfig MakeTwoMilestoneContestConfig()
+        {
+            var config = MakeContestConfig();
+            config.extraMilestones = new[] { new OriAscendant.Data.ContestMilestone { mantissa = 5.0, exponent = 3 } };
             return config;
         }
 

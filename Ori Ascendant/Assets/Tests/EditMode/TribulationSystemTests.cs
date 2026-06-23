@@ -140,8 +140,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1.0, ancestor.bonusMultiplier);
             Assert.GreaterOrEqual(ancestor.completedTimestamp, before);
 
-            // Cached rate already holds gen 2's stage-1 reality: 1 × (1 + 0.25).
-            Assert.AreEqual(BigNumber.FromDouble(1.25), _save.GetAsePerSecond());
+            // Cached rate already holds gen 2's stage-1 reality: 1 × (1 + 0.25 council + 0.05 renown).
+            Assert.AreEqual(BigNumber.FromDouble(1.30), _save.GetAsePerSecond());
         }
 
         [Test]
@@ -156,8 +156,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsFalse(result.DidAscend);
             Assert.AreEqual(1, _save.council.Count, "a fallen cultivator still produces an ancestor");
             Assert.AreEqual(0.4, _save.council[0].bonusMultiplier, "locked 0.4 fall multiplier");
-            Assert.AreEqual(BigNumber.FromDouble(1.10), _save.GetAsePerSecond(),
-                "gen 2 rate = 1 × (1 + 0.25 × 0.4)");
+            Assert.AreEqual(BigNumber.FromDouble(1.12), _save.GetAsePerSecond(),
+                "gen 2 rate = 1 × (1 + 0.25×0.4 council + 0.02 renown)");
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1.0, result.LineageFactorBefore, 1e-12);
             Assert.AreEqual(1.10, result.LineageFactorAfter, 1e-12);
             Assert.AreEqual(BigNumber.One, result.OldStage1Rate);
-            Assert.AreEqual(BigNumber.FromDouble(1.10), result.NewStage1Rate);
+            Assert.AreEqual(BigNumber.FromDouble(1.12), result.NewStage1Rate);
         }
 
         [Test]
@@ -292,6 +292,30 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(0, _save.pendingCrossroadsQueue.Count, "crossroads queue also clears at the Crossing");
             Assert.IsNotNull(_save.deeds);
             Assert.AreEqual(0, _save.deeds.Count, "deeds list cleared at the Crossing");
+        }
+
+        // ---- Per-life contest state (issue #38) ----
+
+        [Test]
+        public void Resolve_ClearsPerLifeContestState()
+        {
+            ArmAtPeak();
+            _save.pendingContest = new PendingContest
+            {
+                houseName = "Adé",
+                housePath = 1,
+                housePowerRatio = 0.9,
+                houseStance = 0,
+            };
+            _save.contestsResolved = 2;
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // ascend
+
+            _tribulation.Resolve();
+
+            Assert.IsNull(_save.pendingContest,
+                "pendingContest must be null after the Crossing (per-life cadence, issue #38)");
+            Assert.AreEqual(0, _save.contestsResolved,
+                "contestsResolved resets to 0 at the Crossing (per-life cadence, issue #38)");
         }
 
         // ---- Remembrance (slice 4a) ----
@@ -716,6 +740,53 @@ namespace OriAscendant.Tests.EditMode
                 _save.chronicle.Add(new ChronicleEntry { chosenOri = 0 });
             Assert.AreEqual(0.90, _tribulation.AscendChance, 1e-12,
                 "AscendChance with line-legacy bonus is clamped to the config ceiling (ADR-0005)");
+        }
+
+        // ---- Renown: the Crossing feeds the Marketplace (issue #36) ----
+
+        [Test]
+        public void Resolve_Ascend_GrantsAscendRenown()
+        {
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // ascend
+            var result = _tribulation.Resolve();
+            Assert.AreEqual(0.05, _save.lineage.renown, 1e-12, "ascend grants the ascend renown");
+            Assert.AreEqual(0.05, result.RenownGranted, 1e-12, "result carries the renown delta");
+        }
+
+        [Test]
+        public void Resolve_Fall_GrantsSmallerRenown()
+        {
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.99)); // fall
+            var result = _tribulation.Resolve();
+            Assert.AreEqual(0.02, _save.lineage.renown, 1e-12, "a fall still lifts the House, by less");
+            Assert.AreEqual(0.02, result.RenownGranted, 1e-12);
+        }
+
+        [Test]
+        public void Resolve_RenownGrant_IsPersistedBeforeNotify()
+        {
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // ascend
+            double renownAtEvent = -1;
+            _tribulation.OnTribulationComplete += (_, __) => renownAtEvent = _save.lineage.renown;
+            _tribulation.Resolve();
+            Assert.AreEqual(0.05, renownAtEvent, 1e-12,
+                "renown is written in the atomic block, before the notify event fires");
+        }
+
+        [Test]
+        public void Resolve_Renown_AccumulatesAcrossGenerations()
+        {
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // ascend gen 1
+            _tribulation.Resolve();
+            ArmAtPeak();
+            _tribulation.SetRandomSource(new FakeRandom(0.0)); // ascend gen 2
+            _tribulation.Resolve();
+            Assert.AreEqual(0.10, _save.lineage.renown, 1e-12,
+                "renown is lineage-permanent — it accumulates across Crossings");
         }
     }
 }

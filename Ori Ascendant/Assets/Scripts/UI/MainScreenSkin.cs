@@ -132,13 +132,17 @@ namespace OriAscendant.UI
         private SaveManager _save;
         private Image _silhouette;
         private int _silhouetteStage = -1;
-        private GameObject _constellation; // elder crown (final stage)
-        private GameObject _staff;         // elder staff (elder tiers)
+        private GameObject _staff;         // elder staff (built hidden — the figure is gone)
+
+        // Èwà thread: the bloodline replaces the bust (no figure). The node is the
+        // living current generation; the thread is the lineage rising behind it.
+        private Image _bloodThread;
+        private Image _genNode;
 
         // Per-path state — -2 so the first Update tick always applies (even path=-1).
         private int _currentPath = -2;
         private Image _pathOverlay;     // horizon bloom between sky and motes; tinted per path
-        private Image _silhouetteAura;  // soft glow behind the bust; tinted per path
+        private Image _silhouetteAura;  // node halo — soft glow at the thread base; tinted per path
         private Color _themeAccent = Palette.AseGold; // drives advance glow + waterline glow
 
         // Vessel fill (issue #25, PRD W2): gold-light fill driven by VesselFillRatio.
@@ -162,6 +166,10 @@ namespace OriAscendant.UI
         private RectTransform _deepFieldLayer;
         private readonly List<Image> _deepFieldStars = new List<Image>();
         private int _lastDeepFieldCount = -1;
+
+        // Contest-pending badge (#44): teal dot above the Ọjà nav button.
+        private Image _contestBadge;
+        private Systems.MarketplaceSystem _marketplace;
 
         private void Start()
         {
@@ -242,26 +250,35 @@ namespace OriAscendant.UI
             TickVesselFill();
             TickCrossingColumn(pulse);
             TickCeremony(dt);
+            TickContestBadge();
 
             // CTA glow breathes only while advancing is actually possible.
             if (_advanceGlow != null)
             {
                 bool ready = _advanceButton == null || _advanceButton.interactable;
-                float a = ready ? 0.16f + 0.22f * pulse : 0f;
+                float a = ready ? 0.10f + 0.14f * pulse : 0f; // Èwà restyle: softer CTA glow
                 _advanceGlow.color = _themeAccent.WithAlpha(a);
             }
 
-            // Waterline glow rides the rising fill front of the vessel (issue #28).
+            // Waterline glow rides the rising fill front up the thread (Èwà thread).
             if (_vesselWaterlineGlow != null && _vesselFillImage != null)
             {
                 float f = _vesselFillImage.fillAmount;
+                float yy = 0.16f + f * (0.92f - 0.16f); // map fill to the thread span
                 var rt = _vesselWaterlineGlow.rectTransform;
-                rt.anchorMin = new Vector2(0f, f);
-                rt.anchorMax = new Vector2(1f, f);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, yy);
                 rt.anchoredPosition = Vector2.zero;
                 float vis = (f > 0.015f && f < 0.995f) ? 1f : 0f;
                 _vesselWaterlineGlow.color = _themeAccent.WithAlpha(vis * (0.55f + 0.35f * pulse));
             }
+        }
+
+        private void TickContestBadge()
+        {
+            if (_contestBadge == null) return;
+            if (_marketplace == null) ServiceLocator.TryGet(out _marketplace);
+            bool pending = _marketplace != null && _marketplace.HasPending;
+            _contestBadge.color = Palette.OsunRiverTeal.WithAlpha(pending ? 0.85f : 0f);
         }
 
         // ================= typography =================
@@ -300,8 +317,40 @@ namespace OriAscendant.UI
             {
                 hero.color = Palette.AseGold;
                 AddHeroCounterGlow(hero); // faint glow behind the number (issue #30)
+                AddCounterEyebrowAndRule(hero); // Èwà restyle: spaced-caps label + hairline rule
             }
             _aseCounter = hero; // owned by TickMicroFeedback for the flash animation
+
+            // Second pass: apply display-voice (serif) spacing + font to sacred elements.
+            // The serif asset may not exist yet — null means fall back silently to body font.
+            var displayFont = Resources.Load<TMP_FontAsset>(FontRoleSpec.DisplayFontResourcePath);
+            foreach (var t in texts)
+            {
+                bool isHero = t == hero;
+                bool isDisplayRole = isHero
+                    || t.name.Contains("Proverb")
+                    || t.name.Contains("Title")
+                    || (t.fontStyle & FontStyles.Italic) != 0;
+
+                if (isHero)
+                {
+                    t.characterSpacing = FontRoleSpec.HeroLetterSpacing;
+                    if (displayFont != null) t.font = displayFont;
+                }
+                else if (isDisplayRole)
+                {
+                    bool isTitle = t.name.Contains("Title");
+                    t.characterSpacing = isTitle
+                        ? FontRoleSpec.StageTitleLetterSpacing
+                        : FontRoleSpec.ProverbCharacterSpacing;
+                    t.fontStyle |= FontStyles.Italic;
+                    if (displayFont != null) t.font = displayFont;
+                }
+                else
+                {
+                    t.characterSpacing = FontRoleSpec.BodyCharacterSpacing;
+                }
+            }
         }
 
         /// <summary>Adds a soft radial glow image as a sibling behind the hero
@@ -324,6 +373,50 @@ namespace OriAscendant.UI
             // Place behind the text: insert just before the counter in sibling order.
             int idx = brt.GetSiblingIndex();
             grt.SetSiblingIndex(idx > 0 ? idx - 1 : 0);
+        }
+
+        // Èwà restyle: spaced-caps "Àṣẹ" eyebrow above the hero numeral + hairline rule beneath.
+        private void AddCounterEyebrowAndRule(TMP_Text counter)
+        {
+            if (counter == null || counter.transform.parent == null) return;
+
+            // Èwà restyle: clean non-overlapping stack in the cramped ~84px CounterZone.
+            // The 52pt number bled into the eyebrow; pin it to a centred mid-band at a
+            // fitting size so the eyebrow above and the rule + rate below all clear it.
+            // Verified geometry: 38pt block ≈ 38px in the ~41px band (0.36–0.84), ~3px gaps.
+            var crt = counter.rectTransform;
+            crt.anchorMin = new Vector2(crt.anchorMin.x, 0.36f);
+            crt.anchorMax = new Vector2(crt.anchorMax.x, 0.84f);
+            counter.alignment = TextAlignmentOptions.Center;
+            counter.fontSize = 38f;
+
+            // 1. "Àṣẹ" eyebrow label — spaced caps, in the cleared space above the number.
+            var go = new GameObject("AseEyebrow", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            go.transform.SetParent(counter.transform.parent, false);
+            var t = go.GetComponent<TMP_Text>();
+            t.raycastTarget = false;
+            t.text = "Àṣẹ";
+            var disp = Resources.Load<TMP_FontAsset>(FontRoleSpec.DisplayFontResourcePath);
+            var body = Resources.Load<TMP_FontAsset>(FontResourcePath);
+            var chosen = disp != null ? disp : body;
+            if (chosen != null) t.font = chosen; // guard: never assign a null TMP font
+            t.fontSize = 12f;
+            t.characterSpacing = 10f;
+            t.alignment = TextAlignmentOptions.Center;
+            t.color = Palette.TextSecondary;
+            var rt = t.rectTransform;
+            rt.anchorMin = new Vector2(0.05f, 0.86f);
+            rt.anchorMax = new Vector2(0.95f, 1.00f);
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+
+            // 2. Hairline rule beneath the number — a crisp gold line between number and rate.
+            var rule = UiBuilder.NewChildImage(counter.transform.parent, "CounterHairline");
+            rule.color = Palette.AseGold.WithAlpha(0.45f);
+            var rrt = rule.rectTransform;
+            rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 0.33f); // in the gap below the number
+            rrt.pivot = new Vector2(0.5f, 0.5f);
+            rrt.sizeDelta = new Vector2(60f, 1.25f);
+            rrt.anchoredPosition = Vector2.zero;
         }
 
         private static bool Approx(Color a, Color b) =>
@@ -355,14 +448,10 @@ namespace OriAscendant.UI
             _pathOverlay.rectTransform.SetSiblingIndex(1); // above sky, below motes
 
             // Ancestor-stars: a sparse, faint scatter in the upper sky.
-            AddStar(sky.rectTransform, 0.16f, 0.90f, 5f, 0.50f);
-            AddStar(sky.rectTransform, 0.34f, 0.94f, 4f, 0.35f);
-            AddStar(sky.rectTransform, 0.52f, 0.89f, 5f, 0.50f);
-            AddStar(sky.rectTransform, 0.70f, 0.93f, 4f, 0.40f);
-            AddStar(sky.rectTransform, 0.84f, 0.87f, 4f, 0.30f);
-            AddStar(sky.rectTransform, 0.24f, 0.84f, 4f, 0.30f);
-            AddStar(sky.rectTransform, 0.62f, 0.82f, 5f, 0.45f);
-            AddStar(sky.rectTransform, 0.45f, 0.96f, 4f, 0.30f);
+            // Èwà restyle: just three faint ancestor points — the void does the work.
+            AddStar(sky.rectTransform, 0.22f, 0.91f, 3f, 0.20f);
+            AddStar(sky.rectTransform, 0.54f, 0.87f, 3f, 0.16f);
+            AddStar(sky.rectTransform, 0.74f, 0.93f, 3f, 0.18f);
 
             // Deep-field layer — retired ancestors recede here (issue #26).
             // Stars are added dynamically in RefreshDeepField() as generations complete.
@@ -386,7 +475,7 @@ namespace OriAscendant.UI
             // StormVignette Image so TribulationAtmosphere.VignetteAlpha() drives
             // it (same step values as the controller stub, now from the named fn).
             _stormEdgeVignette = UiBuilder.FindComp<Image>(canvas.transform, "StormVignette");
-            const int count = 10;
+            const int count = 3; // Èwà restyle: just a few motes — leave the void open
             for (int i = 0; i < count; i++)
                 _motes.Add(Mote.Create(moteLayer.rectTransform, _dotSprite, i / (float)count));
         }
@@ -424,13 +513,27 @@ namespace OriAscendant.UI
         /// chrome elements so the Àṣẹ counter reads as the sole luminous element.
         /// Modal panels are untouched — they need their backgrounds for legibility
         /// as overlays. Only persistent main-screen chrome is flattened here.</summary>
-        private static void SkinChrome(Transform root)
+        private void SkinChrome(Transform root)
         {
             // Settings button: icon-only — clear the filled panel background so
             // the ⚙ glyph floats on the sky without a heavy dark rectangle behind it.
             var settingsImg = UiBuilder.FindComp<Image>(root, "SettingsButton");
             if (settingsImg != null)
                 settingsImg.color = Color.clear;
+
+            // Contest-pending badge: teal dot above the Ọjà nav button (#44).
+            var ojaBtn = UiBuilder.FindComp<Button>(root, "OjaNavButton");
+            if (ojaBtn != null && _dotSprite != null)
+            {
+                _contestBadge = UiBuilder.NewChildImage(ojaBtn.transform, "ContestBadge");
+                _contestBadge.sprite = _dotSprite;
+                _contestBadge.color = Color.clear;
+                var brt = _contestBadge.rectTransform;
+                brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
+                brt.pivot = new Vector2(0.5f, 0.5f);
+                brt.sizeDelta = new Vector2(10f, 10f);
+                brt.anchoredPosition = new Vector2(-2f, -2f);
+            }
         }
 
         /// <summary>The portrait Image is a transparent raycast-only hit-area; all
@@ -440,39 +543,76 @@ namespace OriAscendant.UI
             var portrait = UiBuilder.FindComp<Image>(root, "PortraitImage");
             if (portrait == null) return;
 
-            // Path-accent aura behind the bust — a soft glow that tints per path.
-            _silhouetteAura = UiBuilder.NewChildImage(portrait.rectTransform, "SilhouetteAura");
-            var art = _silhouetteAura.rectTransform;
-            art.anchorMin = art.anchorMax = new Vector2(0.5f, 0.5f);
-            art.sizeDelta = new Vector2(310f, 310f); // slightly larger than the bust
-            art.anchoredPosition = Vector2.zero;
-            _silhouetteAura.sprite = _dotSprite;
-            _silhouetteAura.color = Color.clear; // ApplyPathTheme() sets this
-
-            _silhouette = UiBuilder.NewChildImage(portrait.rectTransform, "SilhouetteOfLight");
+            // Èwà thread: the bloodline replaces the bust. The container is a tall,
+            // transparent host — crossing/ceremony/constellation stay parented to it
+            // exactly as before; only the visible art changes (thread + node, no figure).
+            _silhouette = UiBuilder.NewChildImage(portrait.rectTransform, "BloodlineRoot");
             var srt = _silhouette.rectTransform;
             srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f);
-            srt.sizeDelta = new Vector2(250f, 250f); // SQUARE → the bust texture isn't vertically stretched
-            srt.anchoredPosition = new Vector2(0f, 0f);
+            srt.sizeDelta = new Vector2(220f, 300f); // tall: the vertical thread spans it
+            srt.anchoredPosition = Vector2.zero;
+            _silhouette.color = Color.clear; // transparent host — a spriteless Image renders a white box otherwise
 
-            // Vessel fill: bright gold light that rises from the feet as Àṣẹ accrues.
-            // Must be the first child so constellation/staff render above it.
+            // Node halo — soft path-tinted glow at the thread base (was the bust aura).
+            _silhouetteAura = UiBuilder.NewChildImage(srt, "NodeHalo");
+            var art = _silhouetteAura.rectTransform;
+            art.anchorMin = art.anchorMax = new Vector2(0.5f, 0.16f); // thread base
+            art.sizeDelta = new Vector2(150f, 150f);
+            art.anchoredPosition = Vector2.zero;
+            _silhouetteAura.sprite = _dotSprite;
+            _silhouetteAura.color = Color.clear; // ApplyPathTheme() tints this per path
+
+            // The bloodline thread: a faint vertical hairline of light up the container.
+            _bloodThread = UiBuilder.NewChildImage(srt, "BloodThread");
+            var thr = _bloodThread.rectTransform;
+            thr.anchorMin = new Vector2(0.5f, 0.16f);
+            thr.anchorMax = new Vector2(0.5f, 0.92f);
+            thr.pivot = new Vector2(0.5f, 0.5f);
+            thr.sizeDelta = new Vector2(2.2f, 0f); // fixed width; height from anchors
+            thr.anchoredPosition = Vector2.zero;
+            _bloodThread.color = Palette.AseGold.WithAlpha(0.40f); // visible hairline, still restrained
+
+            // Vessel fill: Àṣẹ rises UP the thread — a brighter overlay, vertical-filled
+            // (same drive as before via TickVesselFill; just re-shaped to the thread).
             _vesselFillImage = UiBuilder.NewChildImage(srt, "VesselFill");
+            _vesselFillImage.sprite = _roundedSmall; // a thin bar (Filled needs a sprite)
             _vesselFillImage.type = Image.Type.Filled;
             _vesselFillImage.fillMethod = Image.FillMethod.Vertical;
             _vesselFillImage.fillOrigin = (int)Image.OriginVertical.Bottom;
             _vesselFillImage.fillAmount = 0f;
             _vesselFillImage.color = Palette.AseCore;
+            var vrt = _vesselFillImage.rectTransform;
+            vrt.anchorMin = new Vector2(0.5f, 0.16f);
+            vrt.anchorMax = new Vector2(0.5f, 0.92f);
+            vrt.pivot = new Vector2(0.5f, 0.5f);
+            vrt.sizeDelta = new Vector2(2.6f, 0f);
+            vrt.anchoredPosition = Vector2.zero;
+
+            // Ancestor points: faint dots rising along the thread (decorative for now).
+            AddThreadPoint(srt, 0.30f);
+            AddThreadPoint(srt, 0.44f);
+            AddThreadPoint(srt, 0.58f);
+            AddThreadPoint(srt, 0.72f);
+
+            // Current-generation node: the bright core at the thread base. This is what
+            // breathes (TickBreathing) and pulses on tap (was the silhouette).
+            _genNode = UiBuilder.NewChildImage(srt, "GenerationNode");
+            _genNode.sprite = _dotSprite;
+            var nrt = _genNode.rectTransform;
+            nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.16f);
+            nrt.pivot = new Vector2(0.5f, 0.5f);
+            nrt.sizeDelta = new Vector2(26f, 26f);
+            nrt.anchoredPosition = Vector2.zero;
+            _genNode.color = Palette.AseCore;
 
             // Waterline glow: horizontal soft-dot at the fill front, rides upward with the fill.
             // Replaces the old bar's leading-edge glow (issue #28). Positioned via anchor-Y each frame.
             _vesselWaterlineGlow = UiBuilder.NewChildImage(srt, "VesselWaterlineGlow");
             _vesselWaterlineGlow.sprite = _dotSprite;
             var wrt = _vesselWaterlineGlow.rectTransform;
-            wrt.anchorMin = new Vector2(0f, 0f);
-            wrt.anchorMax = new Vector2(1f, 0f);
+            wrt.anchorMin = wrt.anchorMax = new Vector2(0.5f, 0.16f);
             wrt.pivot = new Vector2(0.5f, 0.5f);
-            wrt.sizeDelta = new Vector2(0f, 14f); // full-width band; height is the glow falloff
+            wrt.sizeDelta = new Vector2(34f, 18f); // Èwà thread: small glow riding the rising front
             _vesselWaterlineGlow.color = Palette.AseCore.WithAlpha(0f);
 
             // Overflow column: rises above the vessel at the final stage as the
@@ -496,10 +636,7 @@ namespace OriAscendant.UI
             nsrt.anchoredPosition = new Vector2(0f, CrossingColumnSpec.MaxColumnHeight); // at column apex
             _crossingNewStar.color = Color.clear;
 
-            BuildConstellation(srt); // elder crown — toggled on at the final stage
-            BuildStaff(srt);         // elder staff — toggled on at the elder tiers
-            // The bust sprite itself is built on the first Update tick, once the real
-            // cultivation stage is known — avoids a stage-0 flash before the save loads.
+            BuildStaff(srt); // built hidden — the figure (and its crown/staff) is gone
 
             // Wire tap-pulse: restart the pulse when the portrait button is tapped.
             _portraitButton = portrait.GetComponent<Button>();
@@ -516,14 +653,16 @@ namespace OriAscendant.UI
             var img = advance.GetComponent<Image>();
             if (img != null)
             {
-                img.sprite = _roundedBig;
+                // Èwà restyle: outlined cultivate button (stroke, not fill)
+                var thinRing = ProceduralSprites.RoundedBorder(48, 16f, 2f);
+                img.sprite = thinRing;
                 img.type = Image.Type.Sliced;
                 img.color = Palette.AseGold;
             }
             _advanceButton = advance.GetComponent<Button>();
 
             var label = advance.GetComponentInChildren<TMP_Text>();
-            if (label != null) label.color = Palette.IndigoNight;
+            if (label != null) label.color = Palette.AseGold; // Èwà restyle: outlined cultivate button (stroke, not fill)
 
             // Glow sits behind the button (earlier sibling in the same zone).
             var brt = (RectTransform)advance;
@@ -631,21 +770,25 @@ namespace OriAscendant.UI
 
         // ================= hero idle breathing (ADR-0005) =================
 
-        /// <summary>Drives a slow scale + brightness sine on the silhouette of light.
-        /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper
-        /// returns 0) so the bust is perfectly still. The tap-pulse scale (issue #24)
-        /// is multiplied in so both motions compose without clamping. VesselFill is a
-        /// child of the silhouette so it inherits the scale; its color is pulsed here too.</summary>
+        /// <summary>Drives a slow scale + brightness sine on the generation node (Èwà thread).
+        /// When iOS Reduce Motion is on, both channels are silenced (MotionHelper returns 0)
+        /// so the node is perfectly still. The tap-pulse scale (issue #24) is multiplied in
+        /// so both motions compose without clamping. The node halo tracks the same scale, and
+        /// the rising thread fill is pulsed in brightness here too.</summary>
         private void TickBreathing(float dt)
         {
-            if (_silhouette == null) return;
+            if (_genNode == null) return;
             bool rm = IsReduceMotion();
             float tapPulse = MotionHelper.TapPulseScale(
                 _silhouettePulseElapsed, SilhouettePulseDuration, SilhouettePulseAmplitude, rm);
             var (scale, bright) = _breathing.Tick(dt, tapPulse, rm);
-            _silhouette.rectTransform.localScale = new Vector3(scale, scale, 1f);
-            _silhouette.color = new Color(bright, bright, bright, 1f);
-            // Vessel fill pulses with the same rhythm — AseCore tinted by breathing.
+            // Èwà thread: the node breathes + pulses (was the bust); its halo tracks scale.
+            _genNode.rectTransform.localScale = new Vector3(scale, scale, 1f);
+            if (_silhouetteAura != null)
+                _silhouetteAura.rectTransform.localScale = new Vector3(scale, scale, 1f);
+            Color nb = Palette.AseCore;
+            _genNode.color = new Color(nb.r * bright, nb.g * bright, nb.b * bright, 1f);
+            // Vessel fill (the rising thread light) pulses with the same rhythm.
             if (_vesselFillImage != null)
             {
                 Color fc = Palette.AseCore;
@@ -763,10 +906,10 @@ namespace OriAscendant.UI
             var t = _themes[Mathf.Clamp(path + 1, 0, _themes.Length - 1)];
 
             if (_pathOverlay != null)
-                _pathOverlay.color = t.Horizon.WithAlpha(0.30f);
+                _pathOverlay.color = t.Horizon.WithAlpha(0.18f); // Èwà restyle: subtler path wash
 
             if (_silhouetteAura != null)
-                _silhouetteAura.color = t.Aura.WithAlpha(0.24f);
+                _silhouetteAura.color = t.Aura.WithAlpha(0.14f); // Èwà restyle: subtler path wash
 
             _themeAccent = t.Aura;
 
@@ -774,67 +917,24 @@ namespace OriAscendant.UI
                 _motes[i].SetTheme(t.Mote, t.Style);
         }
 
+        /// <summary>One faint ancestor point on the bloodline thread (Èwà thread).</summary>
+        private void AddThreadPoint(RectTransform parent, float ny)
+        {
+            var p = UiBuilder.NewChildImage(parent, "ThreadPoint");
+            p.sprite = _dotSprite;
+            var rt = p.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, ny);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(4f, 4f);
+            rt.anchoredPosition = Vector2.zero;
+            p.color = Palette.WarmEcru.WithAlpha(0.45f);
+        }
+
+        // Èwà thread: nothing stage-dependent remains (no bust, no crown). The staff is
+        // built hidden and stays hidden — the figure is gone.
         private void RebuildSilhouette(int stage)
         {
-            var sprite = ProceduralSprites.BuildBust(256, ProceduralSprites.ProfileForStage(stage));
-            var old = _silhouette.sprite;
-            _silhouette.sprite = sprite;
-            // VesselFill shares the same sprite so the fill is clipped to the bust shape.
-            if (_vesselFillImage != null) _vesselFillImage.sprite = sprite;
-            if (old != null)
-            {
-                if (old.texture != null) Destroy(old.texture);
-                Destroy(old);
-            }
-            if (_constellation != null) _constellation.SetActive(stage >= 5); // Aṣẹ́gun
-            if (_staff != null) _staff.SetActive(stage >= 4);                 // Àgbà + Aṣẹ́gun
-        }
-
-        private void BuildConstellation(RectTransform parent)
-        {
-            var go = new GameObject("Constellation", typeof(RectTransform));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.99f); // just above the head
-            rt.sizeDelta = new Vector2(150f, 54f);
-            rt.anchoredPosition = Vector2.zero;
-            _constellation = go;
-
-            Vector2[] pts =
-            {
-                new Vector2(-60f, -8f),
-                new Vector2(-20f, 14f),
-                new Vector2(20f, 14f),
-                new Vector2(60f, -8f),
-            };
-            for (int i = 0; i < pts.Length - 1; i++) AddConstellationLine(rt, pts[i], pts[i + 1]);
-            foreach (var p in pts) AddConstellationStar(rt, p);
-            go.SetActive(false);
-        }
-
-        private void AddConstellationStar(RectTransform parent, Vector2 pos)
-        {
-            var img = UiBuilder.NewChildImage(parent, "CStar");
-            img.sprite = _dotSprite;
-            img.color = Palette.AseCore;
-            var rt = img.rectTransform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(8f, 8f);
-            rt.anchoredPosition = pos;
-        }
-
-        private void AddConstellationLine(RectTransform parent, Vector2 a, Vector2 b)
-        {
-            var img = UiBuilder.NewChildImage(parent, "CLine");
-            img.sprite = _roundedSmall;
-            img.type = Image.Type.Sliced;
-            img.color = Palette.AseGold.WithAlpha(0.55f);
-            var rt = img.rectTransform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            Vector2 d = b - a;
-            rt.sizeDelta = new Vector2(d.magnitude, 2.5f);
-            rt.anchoredPosition = (a + b) * 0.5f;
-            rt.localEulerAngles = new Vector3(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+            if (_staff != null) _staff.SetActive(false);
         }
 
         private void BuildStaff(RectTransform parent)

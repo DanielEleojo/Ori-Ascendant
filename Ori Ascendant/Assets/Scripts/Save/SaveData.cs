@@ -62,6 +62,12 @@ namespace OriAscendant.Save
         /// Persists across save/load and app restart (no expiry). Add-only field (no schema bump).</summary>
         public List<string> pendingCrossroadsQueue = new List<string>();
 
+        /// <summary>The active rival House awaiting a stance (issue #38), or null when none. Per-life — cleared at the Crossing. Add-only.</summary>
+        public PendingContest pendingContest = null;
+
+        /// <summary>Contests resolved THIS life — drives the milestone trigger count so a resolved contest doesn't re-fire. Per-life; reset at the Crossing. Add-only.</summary>
+        public int contestsResolved = 0;
+
         /// <summary>Deeds recorded this life — one per resolved Crossroads choice.
         /// CrossroadsSystem writes; TribulationSystem reads at the Crossing to derive
         /// the Defining Deed; cleared at generation reset. Add-only field per ADR-0001.</summary>
@@ -186,6 +192,19 @@ namespace OriAscendant.Save
         public bool strayed;            // true = !wasOriAligned, kept in sync for Remembrance
     }
 
+    /// <summary>The rival House currently awaiting the player's stance (issue #38), persisted
+    /// so a challenger that appeared before the app closed is the SAME House on return. Stance
+    /// stored as an int to keep SaveData free of a Systems dependency. Per-life — cleared at the
+    /// Crossing. Add-only (ADR-0001).</summary>
+    [Serializable]
+    public class PendingContest
+    {
+        public string houseName;
+        public int housePath;
+        public double housePowerRatio;
+        public int houseStance; // (int)OriAscendant.Systems.Stance
+    }
+
     [Serializable]
     public class LineageData
     {
@@ -197,5 +216,12 @@ namespace OriAscendant.Save
 
         /// <summary>Completed generations; gen 1 is generationCount == 0.</summary>
         public int generationCount = 0;
+
+        /// <summary>Lineage-permanent Marketplace standing (issue #35). Raises the
+        /// production rate via a CAPPED additive term inside the lineage factor but OUTSIDE
+        /// the councilBonusModifier (Osun ×2) wrap — so it leaves retirement neutrality intact.
+        /// The stored value is UNCAPPED (it will later drive marketplace rank); only its rate
+        /// bonus is capped. Add-only per ADR-0001 — old saves load with 0.0.</summary>
+        public double renown = 0.0;
     }
 }

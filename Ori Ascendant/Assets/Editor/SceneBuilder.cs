@@ -35,6 +35,7 @@ namespace OriAscendant.EditorTools
         private const string CrossroadsConfigPath = ConfigFolder + "/CrossroadsConfig.asset";
         private const string RemembranceConfigPath = ConfigFolder + "/RemembranceConfig.asset";
         private const string CrossroadsDeckConfigPath = ConfigFolder + "/CrossroadsDeckConfig.asset";
+        private const string ContestConfigPath = ConfigFolder + "/ContestConfig.asset";
         private const string StageFolder = "Assets/Resources/StageConfigs";
         private const string PathFolder = "Assets/Resources/PathConfigs";
         private const string ScenePath = "Assets/Scenes/Main.unity";
@@ -96,12 +97,13 @@ namespace OriAscendant.EditorTools
             CrossroadsConfig crossroadsConfig = BuildCrossroadsConfig();
             RemembranceConfig remembranceConfig = BuildRemembranceConfig();
             CrossroadsDeckConfig crossroadsDeck = BuildCrossroadsDeckConfig();
+            ContestConfig contestConfig = BuildContestConfig();
             CultivationStageConfig[] stages = BuildStageConfigs();
             PathConfig[] paths = BuildPathConfigs();
             BuildMainScene(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig,
-                remembranceConfig, crossroadsDeck, stages, paths);
+                remembranceConfig, crossroadsDeck, contestConfig, stages, paths);
             BuildConfigurator.Apply();
-            Debug.Log("SceneBuilder: scene + 15 config assets built successfully.");
+            Debug.Log("SceneBuilder: scene + 16 config assets built successfully.");
         }
 
         // ================= config assets =================
@@ -352,6 +354,26 @@ namespace OriAscendant.EditorTools
             return config;
         }
 
+        private static ContestConfig BuildContestConfig()
+        {
+            var config = EnsureAsset<ContestConfig>(ContestConfigPath);
+            config.stanceTilt = 0.20;
+            config.powerWeight = 0.30;
+            config.oddsMin = 0.10;
+            config.oddsMax = 0.90;
+            config.stakeBase = 0.10;
+            config.lossSoftness = 0.5;
+            config.housePowerMin = 0.75;
+            config.housePowerMax = 1.25;
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new ContestMilestone[0];
+            config.holdToConfirmSeconds = 0.8;
+            config.revealSeconds = 2.0;
+            EditorUtility.SetDirty(config);
+            return config;
+        }
+
         private static CultivationStageConfig[] BuildStageConfigs()
         {
             var configs = new CultivationStageConfig[Stages.Length];
@@ -518,6 +540,7 @@ namespace OriAscendant.EditorTools
         private static void BuildMainScene(GameplayConfig gameplay, TribulationConfig tribulation,
             CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
             RemembranceConfig remembranceConfig, CrossroadsDeckConfig crossroadsDeck,
+            ContestConfig contestConfig,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -525,8 +548,8 @@ namespace OriAscendant.EditorTools
             BuildCamera();
             BuildEventSystem();
             BuildSystems(gameplay, tribulation, councilConfig, oriConfig, crossroadsConfig,
-                remembranceConfig, crossroadsDeck, stages, paths);
-            BuildUi(gameplay, tribulation);
+                remembranceConfig, crossroadsDeck, contestConfig, stages, paths);
+            BuildUi(gameplay, tribulation, contestConfig);
 
             Directory.CreateDirectory("Assets/Scenes");
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
@@ -559,6 +582,7 @@ namespace OriAscendant.EditorTools
         private static void BuildSystems(GameplayConfig gameplay, TribulationConfig tribulation,
             CouncilConfig councilConfig, OriConfig oriConfig, CrossroadsConfig crossroadsConfig,
             RemembranceConfig remembranceConfig, CrossroadsDeckConfig crossroadsDeck,
+            ContestConfig contestConfig,
             CultivationStageConfig[] stages, PathConfig[] paths)
         {
             var go = new GameObject("Systems");
@@ -585,13 +609,22 @@ namespace OriAscendant.EditorTools
             var crossroadsSystem = go.AddComponent<CrossroadsSystem>();
             Assign(crossroadsSystem, "_config", crossroadsConfig);
 
+            var marketplaceSystem = go.AddComponent<MarketplaceSystem>();
+            Assign(marketplaceSystem, "_config", contestConfig);
+            Assign(marketplaceSystem, "_remembranceConfig", remembranceConfig);
+
             go.AddComponent<OriAscendant.Save.CloudSaveManager>();
             go.AddComponent<OriAscendant.Audio.AudioManager>();
+            // ProceduralAmbience also self-bootstraps via RuntimeInitializeOnLoadMethod
+            // (matching MainScreenSkin); the component here ensures it is serialised into
+            // the scene for builds that do not rely on the bootstrap path.
+            go.AddComponent<OriAscendant.Audio.ProceduralAmbience>();
 
             AssignConfig(go.AddComponent<GameManager>(), gameplay);
         }
 
-        private static void BuildUi(GameplayConfig config, TribulationConfig tribulation)
+        private static void BuildUi(GameplayConfig config, TribulationConfig tribulation,
+            ContestConfig contestConfig)
         {
             // ---- root canvas ----
             var canvasGo = new GameObject("MainCanvas");
@@ -622,6 +655,13 @@ namespace OriAscendant.EditorTools
             settingsRt.pivot = new Vector2(1f, 0.5f);
             settingsRt.sizeDelta = new Vector2(44f, 0f);
             settingsRt.anchoredPosition = new Vector2(-16f, 0f); // ACTIVE from Phase D (opens Settings)
+            var ojaNavBtn = MakeButton(header, "OjaNavButton", "Ọjà", Panel, 13f);
+            var ojaNavBtnRt = (RectTransform)ojaNavBtn.transform;
+            ojaNavBtnRt.anchorMin = new Vector2(1f, 0f);
+            ojaNavBtnRt.anchorMax = new Vector2(1f, 1f);
+            ojaNavBtnRt.pivot = new Vector2(1f, 0.5f);
+            ojaNavBtnRt.sizeDelta = new Vector2(52f, 0f);
+            ojaNavBtnRt.anchoredPosition = new Vector2(-68f, 0f);
 
             // Zone 2 — counter on its own nested canvas (1Hz rebuild isolation).
             var counterZone = Zone(root, "CounterZone", 0.10f, 0.20f);
@@ -770,6 +810,8 @@ namespace OriAscendant.EditorTools
             ChronicleScreenView chronicleScreen = BuildChronicleScreenUi(root);
             CouncilScreenView councilScreen = BuildCouncilScreenUi(root, chronicleScreen);
             SettingsScreenView settingsScreen = BuildSettingsUi(root); // Phase D
+            OjaScreenView ojaScreen = BuildOjaScreenUi(root); // issue #41
+            ContestScreenView contestScreen = BuildContestScreenUi(root, contestConfig); // issue #43
 
             var stripView = canvasGo.AddComponent<CouncilStripView>();
             AssignArray(stripView, "_slots", councilSlots);
@@ -869,6 +911,9 @@ namespace OriAscendant.EditorTools
             Assign(controller, "_crossroadsScreen", crossroadsScreen);
             Assign(controller, "_settingsButton", settingsBtn);
             Assign(controller, "_settingsScreen", settingsScreen);
+            Assign(controller, "_ojaButton", ojaNavBtn);
+            Assign(controller, "_ojaScreen", ojaScreen);
+            Assign(controller, "_contestScreen", contestScreen);
 
             var modal = modalController.AddComponent<WelcomeBackModal>();
             Assign(modal, "_config", config);
@@ -1587,6 +1632,226 @@ namespace OriAscendant.EditorTools
             var screen = controller.AddComponent<AboutScreenView>();
             Assign(screen, "_root", aboutRoot.gameObject);
             Assign(screen, "_body", body);
+            Assign(screen, "_closeButton", close);
+            return screen;
+        }
+
+        private static ContestScreenView BuildContestScreenUi(RectTransform root, ContestConfig contestConfig)
+        {
+            var controller = new GameObject("ContestScreen", typeof(RectTransform));
+            var controllerRt = (RectTransform)controller.transform;
+            controllerRt.SetParent(root, false);
+            Stretch(controllerRt);
+
+            // ---- challenge sheet ----
+            var challengeRoot = NewStretched(controllerRt, "ChallengeRoot");
+            var challengeDim = MakeImage(challengeRoot, "Dim", new Color(0f, 0f, 0f, 0.80f));
+            Stretch(challengeDim.rectTransform);
+            challengeDim.raycastTarget = true;
+
+            var panel = MakeImage(challengeRoot, "Panel", Panel);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.06f, 0.08f);
+            panelRt.anchorMax = new Vector2(0.94f, 0.92f);
+            panelRt.offsetMin = Vector2.zero;
+            panelRt.offsetMax = Vector2.zero;
+
+            var title = MakeText(panelRt, "Title", "A rival House approaches", 18f,
+                TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, 0.90f, 0.99f);
+
+            var houseName = MakeText(panelRt, "HouseNameText", "", 22f, TextAlignmentOptions.Center, Text);
+            SetBand(houseName.rectTransform, 0.79f, 0.90f);
+
+            var housePath = MakeText(panelRt, "HousePathText", "", 14f, TextAlignmentOptions.Center, Gold);
+            SetBand(housePath.rectTransform, 0.71f, 0.79f);
+
+            var housePower = MakeText(panelRt, "HousePowerText", "", 13f, TextAlignmentOptions.Center, TextDim);
+            SetBand(housePower.rectTransform, 0.63f, 0.71f);
+
+            // Stance buttons — three bands with their odds label.
+            var strikeBtn = MakeButton(panelRt, "StrikeButton", "Strike", PanelLine, 15f);
+            var strikeBtnRt = (RectTransform)strikeBtn.transform;
+            strikeBtnRt.anchorMin = new Vector2(0.05f, 0.52f);
+            strikeBtnRt.anchorMax = new Vector2(0.95f, 0.61f);
+            strikeBtnRt.offsetMin = Vector2.zero;
+            strikeBtnRt.offsetMax = Vector2.zero;
+            var strikeOdds = MakeText(panelRt, "StrikeOddsText", "", 12f, TextAlignmentOptions.MidlineRight, TextDim);
+            SetBand(strikeOdds.rectTransform, 0.52f, 0.61f);
+            Inset(strikeOdds.rectTransform, right: 12f);
+
+            var endureBtn = MakeButton(panelRt, "EndureButton", "Endure", PanelLine, 15f);
+            var endureBtnRt = (RectTransform)endureBtn.transform;
+            endureBtnRt.anchorMin = new Vector2(0.05f, 0.41f);
+            endureBtnRt.anchorMax = new Vector2(0.95f, 0.50f);
+            endureBtnRt.offsetMin = Vector2.zero;
+            endureBtnRt.offsetMax = Vector2.zero;
+            var endureOdds = MakeText(panelRt, "EndureOddsText", "", 12f, TextAlignmentOptions.MidlineRight, TextDim);
+            SetBand(endureOdds.rectTransform, 0.41f, 0.50f);
+            Inset(endureOdds.rectTransform, right: 12f);
+
+            var flowBtn = MakeButton(panelRt, "FlowButton", "Flow", PanelLine, 15f);
+            var flowBtnRt = (RectTransform)flowBtn.transform;
+            flowBtnRt.anchorMin = new Vector2(0.05f, 0.30f);
+            flowBtnRt.anchorMax = new Vector2(0.95f, 0.39f);
+            flowBtnRt.offsetMin = Vector2.zero;
+            flowBtnRt.offsetMax = Vector2.zero;
+            var flowOdds = MakeText(panelRt, "FlowOddsText", "", 12f, TextAlignmentOptions.MidlineRight, TextDim);
+            SetBand(flowOdds.rectTransform, 0.30f, 0.39f);
+            Inset(flowOdds.rectTransform, right: 12f);
+
+            // Hold-to-confirm button.
+            var holdBtn = MakeButton(panelRt, "HoldButton", "", Gold, 16f);
+            var holdBtnRt = (RectTransform)holdBtn.transform;
+            holdBtnRt.anchorMin = new Vector2(0.08f, 0.16f);
+            holdBtnRt.anchorMax = new Vector2(0.92f, 0.26f);
+            holdBtnRt.offsetMin = Vector2.zero;
+            holdBtnRt.offsetMax = Vector2.zero;
+            var holdComponent = holdBtn.gameObject.AddComponent<HoldButton>();
+            var holdBack = holdBtn.GetComponent<Image>();
+            holdBack.color = PanelLine;
+            var holdFill = MakeImage(holdBtnRt, "HoldFill", Gold);
+            Stretch(holdFill.rectTransform);
+            holdFill.type = Image.Type.Filled;
+            holdFill.fillMethod = Image.FillMethod.Horizontal;
+            holdFill.fillAmount = 0f;
+            holdFill.sprite = WhiteSprite();
+            var holdLabel = MakeText(holdBtnRt, "HoldLabel", "Hold to enter the clash", 14f,
+                TextAlignmentOptions.Center, Text);
+            Stretch(holdLabel.rectTransform);
+
+            // Decline button — "Not now".
+            var declineBtn = MakeButton(panelRt, "DeclineButton", "Not now", Panel, 13f);
+            var declineBtnRt = (RectTransform)declineBtn.transform;
+            declineBtnRt.anchorMin = new Vector2(0.30f, 0.04f);
+            declineBtnRt.anchorMax = new Vector2(0.70f, 0.11f);
+            declineBtnRt.offsetMin = Vector2.zero;
+            declineBtnRt.offsetMax = Vector2.zero;
+
+            challengeRoot.gameObject.SetActive(false);
+
+            // ---- reveal beat ----
+            var revealRoot = NewStretched(controllerRt, "RevealRoot");
+            var revealBg = MakeImage(revealRoot, "RevealBg", new Color(0.04f, 0.05f, 0.08f, 1f));
+            Stretch(revealBg.rectTransform);
+            revealBg.raycastTarget = true;
+
+            var revealTitle = MakeText(revealRoot, "RevealTitle", "", 42f, TextAlignmentOptions.Center, Gold);
+            SetBand(revealTitle.rectTransform, 0.52f, 0.66f);
+
+            var renownDelta = MakeText(revealRoot, "RenownDeltaText", "", 20f, TextAlignmentOptions.Center, Gold);
+            SetBand(renownDelta.rectTransform, 0.40f, 0.50f);
+            revealRoot.gameObject.SetActive(false);
+
+            // ---- summary ----
+            var summaryRoot = NewStretched(controllerRt, "SummaryRoot");
+            var summaryDim = MakeImage(summaryRoot, "Dim", new Color(0f, 0f, 0f, 0.85f));
+            Stretch(summaryDim.rectTransform);
+            summaryDim.raycastTarget = true;
+            var summaryPanel = MakeImage(summaryRoot, "SummaryPanel", Panel);
+            var summaryPanelRt = summaryPanel.rectTransform;
+            summaryPanelRt.anchorMin = new Vector2(0.08f, 0.26f);
+            summaryPanelRt.anchorMax = new Vector2(0.92f, 0.74f);
+            summaryPanelRt.offsetMin = Vector2.zero;
+            summaryPanelRt.offsetMax = Vector2.zero;
+
+            var standing = MakeText(summaryPanelRt, "StandingText", "", 16f, TextAlignmentOptions.Center, Text);
+            SetBand(standing.rectTransform, 0.50f, 0.88f);
+            InsetX(standing.rectTransform, 16f);
+            standing.enableWordWrapping = true;
+
+            var continueBtn = MakeButton(summaryPanelRt, "ContinueButton", "Continue", Gold, 16f);
+            var continueBtnRt = (RectTransform)continueBtn.transform;
+            continueBtnRt.anchorMin = new Vector2(0.16f, 0.08f);
+            continueBtnRt.anchorMax = new Vector2(0.84f, 0.22f);
+            continueBtnRt.offsetMin = Vector2.zero;
+            continueBtnRt.offsetMax = Vector2.zero;
+            summaryRoot.gameObject.SetActive(false);
+
+            // ---- component + wiring ----
+            var screen = controller.AddComponent<ContestScreenView>();
+            Assign(screen, "_config", contestConfig);
+            Assign(screen, "_challengeRoot", challengeRoot.gameObject);
+            Assign(screen, "_houseNameText", houseName);
+            Assign(screen, "_housePathText", housePath);
+            Assign(screen, "_housePowerText", housePower);
+            Assign(screen, "_strikeOddsText", strikeOdds);
+            Assign(screen, "_endureOddsText", endureOdds);
+            Assign(screen, "_flowOddsText", flowOdds);
+            Assign(screen, "_strikeButton", strikeBtn);
+            Assign(screen, "_endureButton", endureBtn);
+            Assign(screen, "_flowButton", flowBtn);
+            Assign(screen, "_holdButton", holdComponent);
+            Assign(screen, "_holdFill", holdFill);
+            Assign(screen, "_declineButton", declineBtn);
+            Assign(screen, "_revealRoot", revealRoot.gameObject);
+            Assign(screen, "_revealTitle", revealTitle);
+            Assign(screen, "_renownDeltaText", renownDelta);
+            Assign(screen, "_summaryRoot", summaryRoot.gameObject);
+            Assign(screen, "_standingText", standing);
+            Assign(screen, "_continueButton", continueBtn);
+            return screen;
+        }
+
+        private static OjaScreenView BuildOjaScreenUi(RectTransform root)
+        {
+            var controller = new GameObject("OjaScreen", typeof(RectTransform));
+            var controllerRt = (RectTransform)controller.transform;
+            controllerRt.SetParent(root, false);
+            Stretch(controllerRt);
+
+            var ojaRoot = NewStretched(controllerRt, "OjaRoot");
+            var dim = MakeImage(ojaRoot, "Dim", new Color(0f, 0f, 0f, 0.8f));
+            Stretch(dim.rectTransform);
+            dim.raycastTarget = true;
+            var panel = MakeImage(ojaRoot, "Panel", Panel);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.08f, 0.16f);
+            panelRt.anchorMax = new Vector2(0.92f, 0.86f);
+            panelRt.offsetMin = Vector2.zero;
+            panelRt.offsetMax = Vector2.zero;
+
+            var title = MakeText(panelRt, "Title", "Ọjà — The Marketplace", 20f, TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, 0.90f, 0.99f);
+
+            var rankNumber = MakeText(panelRt, "RankNumberText", "—", 48f, TextAlignmentOptions.Center, Text);
+            SetBand(rankNumber.rectTransform, 0.68f, 0.88f);
+
+            var rankOrdinal = MakeText(panelRt, "RankOrdinalText", "", 16f, TextAlignmentOptions.Center, Text);
+            SetBand(rankOrdinal.rectTransform, 0.57f, 0.67f);
+
+            var renownValue = MakeText(panelRt, "RenownValueText", "", 15f, TextAlignmentOptions.Center, TextDim);
+            SetBand(renownValue.rectTransform, 0.47f, 0.57f);
+
+            var progressBg = MakeImage(panelRt, "ProgressBg", PanelLine);
+            SetBand(progressBg.rectTransform, 0.38f, 0.44f);
+            InsetX(progressBg.rectTransform, 24f);
+
+            var progressFill = MakeImage(progressBg.rectTransform, "ProgressFill", Gold);
+            Stretch(progressFill.rectTransform);
+            progressFill.type = Image.Type.Filled;
+            progressFill.fillMethod = Image.FillMethod.Horizontal;
+            progressFill.fillAmount = 0f;
+            progressFill.sprite = WhiteSprite();
+
+            var nextRankLine = MakeText(panelRt, "NextRankLine", "", 13f, TextAlignmentOptions.Center, TextDim);
+            SetBand(nextRankLine.rectTransform, 0.28f, 0.37f);
+
+            var close = MakeButton(panelRt, "CloseButton", "Close", Gold, 16f);
+            var closeRt = (RectTransform)close.transform;
+            closeRt.anchorMin = new Vector2(0.20f, 0.05f);
+            closeRt.anchorMax = new Vector2(0.80f, 0.15f);
+            closeRt.offsetMin = Vector2.zero;
+            closeRt.offsetMax = Vector2.zero;
+            ojaRoot.gameObject.SetActive(false);
+
+            var screen = controller.AddComponent<OjaScreenView>();
+            Assign(screen, "_root", ojaRoot.gameObject);
+            Assign(screen, "_rankNumberText", rankNumber);
+            Assign(screen, "_rankOrdinalText", rankOrdinal);
+            Assign(screen, "_renownValueText", renownValue);
+            Assign(screen, "_nextRankLine", nextRankLine);
+            Assign(screen, "_rankProgressBar", progressFill);
             Assign(screen, "_closeButton", close);
             return screen;
         }

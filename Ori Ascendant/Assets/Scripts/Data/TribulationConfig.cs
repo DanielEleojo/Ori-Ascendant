@@ -50,6 +50,13 @@ namespace OriAscendant.Data
         public float ancestorCardSeconds = 2.5f;
         public float finalBeatSeconds = 2.0f;
 
+        [Header("Renown grants (issue #36 — PLACEHOLDER, balance pass #40)")]
+        [Tooltip("Renown granted to the lineage on an ascended Crossing. Feeds the §2.1 rate via the capped renown term. Placeholder pending #40.")]
+        public double ascendRenownGrant = 0.05;
+
+        [Tooltip("Renown granted on a fall — smaller, but a fallen cultivator still lifts the House (never a dead end). Placeholder pending #40.")]
+        public double fallRenownGrant = 0.02;
+
         [Header("Crowned Ascended reveal (Phase 6 — appearance-0, funded + §7.10-gated)")]
         [Tooltip("Bespoke crowned portrait for the ascension reveal beat (appearance-0). " +
                  "Null = gold-FX fallback (slice 6). Art ships when funded and §7.10-cleared. " +

@@ -16,3 +16,4 @@ MonoBehaviour:
   tapChannelSeconds: 5
   welcomeBackMinSeconds: 60
   autosaveIntervalSeconds: 30
+  renownBonusCap: 0.25

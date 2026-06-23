@@ -12,16 +12,16 @@ namespace OriAscendant.UI
     public static class Palette
     {
         // ---- Base: deep indigo night (the constant ground of the game) ----
-        public static readonly Color IndigoNight = Hex(0x0E1330); // darkest; vignette edges
-        public static readonly Color IndigoBase = Hex(0x1B2150);  // primary background field
-        public static readonly Color IndigoLift = Hex(0x2C3470);  // mid sky; atmospheric distance
+        public static readonly Color IndigoNight = Hex(0x07091A); // Èwà void — darkest; vignette edges
+        public static readonly Color IndigoBase = Hex(0x0F1430);  // Èwà void — primary background field
+        public static readonly Color IndigoLift = Hex(0x1A2150);  // mid sky; atmospheric distance
         public static readonly Color DuskViolet = Hex(0x3E3A6E);  // where indigo warms toward horizon
         public static readonly Color WarmEcru = Hex(0xEDE3CE);    // undyed-adire ground; cloth
 
         // ---- Àṣẹ gold: the single sacred light (always the brightest, always warm) ----
         public static readonly Color AseCore = Hex(0xFFE6A8); // hottest highlight; near-white gold
-        public static readonly Color AseGold = Hex(0xF4C14E); // the signature — counters, primary glow
-        public static readonly Color AseDeep = Hex(0xC98A2B); // gold in shadow; brass edges
+        public static readonly Color AseGold = Hex(0xE8C77A); // Èwà brass — the signature accent
+        public static readonly Color AseDeep = Hex(0xC9A24B); // Èwà deep brass — gold in shadow
 
         // ---- Text ----
         public static readonly Color TextPrimary = Hex(0xF3EEDD);   // warm bone-white (never pure white)

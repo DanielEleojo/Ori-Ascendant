@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.kyrylokuzyk.primetween": {
+      "version": "1.4.8",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://registry.npmjs.org"
+    },
     "com.unity.2d.animation": {
       "version": "14.0.4",
       "depth": 0,

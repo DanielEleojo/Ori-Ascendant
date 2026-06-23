@@ -35,6 +35,9 @@ namespace OriAscendant.UI
         [SerializeField] private Screens.CrossroadsScreenView _crossroadsScreen;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Screens.SettingsScreenView _settingsScreen;
+        [SerializeField] private Button _ojaButton;
+        [SerializeField] private Screens.OjaScreenView _ojaScreen;
+        [SerializeField] private Screens.ContestScreenView _contestScreen;
 
         private static readonly Color ChannelColor = new Color(0.851f, 0.643f, 0.255f); // àṣẹ gold
 
@@ -43,6 +46,7 @@ namespace OriAscendant.UI
         private SaveManager _saveManager;
         private OriSystem _oriSystem;
         private Systems.CrossroadsSystem _crossroadsSystem;
+        private Systems.MarketplaceSystem _marketplace;
 
         private float _secondsSinceLaunch;
         private string _lastCtaText;
@@ -56,6 +60,8 @@ namespace OriAscendant.UI
             if (_portraitButton != null) _portraitButton.onClick.AddListener(HandlePortraitTapped);
             if (_settingsButton != null && _settingsScreen != null)
                 _settingsButton.onClick.AddListener(_settingsScreen.Show);
+            if (_ojaButton != null && _ojaScreen != null)
+                _ojaButton.onClick.AddListener(_ojaScreen.Show);
             if (_hintRoot != null) _hintRoot.SetActive(false);
         }
 
@@ -65,6 +71,8 @@ namespace OriAscendant.UI
             if (_portraitButton != null) _portraitButton.onClick.RemoveListener(HandlePortraitTapped);
             if (_settingsButton != null && _settingsScreen != null)
                 _settingsButton.onClick.RemoveListener(_settingsScreen.Show);
+            if (_ojaButton != null && _ojaScreen != null)
+                _ojaButton.onClick.RemoveListener(_ojaScreen.Show);
         }
 
         private void Start()
@@ -74,6 +82,7 @@ namespace OriAscendant.UI
             ServiceLocator.TryGet(out _saveManager);
             ServiceLocator.TryGet(out _oriSystem);
             ServiceLocator.TryGet(out _crossroadsSystem);
+            ServiceLocator.TryGet(out _marketplace);
 
             if (_ctaRoot != null) _ctaRoot.SetActive(true);
         }
@@ -87,6 +96,7 @@ namespace OriAscendant.UI
             TickHint();
             TickOriPrompt();
             TickCrossroadsPrompt();
+            TickContestPrompt();
         }
 
         // ---- post-Crossing re-vow: surface the modal on the first frame after
@@ -105,6 +115,17 @@ namespace OriAscendant.UI
             if (_crossroadsScreen == null || _crossroadsSystem == null) return;
             if (!_crossroadsSystem.HasPending || _crossroadsScreen.IsOpen) return;
             _crossroadsScreen.Show();
+        }
+
+        // ---- pending contest: surface the modal once a rival House has been queued.
+        //      Patient — waits across sessions. Does not auto-surface if the player
+        //      has already declined (the House remains pending; the player opens Ọjà
+        //      when ready, or it surfaces again next session).
+        private void TickContestPrompt()
+        {
+            if (_contestScreen == null || _marketplace == null) return;
+            if (!_marketplace.HasPending || _contestScreen.IsOpen) return;
+            _contestScreen.Show();
         }
 
         // ---- storm vignette (driven from within-stage progress) ----

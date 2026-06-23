@@ -22,6 +22,7 @@ namespace OriAscendant.Systems
         public double LineageFactorAfter;
         public BigNumber OldStage1Rate;                  // what gen N's stage-1 rate was
         public BigNumber NewStage1Rate;                  // gen N+1's actual starting rate
+        public double RenownGranted;                     // renown the Crossing granted the lineage (issue #36)
     }
 
     /// <summary>
@@ -269,9 +270,18 @@ namespace OriAscendant.Systems
             _save.oriTrials = 0;
             _save.pendingCrossroadsId = ""; // patient crossroads expire at the Crossing
             _save.pendingCrossroadsQueue?.Clear(); // whole queue expires too
+            _save.pendingContest = null;     // contests are per-life cadence (issue #38)
+            _save.contestsResolved = 0;
             if (_save.deeds != null) _save.deeds.Clear(); // per-life history; Crossroads system writes, reset clears
             _save.generationStartTimestamp = now;
             _save.lineage.generationCount++;
+
+            // Renown grant (issue #36): the Crossing feeds the Marketplace. Applied INSIDE the
+            // atomic block (before Save → persist-first) and BEFORE RecalculateRate so the new
+            // generation's rate already reflects it. Outside the council wrap (path-agnostic).
+            double renownGrant = result.DidAscend ? _config.ascendRenownGrant : _config.fallRenownGrant;
+            _save.lineage.renown += renownGrant;
+            result.RenownGranted = renownGrant;
 
             aseGen?.RecalculateRate();          // gen N+1 stage-1 rate, council factor included
             cultivation?.ResetForNewGeneration(); // re-arm the once-per-generation announcement

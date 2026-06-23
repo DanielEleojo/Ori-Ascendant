@@ -1,7 +1,7 @@
 namespace OriAscendant.Systems
 {
     /// <summary>
-    /// The six inputs to the production-rate formula (GAMEPLAY §2.1), gathered into one
+    /// The seven inputs to the production-rate formula (GAMEPLAY §2.1), gathered into one
     /// value so the rate's dependencies — and the Àṣẹ-neutrality of council retirement —
     /// are explicit in one place instead of scattered across four systems. Assembled by
     /// <see cref="AseGenerationSystem.RecalculateRate"/> (the sole writer of the cached
@@ -11,6 +11,10 @@ namespace OriAscendant.Systems
     /// (<see cref="PermanentAseBonus"/> + <see cref="ActiveCouncilSum"/>) together; that
     /// joint wrap is what keeps retirement Àṣẹ-neutral on every path. The property is pinned
     /// by RateCalculatorTests against this struct.
+    ///
+    /// The 7th term, <see cref="RenownBonus"/>, rides the lineage factor (so it IS scaled by
+    /// stage/path, like the council bonuses) but sits OUTSIDE the councilBonusModifier wrap, so
+    /// Osun's ×2 never amplifies it and retirement neutrality is undisturbed (issue #35).
     /// </summary>
     public readonly struct RateInputs
     {
@@ -32,13 +36,18 @@ namespace OriAscendant.Systems
         /// <summary>Active council contribution, already weighted: Σ(W × bonusMultiplier).</summary>
         public readonly double ActiveCouncilSum;
 
+        /// <summary>Renown's CAPPED contribution to the rate — the 7th additive term, inside
+        /// the lineage factor but OUTSIDE the councilBonusModifier wrap (Osun-neutral) (issue #35).</summary>
+        public readonly double RenownBonus;
+
         public RateInputs(
             double baseRate,
             double stageProductionMultiplier,
             double pathOnlineMultiplier,
             double councilBonusModifier,
             double permanentAseBonus,
-            double activeCouncilSum)
+            double activeCouncilSum,
+            double renownBonus = 0.0)
         {
             BaseRate = baseRate;
             StageProductionMultiplier = stageProductionMultiplier;
@@ -46,6 +55,7 @@ namespace OriAscendant.Systems
             CouncilBonusModifier = councilBonusModifier;
             PermanentAseBonus = permanentAseBonus;
             ActiveCouncilSum = activeCouncilSum;
+            RenownBonus = renownBonus;
         }
     }
 }

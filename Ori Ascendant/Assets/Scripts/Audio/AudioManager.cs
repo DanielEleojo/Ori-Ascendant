@@ -168,6 +168,27 @@ namespace OriAscendant.Audio
             }
         }
 
+        /// <summary>Installs a runtime-generated clip as the default (path-less) BGM
+        /// theme and plays it if the player is currently on the default theme. Lets
+        /// <see cref="ProceduralAmbience"/> supply the ambient bed without a serialised
+        /// asset. Respects <see cref="AudioPrefs.BgmEnabled"/> + <see cref="_bgmVolume"/>.
+        /// No-op if <paramref name="clip"/> is null.</summary>
+        public void InstallDefaultTheme(AudioClip clip)
+        {
+            if (clip == null) return;
+            _bgmThemes[0] = clip;
+            // If we are currently path-less (default theme slot 0 is active), replay
+            // so the new clip starts immediately.  PlayTheme is the existing crossfade
+            // path — passing immediate:true matches the Start() boot so there is no
+            // fade-in on the very first load.
+            int currentSlot = AudioTrackSelector.ThemeIndexForPath(-1); // 0
+            AudioSource active = _bgmAIsActive ? _bgmA : _bgmB;
+            bool isDefaultPlaying = active.clip == null || active.clip == clip ||
+                                    currentSlot == 0;
+            if (isDefaultPlaying)
+                PlayTheme(currentSlot, immediate: true);
+        }
+
         private void PlaySfx(AudioClip clip)
         {
             if (clip == null || !AudioPrefs.SfxEnabled || _sfx == null) return;

@@ -12,7 +12,7 @@ namespace OriAscendant.UI
     {
         /// <summary>AseGold at full brightness (ascended) or EmberWarm dimmed (fallen).</summary>
         public Color NodeColor;
-        /// <summary>"Gen N  —  Ascended" or "Gen N  —  Fell".</summary>
+        /// <summary>"Gen N  —  Ascended" or "Gen N  —  Returned to the source".</summary>
         public string Label;
         /// <summary>Title (ascended) or Nickname (fallen); never null.</summary>
         public string Remembrance;
@@ -47,7 +47,7 @@ namespace OriAscendant.UI
                 ? Palette.AseGold.WithAlpha(AscendedAlpha)
                 : Palette.EmberWarm.WithAlpha(FallenAlpha);
 
-            string outcome = entry.didAscend ? "Ascended" : "Fell";
+            string outcome = entry.didAscend ? "Ascended" : "Returned to the source";
             return new ChronicleNodeState
             {
                 NodeColor   = nodeColor,

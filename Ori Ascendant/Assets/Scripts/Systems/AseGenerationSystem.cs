@@ -106,13 +106,16 @@ namespace OriAscendant.Systems
                 activeCouncilSum = council.ActiveCouncilSum;
             }
 
+            double renownBonus = LineageRenown.ToBonus(_save.lineage.renown, _config.renownBonusCap);
+
             var inputs = new RateInputs(
                 _config.baseRate,
                 stageMultiplier,
                 pathMultiplier,
                 councilBonusModifier,
                 _save.lineage.permanentAseBonus,
-                activeCouncilSum);
+                activeCouncilSum,
+                renownBonus);
             BigNumber rate = RateCalculator.ComputeRate(in inputs);
 
             _save.SetAsePerSecond(rate);
