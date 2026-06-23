@@ -28,8 +28,9 @@ namespace OriAscendant.UI
         public static readonly Color TextSecondary = Hex(0xB9B7C8); // cool muted lilac-grey
 
         // ---- Ember (fallen ancestors): warm-dim dignity, NEVER grey, NEVER red-as-failure ----
-        public static readonly Color EmberWarm = Hex(0xD2742F);
-        public static readonly Color EmberDeep = Hex(0x7A2E1E);
+        public static readonly Color EmberWarm  = Hex(0xD2742F);
+        public static readonly Color EmberDeep  = Hex(0x7A2E1E);
+        public static readonly Color StormTint  = Hex(0x471F0A); // tribulation storm warm-amber (was a literal in TribulationAtmosphere)
 
         // ---- Path accents (used ONLY on path-relevant UI; never bleed across paths) ----
         // Ane — Igala earth, endurance
