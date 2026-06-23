@@ -130,6 +130,7 @@ namespace OriAscendant.Save
         public const int ChannelHint = 1;
         public const int AscendCeremony = 2;
         public const int FallCeremony = 4;
+        public const int HowToPlay = 8; // first-launch loop tutorial (Unit 4)
     }
 
     /// <summary>

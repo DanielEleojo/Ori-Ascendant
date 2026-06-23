@@ -250,5 +250,42 @@ namespace OriAscendant.UI
             float dx = (x - cxc) / rx, dy = (y - cyc) / ry;
             return dx * dx + dy * dy <= 1f;
         }
+
+        /// <summary>
+        /// Tileable low-contrast value-noise grain — paper-tooth / adire-cloth nod (ART_BIBLE §1).
+        /// A sparse lattice of pseudo-random offsets seeded from pixel coordinates: no Random,
+        /// no Mathf.PerlinNoise (needs a Unity context), pure hash math so it is headlessly
+        /// testable. The result is a seamless white/alpha tile composited at ~0.04 alpha — faint
+        /// tooth, never visible noise.
+        /// </summary>
+        public static Sprite BuildGrain(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat, // tileable
+                filterMode = FilterMode.Bilinear,
+            };
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                // Cheap value noise: two overlapping hash layers at different scales.
+                float n0 = Hash(x, y, 7);               // fine grain
+                float n1 = Hash(x / 2, y / 2, 13);     // coarser tooth
+                float v = (n0 * 0.65f + n1 * 0.35f);   // blend; result in [0,1]
+                tex.SetPixel(x, y, new Color(v, v, v, 1f));
+            }
+            tex.Apply();
+            // pixelsPerUnit = 2f → tile renders at size/2 canvas-pixels (64px tex → 32px tile).
+            // Image.Type.Tiled uses nativeSize = rect/ppu; 2f gives legible cloth-tooth grain. // ponytail:
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 2f);
+        }
+
+        // Fast integer hash → float [0,1]. Deterministic, no Unity API. // ponytail:
+        private static float Hash(int x, int y, int seed)
+        {
+            uint h = (uint)((x * 1619) ^ (y * 31337) ^ (seed * 6791));
+            h ^= h >> 17; h *= 0xBF324AB3u; h ^= h >> 13; h *= 0x9E3779B9u; h ^= h >> 16;
+            return (h & 0xFFFFu) / 65535f;
+        }
     }
 }

@@ -260,7 +260,7 @@ namespace OriAscendant.UI
                 _advanceGlow.color = _themeAccent.WithAlpha(a);
             }
 
-            // Waterline glow rides the rising fill front up the thread (Èwà thread).
+            // Tide-line rides the rising fill front — calm horizontal mark, subtle breath (Unit 4 B).
             if (_vesselWaterlineGlow != null && _vesselFillImage != null)
             {
                 float f = _vesselFillImage.fillAmount;
@@ -268,8 +268,14 @@ namespace OriAscendant.UI
                 var rt = _vesselWaterlineGlow.rectTransform;
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, yy);
                 rt.anchoredPosition = Vector2.zero;
-                float vis = (f > 0.015f && f < 0.995f) ? 1f : 0f;
-                _vesselWaterlineGlow.color = _themeAccent.WithAlpha(vis * (0.55f + 0.35f * pulse));
+                // Hidden at the very bottom (no fill) and very top (tribulation column takes over).
+                float vis = (f > 0.015f && f < 0.985f) ? 1f : 0f;
+                // Gentle alpha breath: WaterlinePulseMin..WaterlinePulseMax (gentler than before).
+                float breathAlpha = Mathf.Lerp(
+                    OpacitySpec.WaterlinePulseMin,
+                    OpacitySpec.WaterlinePulseMax,
+                    pulse); // pulse is 0..1 from main Update
+                _vesselWaterlineGlow.color = _themeAccent.WithAlpha(vis * breathAlpha);
             }
         }
 
@@ -375,22 +381,20 @@ namespace OriAscendant.UI
             grt.SetSiblingIndex(idx > 0 ? idx - 1 : 0);
         }
 
-        // Èwà restyle: spaced-caps "Àṣẹ" eyebrow above the hero numeral + hairline rule beneath.
+        // Positions the counter via MainScreenLayout tokens — single source for the
+        // eyebrow / number / hairline / rate stack (Unit 4 A; removes ad-hoc magic). // ponytail:
         private void AddCounterEyebrowAndRule(TMP_Text counter)
         {
             if (counter == null || counter.transform.parent == null) return;
 
-            // Èwà restyle: clean non-overlapping stack in the cramped ~84px CounterZone.
-            // The 52pt number bled into the eyebrow; pin it to a centred mid-band at a
-            // fitting size so the eyebrow above and the rule + rate below all clear it.
-            // Verified geometry: 38pt block ≈ 38px in the ~41px band (0.36–0.84), ~3px gaps.
+            // Pin the hero number to the designed MainScreenLayout band.
             var crt = counter.rectTransform;
-            crt.anchorMin = new Vector2(crt.anchorMin.x, 0.36f);
-            crt.anchorMax = new Vector2(crt.anchorMax.x, 0.84f);
+            crt.anchorMin = new Vector2(crt.anchorMin.x, MainScreenLayout.CounterNumberBottom);
+            crt.anchorMax = new Vector2(crt.anchorMax.x, MainScreenLayout.CounterNumberTop);
             counter.alignment = TextAlignmentOptions.Center;
-            counter.fontSize = 38f;
+            counter.fontSize = TypographicScale.Display; // 30pt — fits the 0.36–0.82 band cleanly
 
-            // 1. "Àṣẹ" eyebrow label — spaced caps, in the cleared space above the number.
+            // 1. "Àṣẹ" eyebrow label — spaced caps in the cleared band above the number.
             var go = new GameObject("AseEyebrow", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
             go.transform.SetParent(counter.transform.parent, false);
             var t = go.GetComponent<TMP_Text>();
@@ -400,20 +404,20 @@ namespace OriAscendant.UI
             var body = Resources.Load<TMP_FontAsset>(FontResourcePath);
             var chosen = disp != null ? disp : body;
             if (chosen != null) t.font = chosen; // guard: never assign a null TMP font
-            t.fontSize = 12f;
+            t.fontSize = TypographicScale.Caption; // 11pt spaced caps
             t.characterSpacing = 10f;
             t.alignment = TextAlignmentOptions.Center;
             t.color = Palette.TextSecondary;
             var rt = t.rectTransform;
-            rt.anchorMin = new Vector2(0.05f, 0.86f);
-            rt.anchorMax = new Vector2(0.95f, 1.00f);
+            rt.anchorMin = new Vector2(0.05f, MainScreenLayout.CounterEyebrowBottom);
+            rt.anchorMax = new Vector2(0.95f, MainScreenLayout.CounterEyebrowTop);
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            // 2. Hairline rule beneath the number — a crisp gold line between number and rate.
+            // 2. Hairline rule at the designed separator Y — between number and rate.
             var rule = UiBuilder.NewChildImage(counter.transform.parent, "CounterHairline");
-            rule.color = Palette.AseGold.WithAlpha(0.45f);
+            rule.color = Palette.AseGold.WithAlpha(OpacitySpec.HairlineStrong);
             var rrt = rule.rectTransform;
-            rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 0.33f); // in the gap below the number
+            rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, MainScreenLayout.CounterHairlineY);
             rrt.pivot = new Vector2(0.5f, 0.5f);
             rrt.sizeDelta = new Vector2(60f, 1.25f);
             rrt.anchoredPosition = Vector2.zero;
@@ -459,17 +463,26 @@ namespace OriAscendant.UI
             dfLayer.color = Color.clear;
             _deepFieldLayer = dfLayer.rectTransform;
 
+            // Adire-grain overlay: faint paper-tooth over the sky, below motes and UI (Unit 4 C).
+            // One full-screen tile at ~0.04 alpha — reads as cloth tooth, never as visible noise.
+            var grain = UiBuilder.NewStretchImage("AdireGrain", canvas.transform);
+            grain.sprite = ProceduralSprites.BuildGrain(64);
+            grain.color = Color.white.WithAlpha(0.04f);
+            grain.raycastTarget = false;
+            grain.type = Image.Type.Tiled; // seamless repeat over the full screen
+            grain.rectTransform.SetSiblingIndex(2); // above path overlay, below motes
+
             // Drifting Àṣẹ motes: soft gold points above the sky, below the UI.
             var moteLayer = UiBuilder.NewStretchImage("MoteLayer", canvas.transform);
             moteLayer.color = Color.clear;
-            moteLayer.rectTransform.SetSiblingIndex(2);
+            moteLayer.rectTransform.SetSiblingIndex(3);
 
             // Wave 3 — storm-sky tint: a warm amber-dark overlay, transparent until
             // the tribulation fraction exceeds 50% at the final stage.
             _stormSkyTint = UiBuilder.NewStretchImage("StormSkyTint", canvas.transform);
             _stormSkyTint.sprite = _dotSprite; // soft radial falloff; stretched full-screen
             _stormSkyTint.color = Color.clear; // RefreshTribulationAtmosphere() drives this
-            _stormSkyTint.rectTransform.SetSiblingIndex(3); // above motes, below all UI zones
+            _stormSkyTint.rectTransform.SetSiblingIndex(4); // above grain+motes, below all UI zones
 
             // Wave 3 — edge vignette: the skin takes over the SceneBuilder-built
             // StormVignette Image so TribulationAtmosphere.VignetteAlpha() drives
@@ -605,15 +618,16 @@ namespace OriAscendant.UI
             nrt.anchoredPosition = Vector2.zero;
             _genNode.color = Palette.AseCore;
 
-            // Waterline glow: horizontal soft-dot at the fill front, rides upward with the fill.
-            // Replaces the old bar's leading-edge glow (issue #28). Positioned via anchor-Y each frame.
+            // Tide-line: a thin calm horizontal mark at the Àṣẹ fill front on the silhouette.
+            // Reads as "your body filling with light toward the next stage". Subtle alpha breath
+            // via OpacitySpec.WaterlinePulse* keeps it alive without being assertive (Unit 4 B).
             _vesselWaterlineGlow = UiBuilder.NewChildImage(srt, "VesselWaterlineGlow");
-            _vesselWaterlineGlow.sprite = _dotSprite;
             var wrt = _vesselWaterlineGlow.rectTransform;
             wrt.anchorMin = wrt.anchorMax = new Vector2(0.5f, 0.16f);
             wrt.pivot = new Vector2(0.5f, 0.5f);
-            wrt.sizeDelta = new Vector2(34f, 18f); // Èwà thread: small glow riding the rising front
+            wrt.sizeDelta = new Vector2(22f, 1.5f); // thin horizontal line — calm, not a band
             _vesselWaterlineGlow.color = Palette.AseCore.WithAlpha(0f);
+            _vesselWaterlineGlow.raycastTarget = false;
 
             // Overflow column: rises above the vessel at the final stage as the
             // Crossing gauge — replaces the removed bar for tribulation (issue #33, PRD W2).
