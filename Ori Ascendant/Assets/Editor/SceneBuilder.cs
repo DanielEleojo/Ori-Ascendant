@@ -43,13 +43,14 @@ namespace OriAscendant.EditorTools
         private const string TmpEssentialsPackage =
             "Packages/com.unity.ugui/Package Resources/TMP Essential Resources.unitypackage";
 
-        // Palette (placeholder art direction: night-sky neutrals + àṣẹ gold).
-        private static readonly Color Bg = Hex("#0E1116");
-        private static readonly Color Panel = Hex("#1A1F29");
-        private static readonly Color PanelLine = Hex("#2A3140");
-        private static readonly Color Gold = Hex("#D9A441");
-        private static readonly Color Text = Hex("#ECE6D8");
-        private static readonly Color TextDim = Hex("#9AA3B2");
+        // Palette aliases — single source of truth is Palette.cs (ADR-0007 Unit 2).
+        // ponytail: local names kept so no downstream churn is needed.
+        private static readonly Color Bg       = Palette.IndigoBase;
+        private static readonly Color Panel    = Palette.IndigoLift;
+        private static readonly Color PanelLine = Palette.DuskViolet;
+        private static readonly Color Gold     = Palette.AseGold;
+        private static readonly Color Text     = Palette.TextPrimary;
+        private static readonly Color TextDim  = Palette.TextSecondary;
 
         // ---- GAMEPLAY §2.2 stage table (playtest-locked; /Resources/StageConfigs/ rule) ----
         private struct StageRow
@@ -664,32 +665,69 @@ namespace OriAscendant.EditorTools
             ojaNavBtnRt.anchoredPosition = new Vector2(-68f, 0f);
 
             // Zone 2 — counter on its own nested canvas (1Hz rebuild isolation).
+            // ponytail: clean non-overlapping stack using MainScreenLayout constants.
             var counterZone = Zone(root, "CounterZone", 0.10f, 0.20f);
             var counterCanvasGo = new GameObject("CounterCanvas", typeof(RectTransform));
             var counterCanvasRt = (RectTransform)counterCanvasGo.transform;
             counterCanvasRt.SetParent(counterZone, false);
             Stretch(counterCanvasRt);
             counterCanvasGo.AddComponent<Canvas>();
-            var aseCounter = MakeText(counterCanvasRt, "AseCounterText", "0", 52f, TextAlignmentOptions.Bottom, Text);
-            SetBand(aseCounter.rectTransform, 0.30f, 1.00f);
-            var rateText = MakeText(counterCanvasRt, "RateText", "+0 Àṣẹ/s", 17f, TextAlignmentOptions.Top, Gold);
-            SetBand(rateText.rectTransform, 0.00f, 0.30f);
+
+            // Number + rate only. The "ÀṢẸ" eyebrow and hairline rule are drawn by
+            // MainScreenSkin at runtime (single source — a static copy here would
+            // double them). The number band reserves the eyebrow space above.
+            var aseCounter = MakeText(counterCanvasRt, "AseCounterText", "0",
+                TypographicScale.Display, TextAlignmentOptions.Center, Text);
+            SetBand(aseCounter.rectTransform,
+                MainScreenLayout.CounterNumberBottom, MainScreenLayout.CounterNumberTop);
+
+            var rateText = MakeText(counterCanvasRt, "RateText", "+0 Àṣẹ/s",
+                TypographicScale.BodySm, TextAlignmentOptions.Center, Gold);
+            SetBand(rateText.rectTransform,
+                MainScreenLayout.CounterRateBottom, MainScreenLayout.CounterRateTop);
 
             // Zone 3 — identity line + path badge + Ori badge + steadfastness.
+            // ponytail: three non-overlapping horizontal lanes; SteadfastnessText on a
+            // distinct centre-bottom sub-lane so it never shares inset+align with OriBadge.
             var identity = Zone(root, "IdentityZone", 0.20f, 0.24f);
-            var stageText = MakeText(identity, "StageText", "Stage 1", 20f, TextAlignmentOptions.Center, Text);
-            Stretch(stageText.rectTransform);
-            var pathBadge = MakeText(identity, "PathBadge", "", 14f, TextAlignmentOptions.MidlineRight, Gold);
-            Inset(pathBadge.rectTransform, right: 20f);
+
+            // StageText — centre lane (30–70 % width), H2, so edge badges never clip it.
+            var stageText = MakeText(identity, "StageText", "Stage 1",
+                TypographicScale.H2, TextAlignmentOptions.Center, Text);
+            stageText.rectTransform.anchorMin = new Vector2(MainScreenLayout.IdentityStageCentreXMin, 0f);
+            stageText.rectTransform.anchorMax = new Vector2(MainScreenLayout.IdentityStageCentreXMax, 1f);
+            stageText.rectTransform.offsetMin = Vector2.zero;
+            stageText.rectTransform.offsetMax = Vector2.zero;
+
+            // PathBadge — right lane (IdentityPathBadgeXMin → 1).
+            var pathBadge = MakeText(identity, "PathBadge", "",
+                TypographicScale.Label, TextAlignmentOptions.MidlineRight, Gold);
+            pathBadge.rectTransform.anchorMin = new Vector2(MainScreenLayout.IdentityPathBadgeXMin, 0f);
+            pathBadge.rectTransform.anchorMax = new Vector2(1f, 1f);
+            pathBadge.rectTransform.offsetMin = Vector2.zero;
+            pathBadge.rectTransform.offsetMax = new Vector2(-SpacingScale.Md, 0f);
             pathBadge.gameObject.SetActive(false); // shown once a path is chosen
-            var oriBadge = MakeText(identity, "OriBadge", "", 14f, TextAlignmentOptions.MidlineLeft, Gold);
-            Inset(oriBadge.rectTransform, left: 20f);
+
+            // OriBadge — left lane (0 → IdentityOriBadgeXMax).
+            var oriBadge = MakeText(identity, "OriBadge", "",
+                TypographicScale.Label, TextAlignmentOptions.MidlineLeft, Gold);
+            oriBadge.rectTransform.anchorMin = new Vector2(0f, 0f);
+            oriBadge.rectTransform.anchorMax = new Vector2(MainScreenLayout.IdentityOriBadgeXMax, 1f);
+            oriBadge.rectTransform.offsetMin = new Vector2(SpacingScale.Md, 0f);
+            oriBadge.rectTransform.offsetMax = Vector2.zero;
             oriBadge.gameObject.SetActive(false); // shown once an Ori is vowed
-            // Steadfastness tally (Dynasty PRD Phase 1, slice 2a): hidden until
-            // the first crossroads has been resolved (oriTrials > 0).
-            var steadfastnessText = MakeText(identity, "SteadfastnessText", "", 12f,
-                TextAlignmentOptions.MidlineLeft, TextDim);
-            Inset(steadfastnessText.rectTransform, left: 20f);
+
+            // SteadfastnessText — centre-bottom sub-lane; Caption, distinct from OriBadge lane.
+            // Hidden until the first crossroads has been resolved (oriTrials > 0).
+            var steadfastnessText = MakeText(identity, "SteadfastnessText", "",
+                TypographicScale.Caption, TextAlignmentOptions.Center, TextDim);
+            steadfastnessText.rectTransform.anchorMin =
+                new Vector2(MainScreenLayout.IdentityStageCentreXMin, 0f);
+            steadfastnessText.rectTransform.anchorMax =
+                new Vector2(MainScreenLayout.IdentityStageCentreXMax,
+                            MainScreenLayout.IdentitySteadfastnessTop);
+            steadfastnessText.rectTransform.offsetMin = Vector2.zero;
+            steadfastnessText.rectTransform.offsetMax = Vector2.zero;
             steadfastnessText.gameObject.SetActive(false);
 
             // Zone 4 — portrait = the channel-tap target (GAMEPLAY §5.3).
@@ -761,7 +799,8 @@ namespace OriAscendant.EditorTools
             var pathRootRt = (RectTransform)pathRoot.transform;
             pathRootRt.SetParent(pathControllerRt, false);
             Stretch(pathRootRt);
-            var pathDim = MakeImage(pathRootRt, "Dim", new Color(0f, 0f, 0f, 0.75f));
+            var pathDim = MakeImage(pathRootRt, "Dim",
+                new Color(0f, 0f, 0f, OpacitySpec.Scrim)); // ponytail: OpacitySpec.Scrim
             Stretch(pathDim.rectTransform);
             pathDim.raycastTarget = true;
 
@@ -772,21 +811,28 @@ namespace OriAscendant.EditorTools
             pathPanelRt.offsetMin = Vector2.zero;
             pathPanelRt.offsetMax = Vector2.zero;
 
-            var pathTitle = MakeText(pathPanelRt, "Title", "The initiate must choose a Path", 20f,
-                TextAlignmentOptions.Center, Gold);
-            SetBand(pathTitle.rectTransform, 0.91f, 0.99f);
+            // ponytail: modal anatomy per ADR-0007 — H1 title, Body prompt gap,
+            // SpacingScale gaps, confirm pill band from MainScreenLayout.
+            var pathTitle = MakeText(pathPanelRt, "Title", "The initiate must choose a Path",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
+            SetBand(pathTitle.rectTransform, MainScreenLayout.ModalTitleBottom, MainScreenLayout.ModalTitleTop);
 
             var cards = new PathCardView[3];
-            float[][] cardBands = { new[] { 0.66f, 0.89f }, new[] { 0.41f, 0.64f }, new[] { 0.16f, 0.39f } };
+            float[][] cardBands =
+            {
+                new[] { MainScreenLayout.ModalCard0Bottom, MainScreenLayout.ModalCard0Top },
+                new[] { MainScreenLayout.ModalCard1Bottom, MainScreenLayout.ModalCard1Top },
+                new[] { MainScreenLayout.ModalCard2Bottom, MainScreenLayout.ModalCard2Top },
+            };
             for (int i = 0; i < 3; i++)
             {
                 cards[i] = BuildPathCard(pathPanelRt, $"PathCard{i}", cardBands[i][0], cardBands[i][1]);
             }
 
-            var confirm = MakeButton(pathPanelRt, "ConfirmButton", "Choose a Path", Gold, 18f);
+            var confirm = MakeButton(pathPanelRt, "ConfirmButton", "Choose a Path", Gold, TypographicScale.H2);
             var confirmRt = (RectTransform)confirm.transform;
-            confirmRt.anchorMin = new Vector2(0.10f, 0.03f);
-            confirmRt.anchorMax = new Vector2(0.90f, 0.13f);
+            confirmRt.anchorMin = new Vector2(0.10f, MainScreenLayout.ModalConfirmBottom);
+            confirmRt.anchorMax = new Vector2(0.90f, MainScreenLayout.ModalConfirmTop);
             confirmRt.offsetMin = Vector2.zero;
             confirmRt.offsetMax = Vector2.zero;
             confirm.interactable = false;
@@ -828,7 +874,8 @@ namespace OriAscendant.EditorTools
             var modalRootRt = (RectTransform)modalRoot.transform;
             modalRootRt.SetParent(modalControllerRt, false);
             Stretch(modalRootRt);
-            var dim = MakeImage(modalRootRt, "Dim", new Color(0f, 0f, 0f, 0.65f));
+            // ponytail: consistent OpacitySpec.Scrim; token text sizes.
+            var dim = MakeImage(modalRootRt, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(dim.rectTransform);
             dim.raycastTarget = true;
 
@@ -839,18 +886,23 @@ namespace OriAscendant.EditorTools
             cardRt.offsetMin = Vector2.zero;
             cardRt.offsetMax = Vector2.zero;
 
-            var wbHeader = MakeText(cardRt, "HeaderText", "Your Orí kept watch", 20f, TextAlignmentOptions.Center, Gold);
+            var wbHeader = MakeText(cardRt, "HeaderText", "Your Orí kept watch",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
             SetBand(wbHeader.rectTransform, 0.80f, 0.97f);
-            var timeAway = MakeText(cardRt, "TimeAwayText", "Away —", 15f, TextAlignmentOptions.Center, TextDim);
+            var timeAway = MakeText(cardRt, "TimeAwayText", "Away —",
+                TypographicScale.Body, TextAlignmentOptions.Center, TextDim);
             SetBand(timeAway.rectTransform, 0.66f, 0.80f);
-            var earned = MakeText(cardRt, "EarnedText", "+0 Àṣẹ", 32f, TextAlignmentOptions.Center, Text);
+            var earned = MakeText(cardRt, "EarnedText", "+0 Àṣẹ",
+                TypographicScale.H1, TextAlignmentOptions.Center, Text);
             SetBand(earned.rectTransform, 0.44f, 0.66f);
-            var bonusLine = MakeText(cardRt, "BonusLineText", "", 14f, TextAlignmentOptions.Center, Gold);
+            var bonusLine = MakeText(cardRt, "BonusLineText", "",
+                TypographicScale.BodySm, TextAlignmentOptions.Center, Gold);
             SetBand(bonusLine.rectTransform, 0.33f, 0.44f);
             bonusLine.gameObject.SetActive(false);
-            var rateContext = MakeText(cardRt, "RateContextText", "at 0 Àṣẹ/s", 14f, TextAlignmentOptions.Center, TextDim);
+            var rateContext = MakeText(cardRt, "RateContextText", "at 0 Àṣẹ/s",
+                TypographicScale.BodySm, TextAlignmentOptions.Center, TextDim);
             SetBand(rateContext.rectTransform, 0.22f, 0.33f);
-            var collect = MakeButton(cardRt, "CollectButton", "Collect", Gold, 18f);
+            var collect = MakeButton(cardRt, "CollectButton", "Collect", Gold, TypographicScale.H2);
             var collectRt = (RectTransform)collect.transform;
             collectRt.anchorMin = new Vector2(0.10f, 0.04f);
             collectRt.anchorMax = new Vector2(0.90f, 0.19f);
@@ -942,15 +994,16 @@ namespace OriAscendant.EditorTools
             var button = cardBg.gameObject.AddComponent<Button>();
             button.targetGraphic = cardBg;
 
-            var nameText = MakeText(inner, "Name", "", 17f, TextAlignmentOptions.TopLeft, Text);
+            // ponytail: token sizes — Body for name, Caption for tradition, Label for identity.
+            var nameText = MakeText(inner, "Name", "", TypographicScale.Body, TextAlignmentOptions.TopLeft, Text);
             SetBand(nameText.rectTransform, 0.62f, 0.95f);
-            InsetX(nameText.rectTransform, 14f);
-            var tradition = MakeText(inner, "Tradition", "", 11f, TextAlignmentOptions.TopLeft, TextDim);
+            InsetX(nameText.rectTransform, SpacingScale.Sm);
+            var tradition = MakeText(inner, "Tradition", "", TypographicScale.Caption, TextAlignmentOptions.TopLeft, TextDim);
             SetBand(tradition.rectTransform, 0.44f, 0.62f);
-            InsetX(tradition.rectTransform, 14f);
-            var identityText = MakeText(inner, "Identity", "", 13f, TextAlignmentOptions.TopLeft, Gold);
+            InsetX(tradition.rectTransform, SpacingScale.Sm);
+            var identityText = MakeText(inner, "Identity", "", TypographicScale.Label, TextAlignmentOptions.TopLeft, Gold);
             SetBand(identityText.rectTransform, 0.06f, 0.44f);
-            InsetX(identityText.rectTransform, 14f);
+            InsetX(identityText.rectTransform, SpacingScale.Sm);
             identityText.enableWordWrapping = true;
 
             var view = cardBg.gameObject.AddComponent<PathCardView>();
@@ -973,7 +1026,8 @@ namespace OriAscendant.EditorTools
             var oriRootRt = (RectTransform)oriRoot.transform;
             oriRootRt.SetParent(controllerRt, false);
             Stretch(oriRootRt);
-            var dim = MakeImage(oriRootRt, "Dim", new Color(0f, 0f, 0f, 0.75f));
+            // ponytail: OpacitySpec.Scrim + modal anatomy (ADR-0007).
+            var dim = MakeImage(oriRootRt, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(dim.rectTransform);
             dim.raycastTarget = true;
 
@@ -984,21 +1038,26 @@ namespace OriAscendant.EditorTools
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
-            var title = MakeText(panelRt, "Title", "Àkùnlẹ̀yàn — vow your Ori", 20f,
-                TextAlignmentOptions.Center, Gold);
-            SetBand(title.rectTransform, 0.91f, 0.99f);
+            var title = MakeText(panelRt, "Title", "Àkùnlẹ̀yàn — vow your Ori",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, MainScreenLayout.ModalTitleBottom, MainScreenLayout.ModalTitleTop);
 
             var cards = new OriCardView[3];
-            float[][] cardBands = { new[] { 0.66f, 0.89f }, new[] { 0.41f, 0.64f }, new[] { 0.16f, 0.39f } };
+            float[][] cardBands =
+            {
+                new[] { MainScreenLayout.ModalCard0Bottom, MainScreenLayout.ModalCard0Top },
+                new[] { MainScreenLayout.ModalCard1Bottom, MainScreenLayout.ModalCard1Top },
+                new[] { MainScreenLayout.ModalCard2Bottom, MainScreenLayout.ModalCard2Top },
+            };
             for (int i = 0; i < 3; i++)
             {
                 cards[i] = BuildOriCard(panelRt, $"OriCard{i}", cardBands[i][0], cardBands[i][1]);
             }
 
-            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose an Ori", Gold, 18f);
+            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose an Ori", Gold, TypographicScale.H2);
             var confirmRt = (RectTransform)confirm.transform;
-            confirmRt.anchorMin = new Vector2(0.10f, 0.03f);
-            confirmRt.anchorMax = new Vector2(0.90f, 0.13f);
+            confirmRt.anchorMin = new Vector2(0.10f, MainScreenLayout.ModalConfirmBottom);
+            confirmRt.anchorMax = new Vector2(0.90f, MainScreenLayout.ModalConfirmTop);
             confirmRt.offsetMin = Vector2.zero;
             confirmRt.offsetMax = Vector2.zero;
             confirm.interactable = false;
@@ -1026,12 +1085,13 @@ namespace OriAscendant.EditorTools
             var button = cardBg.gameObject.AddComponent<Button>();
             button.targetGraphic = cardBg;
 
-            var nameText = MakeText(inner, "Name", "", 17f, TextAlignmentOptions.TopLeft, Text);
+            // ponytail: token sizes matching PathCard voice.
+            var nameText = MakeText(inner, "Name", "", TypographicScale.Body, TextAlignmentOptions.TopLeft, Text);
             SetBand(nameText.rectTransform, 0.62f, 0.95f);
-            InsetX(nameText.rectTransform, 14f);
-            var vowText = MakeText(inner, "Vow", "", 13f, TextAlignmentOptions.TopLeft, Gold);
+            InsetX(nameText.rectTransform, SpacingScale.Sm);
+            var vowText = MakeText(inner, "Vow", "", TypographicScale.Label, TextAlignmentOptions.TopLeft, Gold);
             SetBand(vowText.rectTransform, 0.06f, 0.60f);
-            InsetX(vowText.rectTransform, 14f);
+            InsetX(vowText.rectTransform, SpacingScale.Sm);
             vowText.enableWordWrapping = true;
 
             var view = cardBg.gameObject.AddComponent<OriCardView>();
@@ -1056,7 +1116,8 @@ namespace OriAscendant.EditorTools
             var crossroadsRootRt = (RectTransform)crossroadsRoot.transform;
             crossroadsRootRt.SetParent(controllerRt, false);
             Stretch(crossroadsRootRt);
-            var dim = MakeImage(crossroadsRootRt, "Dim", new Color(0f, 0f, 0f, 0.80f));
+            // ponytail: OpacitySpec.Scrim + modal anatomy bands (ADR-0007).
+            var dim = MakeImage(crossroadsRootRt, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(dim.rectTransform);
             dim.raycastTarget = true;
 
@@ -1067,13 +1128,14 @@ namespace OriAscendant.EditorTools
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
-            var title = MakeText(panelRt, "Title", "A crossroads", 18f,
-                TextAlignmentOptions.Center, Gold);
-            SetBand(title.rectTransform, 0.92f, 0.99f);
+            var title = MakeText(panelRt, "Title", "A crossroads",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
+            SetBand(title.rectTransform, MainScreenLayout.ModalTitleBottom, MainScreenLayout.ModalTitleTop);
 
-            var prompt = MakeText(panelRt, "Prompt", "", 15f, TextAlignmentOptions.Center, Text);
-            SetBand(prompt.rectTransform, 0.75f, 0.92f);
-            InsetX(prompt.rectTransform, 14f);
+            var prompt = MakeText(panelRt, "Prompt", "", TypographicScale.Body, TextAlignmentOptions.Center, Text);
+            SetBand(prompt.rectTransform,
+                MainScreenLayout.CrossroadsPromptBottom, MainScreenLayout.CrossroadsPromptTop);
+            InsetX(prompt.rectTransform, SpacingScale.Sm);
             prompt.enableWordWrapping = true;
 
             // 3 option slots (seed deck uses up to 3 options per card).
@@ -1081,9 +1143,9 @@ namespace OriAscendant.EditorTools
             var optionViews = new CrossroadsOptionView[maxOptions];
             float[][] optionBands =
             {
-                new[] { 0.56f, 0.73f },
-                new[] { 0.37f, 0.54f },
-                new[] { 0.18f, 0.35f },
+                new[] { MainScreenLayout.CrossroadsOption0Bottom, MainScreenLayout.CrossroadsOption0Top },
+                new[] { MainScreenLayout.CrossroadsOption1Bottom, MainScreenLayout.CrossroadsOption1Top },
+                new[] { MainScreenLayout.CrossroadsOption2Bottom, MainScreenLayout.CrossroadsOption2Top },
             };
             for (int i = 0; i < maxOptions; i++)
             {
@@ -1091,10 +1153,11 @@ namespace OriAscendant.EditorTools
                     optionBands[i][0], optionBands[i][1]);
             }
 
-            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose your path", Gold, 16f);
+            var confirm = MakeButton(panelRt, "ConfirmButton", "Choose your path",
+                Gold, TypographicScale.Body);
             var confirmRt = (RectTransform)confirm.transform;
-            confirmRt.anchorMin = new Vector2(0.10f, 0.03f);
-            confirmRt.anchorMax = new Vector2(0.90f, 0.13f);
+            confirmRt.anchorMin = new Vector2(0.10f, MainScreenLayout.CrossroadsConfirmBottom);
+            confirmRt.anchorMax = new Vector2(0.90f, MainScreenLayout.CrossroadsConfirmTop);
             confirmRt.offsetMin = Vector2.zero;
             confirmRt.offsetMax = Vector2.zero;
             confirm.interactable = false;
@@ -1123,9 +1186,10 @@ namespace OriAscendant.EditorTools
             var button = cardBg.gameObject.AddComponent<Button>();
             button.targetGraphic = cardBg;
 
-            var optionText = MakeText(inner, "OptionText", "", 14f, TextAlignmentOptions.MidlineLeft, Text);
+            // ponytail: BodySm for option text — readable without competing with prompt.
+            var optionText = MakeText(inner, "OptionText", "", TypographicScale.BodySm, TextAlignmentOptions.MidlineLeft, Text);
             SetBand(optionText.rectTransform, 0.10f, 0.90f);
-            InsetX(optionText.rectTransform, 14f);
+            InsetX(optionText.rectTransform, SpacingScale.Sm);
             optionText.enableWordWrapping = true;
 
             var view = cardBg.gameObject.AddComponent<CrossroadsOptionView>();
@@ -1519,7 +1583,8 @@ namespace OriAscendant.EditorTools
             Stretch(controllerRt);
 
             var settingsRoot = NewStretched(controllerRt, "SettingsRoot");
-            var dim = MakeImage(settingsRoot, "Dim", new Color(0f, 0f, 0f, 0.8f));
+            // ponytail: OpacitySpec.Scrim; token text sizes for Settings panel.
+            var dim = MakeImage(settingsRoot, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(dim.rectTransform);
             dim.raycastTarget = true;
             var panel = MakeImage(settingsRoot, "Panel", Panel);
@@ -1529,23 +1594,26 @@ namespace OriAscendant.EditorTools
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
-            var title = MakeText(panelRt, "Title", "Settings", 20f, TextAlignmentOptions.Center, Gold);
+            var title = MakeText(panelRt, "Title", "Settings",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
             SetBand(title.rectTransform, 0.90f, 0.99f);
             var bgmToggle = MakeToggle(panelRt, "BgmToggle", "Music", 0.795f, 0.875f);
             var sfxToggle = MakeToggle(panelRt, "SfxToggle", "Sound effects", 0.705f, 0.785f);
             var hapticsToggle = MakeToggle(panelRt, "HapticsToggle", "Haptics", 0.615f, 0.695f);
             var reduceMotionToggle = MakeToggle(panelRt, "ReduceMotionToggle", "Reduce motion", 0.525f, 0.605f);
-            var cloudStatus = MakeText(panelRt, "CloudStatus", "Local save only", 13f, TextAlignmentOptions.Center, TextDim);
+            var cloudStatus = MakeText(panelRt, "CloudStatus", "Local save only",
+                TypographicScale.Label, TextAlignmentOptions.Center, TextDim);
             SetBand(cloudStatus.rectTransform, 0.45f, 0.51f);
-            var about = MakeButton(panelRt, "AboutButton", "About & Glossary", PanelLine, 15f);
+            var about = MakeButton(panelRt, "AboutButton", "About & Glossary", PanelLine, TypographicScale.Body);
             var aboutRt = (RectTransform)about.transform;
             aboutRt.anchorMin = new Vector2(0.12f, 0.34f);
             aboutRt.anchorMax = new Vector2(0.88f, 0.43f);
             aboutRt.offsetMin = Vector2.zero;
             aboutRt.offsetMax = Vector2.zero;
-            var version = MakeText(panelRt, "Version", "v0.1.0", 12f, TextAlignmentOptions.Center, TextDim);
+            var version = MakeText(panelRt, "Version", "v0.1.0",
+                TypographicScale.Caption, TextAlignmentOptions.Center, TextDim);
             SetBand(version.rectTransform, 0.27f, 0.33f);
-            var close = MakeButton(panelRt, "CloseButton", "Close", Gold, 16f);
+            var close = MakeButton(panelRt, "CloseButton", "Close", Gold, TypographicScale.Body);
             var closeRt = (RectTransform)close.transform;
             closeRt.anchorMin = new Vector2(0.20f, 0.05f);
             closeRt.anchorMax = new Vector2(0.80f, 0.15f);
@@ -1645,7 +1713,8 @@ namespace OriAscendant.EditorTools
 
             // ---- challenge sheet ----
             var challengeRoot = NewStretched(controllerRt, "ChallengeRoot");
-            var challengeDim = MakeImage(challengeRoot, "Dim", new Color(0f, 0f, 0f, 0.80f));
+            // ponytail: OpacitySpec.Scrim; token text sizes.
+            var challengeDim = MakeImage(challengeRoot, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(challengeDim.rectTransform);
             challengeDim.raycastTarget = true;
 
@@ -1656,17 +1725,20 @@ namespace OriAscendant.EditorTools
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
-            var title = MakeText(panelRt, "Title", "A rival House approaches", 18f,
-                TextAlignmentOptions.Center, Gold);
+            var title = MakeText(panelRt, "Title", "A rival House approaches",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
             SetBand(title.rectTransform, 0.90f, 0.99f);
 
-            var houseName = MakeText(panelRt, "HouseNameText", "", 22f, TextAlignmentOptions.Center, Text);
+            var houseName = MakeText(panelRt, "HouseNameText", "",
+                TypographicScale.H1, TextAlignmentOptions.Center, Text);
             SetBand(houseName.rectTransform, 0.79f, 0.90f);
 
-            var housePath = MakeText(panelRt, "HousePathText", "", 14f, TextAlignmentOptions.Center, Gold);
+            var housePath = MakeText(panelRt, "HousePathText", "",
+                TypographicScale.BodySm, TextAlignmentOptions.Center, Gold);
             SetBand(housePath.rectTransform, 0.71f, 0.79f);
 
-            var housePower = MakeText(panelRt, "HousePowerText", "", 13f, TextAlignmentOptions.Center, TextDim);
+            var housePower = MakeText(panelRt, "HousePowerText", "",
+                TypographicScale.Label, TextAlignmentOptions.Center, TextDim);
             SetBand(housePower.rectTransform, 0.63f, 0.71f);
 
             // Stance buttons — three bands with their odds label.
@@ -1801,7 +1873,8 @@ namespace OriAscendant.EditorTools
             Stretch(controllerRt);
 
             var ojaRoot = NewStretched(controllerRt, "OjaRoot");
-            var dim = MakeImage(ojaRoot, "Dim", new Color(0f, 0f, 0f, 0.8f));
+            // ponytail: OpacitySpec.Scrim; token text sizes.
+            var dim = MakeImage(ojaRoot, "Dim", new Color(0f, 0f, 0f, OpacitySpec.Scrim));
             Stretch(dim.rectTransform);
             dim.raycastTarget = true;
             var panel = MakeImage(ojaRoot, "Panel", Panel);
@@ -1811,16 +1884,20 @@ namespace OriAscendant.EditorTools
             panelRt.offsetMin = Vector2.zero;
             panelRt.offsetMax = Vector2.zero;
 
-            var title = MakeText(panelRt, "Title", "Ọjà — The Marketplace", 20f, TextAlignmentOptions.Center, Gold);
+            var title = MakeText(panelRt, "Title", "Ọjà — The Marketplace",
+                TypographicScale.H1, TextAlignmentOptions.Center, Gold);
             SetBand(title.rectTransform, 0.90f, 0.99f);
 
-            var rankNumber = MakeText(panelRt, "RankNumberText", "—", 48f, TextAlignmentOptions.Center, Text);
+            var rankNumber = MakeText(panelRt, "RankNumberText", "—",
+                TypographicScale.Hero, TextAlignmentOptions.Center, Text);
             SetBand(rankNumber.rectTransform, 0.68f, 0.88f);
 
-            var rankOrdinal = MakeText(panelRt, "RankOrdinalText", "", 16f, TextAlignmentOptions.Center, Text);
+            var rankOrdinal = MakeText(panelRt, "RankOrdinalText", "",
+                TypographicScale.Body, TextAlignmentOptions.Center, Text);
             SetBand(rankOrdinal.rectTransform, 0.57f, 0.67f);
 
-            var renownValue = MakeText(panelRt, "RenownValueText", "", 15f, TextAlignmentOptions.Center, TextDim);
+            var renownValue = MakeText(panelRt, "RenownValueText", "",
+                TypographicScale.Body, TextAlignmentOptions.Center, TextDim);
             SetBand(renownValue.rectTransform, 0.47f, 0.57f);
 
             var progressBg = MakeImage(panelRt, "ProgressBg", PanelLine);
@@ -1834,10 +1911,11 @@ namespace OriAscendant.EditorTools
             progressFill.fillAmount = 0f;
             progressFill.sprite = WhiteSprite();
 
-            var nextRankLine = MakeText(panelRt, "NextRankLine", "", 13f, TextAlignmentOptions.Center, TextDim);
+            var nextRankLine = MakeText(panelRt, "NextRankLine", "",
+                TypographicScale.Label, TextAlignmentOptions.Center, TextDim);
             SetBand(nextRankLine.rectTransform, 0.28f, 0.37f);
 
-            var close = MakeButton(panelRt, "CloseButton", "Close", Gold, 16f);
+            var close = MakeButton(panelRt, "CloseButton", "Close", Gold, TypographicScale.Body);
             var closeRt = (RectTransform)close.transform;
             closeRt.anchorMin = new Vector2(0.20f, 0.05f);
             closeRt.anchorMax = new Vector2(0.80f, 0.15f);
@@ -1877,7 +1955,8 @@ namespace OriAscendant.EditorTools
             check.rectTransform.offsetMin = new Vector2(6f, 6f);
             check.rectTransform.offsetMax = new Vector2(-6f, -6f);
 
-            var lbl = MakeText(rt, "Label", label, 15f, TextAlignmentOptions.MidlineLeft, Text);
+            // ponytail: Body size for toggle labels.
+            var lbl = MakeText(rt, "Label", label, TypographicScale.Body, TextAlignmentOptions.MidlineLeft, Text);
             Stretch(lbl.rectTransform);
             lbl.rectTransform.offsetMin = new Vector2(60f, 0f);
 
@@ -2045,6 +2124,8 @@ namespace OriAscendant.EditorTools
             return AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
         }
 
+        // ponytail: Hex() no longer used for palette consts (replaced by Palette.* aliases above).
+        // Kept for any future one-off colour needs; removing it would be churn with no gain.
         private static Color Hex(string hex)
         {
             ColorUtility.TryParseHtmlString(hex, out Color color);
