@@ -7,9 +7,10 @@ namespace OriAscendant.UI
 {
     /// <summary>
     /// Procedural cold-open launch beat (issue #32, CONTEXT.md "Cold open").
-    /// Shows the silhouette kindling from darkness, the framing proverb, and a
-    /// single tap-to-enter before the main screen is visible. Skippable at any
-    /// point. Honours Reduce Motion (plain alpha fade instead of the kindling arc).
+    /// Shows the silhouette kindling from darkness, the game title "Ori Ascendant"
+    /// (display/serif voice), the framing proverb, and a single tap-to-enter before
+    /// the main screen is visible. Skippable at any point.
+    /// Honours Reduce Motion (plain alpha fade instead of the kindling arc).
     ///
     /// Bootstraps via RuntimeInitializeOnLoadMethod — no scene wiring required.
     /// Degrades silently if scene setup fails (skin-pass discipline, ADR-0001).
@@ -24,12 +25,15 @@ namespace OriAscendant.UI
         // Silhouette: soft radial bust glow positioned center-upper
         private const float BustCentreX = 0.50f;
         private const float BustCentreY = 0.55f;
-        private const float BustSize = 280f;    // canvas-px diameter of the glow
+        private const float BustSize    = 280f;    // canvas-px diameter of the glow
 
         // Aura: larger, dimmer halo behind the bust
         private const float AuraCentreX = BustCentreX;
         private const float AuraCentreY = BustCentreY;
-        private const float AuraSize = 420f;
+        private const float AuraSize    = 420f;
+
+        // Aura secondary alpha multiplier (ponytail: was inline 0.45f literal)
+        private const float AuraAlphaMultiplier = 0.45f;
 
         // Close-out: plain fade after skip()
         private const float CloseDuration = 0.25f;
@@ -38,6 +42,7 @@ namespace OriAscendant.UI
         private ColdOpenBeat _beat;
         private Image _silhouette;
         private Image _aura;
+        private CanvasGroup _titleGroup;    // drives game title alone
         private CanvasGroup _proverbGroup;  // drives proverb + prompt together
         private CanvasGroup _group;         // drives the whole overlay for close-out
         private float _closeElapsed = -1f;  // -1 = not closing yet
@@ -140,12 +145,14 @@ namespace OriAscendant.UI
             }
 
             bool reduceMotion = MotionHelper.IsReduceMotion();
-            var (silhouette, proverb, _) = _beat.Tick(dt, reduceMotion);
+            var (silhouette, title, proverb, _) = _beat.Tick(dt, reduceMotion);
 
             if (_silhouette != null)
                 _silhouette.color = Palette.AseGold.WithAlpha(silhouette);
             if (_aura != null)
-                _aura.color = Palette.AseDeep.WithAlpha(silhouette * 0.45f);
+                _aura.color = Palette.AseDeep.WithAlpha(silhouette * AuraAlphaMultiplier);
+            if (_titleGroup != null)
+                _titleGroup.alpha = title;
             if (_proverbGroup != null)
                 _proverbGroup.alpha = proverb;
 
@@ -184,7 +191,11 @@ namespace OriAscendant.UI
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
             var dot = ProceduralSprites.BuildDot(128);
-            var font = Resources.Load<TMP_FontAsset>("Fonts/NotoSans-Regular SDF");
+
+            // Two-voice fonts: display (serif) with body-font null-fallback (FontRoleSpec).
+            var displayFont = Resources.Load<TMP_FontAsset>(FontRoleSpec.DisplayFontResourcePath);
+            var bodyFont    = Resources.Load<TMP_FontAsset>(FontRoleSpec.BodyFontResourcePath);
+            var titleFont   = displayFont != null ? displayFont : bodyFont; // ponytail: null-fallback
 
             // ---- Dark backdrop ----
             var bg = UiBuilder.NewStretchImage("Background", transform);
@@ -208,6 +219,23 @@ namespace OriAscendant.UI
             _silhouette.color = Color.clear;
             UiBuilder.PlaceAt(_silhouette.rectTransform, BustCentreX, BustCentreY, BustSize, BustSize);
 
+            // ---- Title group: "Ori Ascendant" (display/serif, driven by titleAlpha) ----
+            var titleRoot = new GameObject("TitleGroup",
+                typeof(RectTransform), typeof(CanvasGroup)).GetComponent<RectTransform>();
+            titleRoot.SetParent(transform, false);
+            UiBuilder.Stretch(titleRoot);
+            _titleGroup = titleRoot.GetComponent<CanvasGroup>();
+            _titleGroup.alpha = 0f;
+            _titleGroup.interactable = false;
+            _titleGroup.blocksRaycasts = false;
+
+            var title = NewText("GameTitle", "Ori Ascendant",
+                TypographicScale.Hero, titleRoot, titleFont);
+            title.alignment = TextAlignmentOptions.Center;
+            title.color = Palette.AseCore;
+            title.characterSpacing = FontRoleSpec.HeroLetterSpacing;
+            UiBuilder.SetBand(title.rectTransform, 0.80f, 0.90f); // upper band, clear of the silhouette glow
+
             // ---- Proverb + prompt group (alpha driven together) ----
             var proverbRoot = new GameObject("ProverbGroup",
                 typeof(RectTransform), typeof(CanvasGroup)).GetComponent<RectTransform>();
@@ -218,17 +246,20 @@ namespace OriAscendant.UI
             _proverbGroup.interactable = false;
             _proverbGroup.blocksRaycasts = false;
 
+            // Proverb text: body font, Display size, TextSecondary colour, proverb spacing.
             var proverb = NewText("ProverbText",
                 "Ayé l'ọjà, ọ̀run nilé\n<size=70%>The world is a marketplace; ọ̀run is home.</size>",
-                16f, proverbRoot, font);
+                TypographicScale.Body, proverbRoot, bodyFont);
             proverb.alignment = TextAlignmentOptions.Center;
             proverb.color = Palette.TextSecondary;
+            proverb.characterSpacing = FontRoleSpec.ProverbCharacterSpacing;
             UiBuilder.SetBand(proverb.rectTransform, 0.30f, 0.42f);
 
+            // Tap prompt: body font, BodySm size, muted TextPrimary.
             var prompt = NewText("TapPrompt", "Touch to enter",
-                15f, proverbRoot, font);
+                TypographicScale.BodySm, proverbRoot, bodyFont);
             prompt.alignment = TextAlignmentOptions.Center;
-            prompt.color = Palette.TextPrimary.WithAlpha(0.6f);
+            prompt.color = Palette.TextPrimary.WithAlpha(0.6f); // quiet but legible (≈WCAG AA on IndigoNight)
             UiBuilder.SetBand(prompt.rectTransform, 0.10f, 0.18f);
         }
 

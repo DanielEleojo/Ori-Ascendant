@@ -26,7 +26,7 @@ namespace OriAscendant.UI
         private const float CanvasH = 844f;
 
         private const int ThreadSegments = 24;
-        private const float ThreadPxHeight = 5f; // canvas-unit thickness of each segment
+        private const float ThreadPxHeight = SpacingScale.Xxs + 1f; // 5 canvas-units — close to Xxs (4px) // ponytail:
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -80,6 +80,8 @@ namespace OriAscendant.UI
                 // Alpha ramps up to peak at t≈0.55, then eases off as the thread
                 // dissolves into the constellation bloom.
                 float mid = (t0 + t1) * 0.5f;
+                // Thread-arc brightness: specific Èwà-thread values (ART_BIBLE §5.1),
+                // not shared opacity roles — keep as literals so the arc reads at full glow.
                 float alpha = mid < 0.55f
                     ? Mathf.Lerp(0.12f, 0.72f, mid / 0.55f)
                     : Mathf.Lerp(0.72f, 0.30f, (mid - 0.55f) / 0.45f);
