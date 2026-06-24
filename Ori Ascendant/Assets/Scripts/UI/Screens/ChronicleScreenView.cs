@@ -21,11 +21,19 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private RectTransform _contentRoot;
         [SerializeField] private Button _closeButton;
 
-        private const float NodeRowHeight  = 80f;
-        private const float ThreadX        = 24f;   // x-centre of the thread line
-        private const float ThreadWidth    = 3f;
-        private const float DotSize        = 14f;
-        private const float TextLeftMargin = 48f;
+        /// <summary>Layout constants for the bloodline thread — public so cohesion tests can
+        /// assert they are self-consistent without requiring a scene. ponytail: inner class</summary>
+        public static class Layout
+        {
+            public const float NodeRowHeight  = 80f;
+            public const float ThreadX        = 24f;   // x-centre of the thread line
+            public const float ThreadWidth    = 3f;
+            public const float DotSize        = 14f;
+            public const float TextLeftMargin = SpacingScale.Xxl; // ponytail: 48px section gap
+            public const float GenLabelFontSize    = TypographicScale.BodySm;  // ponytail: 14pt — "Gen N — Ascended"
+            public const float RemembranceFontSize = TypographicScale.Label;  // ponytail: 13pt — sub-caption
+            public const float OriNameFontSize    = 12f;  // bespoke: between Caption(11) and Label(13)
+        }
 
         public bool IsOpen => _root != null && _root.activeSelf;
 
@@ -111,7 +119,7 @@ namespace OriAscendant.UI.Screens
             le.flexibleWidth = 1f;
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = message;
-            tmp.fontSize = 14f;
+            tmp.fontSize = Layout.GenLabelFontSize; // ponytail: BodySm via Layout
             tmp.color = Palette.TextSecondary;
             tmp.alignment = TextAlignmentOptions.Center;
         }
@@ -127,7 +135,7 @@ namespace OriAscendant.UI.Screens
             var rowRt = (RectTransform)rowGo.transform;
             rowRt.SetParent(_contentRoot, false);
             var le = rowGo.AddComponent<LayoutElement>();
-            le.preferredHeight = NodeRowHeight;
+            le.preferredHeight = Layout.NodeRowHeight;
             le.flexibleWidth = 1f;
 
             // Thread segment — drawn in every row so the line is never broken.
@@ -137,8 +145,8 @@ namespace OriAscendant.UI.Screens
             threadRt.anchorMin = Vector2.zero;
             threadRt.anchorMax = new Vector2(0f, 1f);
             threadRt.pivot     = new Vector2(0f, 0.5f);
-            threadRt.offsetMin = new Vector2(ThreadX - ThreadWidth * 0.5f, 0f);
-            threadRt.offsetMax = new Vector2(ThreadX + ThreadWidth * 0.5f, 0f);
+            threadRt.offsetMin = new Vector2(Layout.ThreadX - Layout.ThreadWidth * 0.5f, 0f);
+            threadRt.offsetMax = new Vector2(Layout.ThreadX + Layout.ThreadWidth * 0.5f, 0f);
             var threadImg = threadGo.AddComponent<Image>();
             threadImg.color = ChronicleThreadMapper.ThreadLineColor;
 
@@ -149,8 +157,8 @@ namespace OriAscendant.UI.Screens
             dotRt.anchorMin = new Vector2(0f, 0.5f);
             dotRt.anchorMax = new Vector2(0f, 0.5f);
             dotRt.pivot     = new Vector2(0.5f, 0.5f);
-            dotRt.anchoredPosition = new Vector2(ThreadX, 0f);
-            dotRt.sizeDelta = new Vector2(DotSize, DotSize);
+            dotRt.anchoredPosition = new Vector2(Layout.ThreadX, 0f);
+            dotRt.sizeDelta = new Vector2(Layout.DotSize, Layout.DotSize);
             var dotImg = dotGo.AddComponent<Image>();
             dotImg.color = node.NodeColor;
 
@@ -160,11 +168,11 @@ namespace OriAscendant.UI.Screens
             labelRt.SetParent(rowRt, false);
             labelRt.anchorMin = new Vector2(0f, 0.5f);
             labelRt.anchorMax = new Vector2(1f, 1f);
-            labelRt.offsetMin = new Vector2(TextLeftMargin, 0f);
+            labelRt.offsetMin = new Vector2(Layout.TextLeftMargin, 0f);
             labelRt.offsetMax = new Vector2(-8f, -4f);
             var labelTmp = labelGo.AddComponent<TextMeshProUGUI>();
             labelTmp.text      = node.Label;
-            labelTmp.fontSize  = 14f;
+            labelTmp.fontSize  = Layout.GenLabelFontSize; // ponytail: BodySm via Layout
             labelTmp.color     = entry.didAscend ? Palette.AseGold : Palette.EmberWarm;
             labelTmp.alignment = TextAlignmentOptions.BottomLeft;
 
@@ -183,7 +191,7 @@ namespace OriAscendant.UI.Screens
                 oriRt.offsetMax = new Vector2(-8f, -4f);
                 var oriTmp = oriGo.AddComponent<TextMeshProUGUI>();
                 oriTmp.text      = oriName;
-                oriTmp.fontSize  = 12f;
+                oriTmp.fontSize  = Layout.OriNameFontSize; // ponytail: bespoke 12pt, not a token
                 oriTmp.color     = Palette.TextSecondary;
                 oriTmp.alignment = TextAlignmentOptions.BottomRight;
             }
@@ -194,11 +202,11 @@ namespace OriAscendant.UI.Screens
             remRt.SetParent(rowRt, false);
             remRt.anchorMin = new Vector2(0f, 0f);
             remRt.anchorMax = new Vector2(1f, 0.5f);
-            remRt.offsetMin = new Vector2(TextLeftMargin, 4f);
+            remRt.offsetMin = new Vector2(Layout.TextLeftMargin, 4f);
             remRt.offsetMax = new Vector2(-8f, 0f);
             var remTmp = remGo.AddComponent<TextMeshProUGUI>();
             remTmp.text      = node.Remembrance;
-            remTmp.fontSize  = 13f;
+            remTmp.fontSize  = Layout.RemembranceFontSize; // ponytail: Label via Layout
             remTmp.color     = Palette.TextPrimary;
             remTmp.alignment = TextAlignmentOptions.TopLeft;
         }
