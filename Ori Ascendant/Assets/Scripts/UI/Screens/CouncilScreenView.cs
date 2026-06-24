@@ -8,11 +8,10 @@ using UnityEngine.UI;
 namespace OriAscendant.UI.Screens
 {
     /// <summary>
-    /// The lineage shrine (GAMEPLAY §3.6): ancestor cards, the lineage
-    /// foundation (retired ancestors' permanent bonus), and the total blessing
-    /// factor. Display-only — carved-staff/calabash framing arrives with Phase D
-    /// art; abstract tints only (§7.3). Per-ancestor contribution copy is
-    /// computed from the CURRENT path's councilBonusModifier at display time.
+    /// The lineage shrine (GAMEPLAY §3.6): ancestor cards as silhouettes of light
+    /// in path colour (issue #29), the lineage foundation, and the total blessing
+    /// factor. Each row shows a silhouette Image coloured by ShrineAncestorPresenter,
+    /// the ancestor's title, and their remembrance. Display-only.
     /// </summary>
     public class CouncilScreenView : MonoBehaviour
     {
@@ -20,9 +19,10 @@ namespace OriAscendant.UI.Screens
         public struct CardRow
         {
             public GameObject root;
+            /// <summary>The silhouette Image — tinted with ShrineAncestorPresenter.Map().SilhouetteColor.</summary>
             public Image motif;
             public TMP_Text title;
-            public TMP_Text contribution;
+            public TMP_Text remembrance;
         }
 
         [SerializeField] private GameObject _root;
@@ -30,27 +30,52 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _foundationLine;
         [SerializeField] private TMP_Text _totalLine;
         [SerializeField] private Button _closeButton;
+        [SerializeField] private Button _chronicleButton;
+        [SerializeField] private ChronicleScreenView _chronicleScreen;
+
+        private CanvasGroup _canvasGroup;
+        private OverlayTransition _transition;
 
         private void Awake()
         {
             if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
-            if (_root != null) _root.SetActive(false);
+            if (_chronicleButton != null) _chronicleButton.onClick.AddListener(OpenChronicle);
+            if (_root != null)
+            {
+                _root.SetActive(false);
+                _canvasGroup = _root.GetComponent<CanvasGroup>() ?? _root.AddComponent<CanvasGroup>();
+            }
         }
 
         private void OnDestroy()
         {
             if (_closeButton != null) _closeButton.onClick.RemoveListener(Hide);
+            if (_chronicleButton != null) _chronicleButton.onClick.RemoveListener(OpenChronicle);
+        }
+
+        private void Update()
+        {
+            if (_root == null || !_root.activeSelf) return;
+            if (_transition.TickAndApply(_canvasGroup, _root.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+                _root.SetActive(false);
+        }
+
+        private void OpenChronicle()
+        {
+            if (_chronicleScreen != null) _chronicleScreen.Show();
         }
 
         public void Show()
         {
             Refresh();
             if (_root != null) _root.SetActive(true);
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            _transition.Open();
         }
 
         private void Hide()
         {
-            if (_root != null) _root.SetActive(false);
+            _transition.Close();
         }
 
         private void Refresh()
@@ -58,41 +83,30 @@ namespace OriAscendant.UI.Screens
             if (!ServiceLocator.TryGet(out SaveManager saveManager) || saveManager.Current == null) return;
             var save = saveManager.Current;
 
-            double w = ServiceLocator.TryGet(out AncestralCouncilSystem council) ? council.W : 0.25;
-            double sum = council?.ActiveCouncilSum ?? 0.0;
+            double sum = ServiceLocator.TryGet(out AncestralCouncilSystem council)
+                ? council.ActiveCouncilSum : 0.0;
             double mod = ServiceLocator.TryGet(out CultivationSystem cultivation)
                 ? cultivation.CouncilBonusModifier : 1.0;
 
             for (int i = 0; i < _rows.Length; i++)
             {
-                bool filled = i < save.council.Count;
                 if (_rows[i].root != null) _rows[i].root.SetActive(true);
 
-                if (!filled)
+                ShrineAncestorRow row;
+                if (i >= save.council.Count)
                 {
-                    if (_rows[i].motif != null) _rows[i].motif.color = PathMotif.Neutral;
-                    if (_rows[i].title != null) _rows[i].title.text = "An empty seat awaits";
-                    if (_rows[i].contribution != null) _rows[i].contribution.text = string.Empty;
-                    continue;
+                    row = ShrineAncestorPresenter.EmptySeat;
+                }
+                else
+                {
+                    var ancestor = save.council[i];
+                    int generationNumber = save.lineage.generationCount - (save.council.Count - 1 - i);
+                    row = ShrineAncestorPresenter.Map(ancestor, generationNumber);
                 }
 
-                var ancestor = save.council[i];
-                // Council list is append-ordered; its generation = position in
-                // lineage history. Reconstruct: current generationCount minus the
-                // members after it (newest joined last generation).
-                int generationNumber = save.lineage.generationCount - (save.council.Count - 1 - i);
-
-                if (_rows[i].motif != null)
-                    _rows[i].motif.color = PathMotif.AncestorTint(ancestor.path, ancestor.didAscend);
-                if (_rows[i].title != null)
-                    _rows[i].title.text =
-                        $"Gen {generationNumber} — Aṣẹ́gun of {PathMotif.TitleOf(ancestor.path)}" +
-                        (ancestor.didAscend ? string.Empty : "  (ember)");
-                if (_rows[i].contribution != null)
-                {
-                    double portion = w * ancestor.bonusMultiplier * mod;
-                    _rows[i].contribution.text = $"+{portion:P0}";
-                }
+                if (_rows[i].motif != null) _rows[i].motif.color = row.SilhouetteColor;
+                if (_rows[i].title != null) _rows[i].title.text = row.Title;
+                if (_rows[i].remembrance != null) _rows[i].remembrance.text = row.Remembrance;
             }
 
             if (_foundationLine != null)

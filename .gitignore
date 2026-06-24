@@ -47,3 +47,9 @@ sysinfo.txt
 *.p12
 *.mobileprovision
 *.cer
+
+# Agent-skill installs (local tooling, e.g. `npx skills add`) — the skills
+# live in .agents/skills/ and are symlinked into .claude/skills/ for Claude
+# Code. Local-only wiring; do not commit (symlinks would dangle on clone).
+.agents/
+**/.claude/skills/

@@ -1,0 +1,14 @@
+{
+    "name": "OriAscendant.Systems",
+    "rootNamespace": "OriAscendant.Systems",
+    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

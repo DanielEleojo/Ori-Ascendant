@@ -2,7 +2,12 @@
     "name": "OriAscendant.Tests.EditMode",
     "rootNamespace": "OriAscendant.Tests.EditMode",
     "references": [
-        "OriAscendant",
+        "OriAscendant.Core",
+        "OriAscendant.Data",
+        "OriAscendant.Save",
+        "OriAscendant.Systems",
+        "OriAscendant.Audio",
+        "OriAscendant.UI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

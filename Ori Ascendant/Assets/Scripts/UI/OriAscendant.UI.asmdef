@@ -1,0 +1,14 @@
+{
+    "name": "OriAscendant.UI",
+    "rootNamespace": "OriAscendant.UI",
+    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save", "OriAscendant.Systems", "OriAscendant.Audio", "UnityEngine.UI", "Unity.TextMeshPro"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

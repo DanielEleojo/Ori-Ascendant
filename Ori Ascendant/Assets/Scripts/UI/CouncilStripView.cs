@@ -8,9 +8,10 @@ using UnityEngine.UI;
 namespace OriAscendant.UI
 {
     /// <summary>
-    /// MainScreen zone 7: the five council slots — the prestige-visibility
-    /// surface that makes gen 2 feel stronger at a glance. Ancestors render as
-    /// path-motif tints (radiance / dimmed ember); empty slots stay outlined.
+    /// MainScreen zone 7: the five council slots rendered as a constellation of
+    /// ancestor-stars (issue #22). Path colour + brightness (ascended / fallen /
+    /// empty) is driven by ConstellationStarMapper; the skin turns the slot
+    /// Images into soft dot-sprites so they read as stars, not chips.
     /// Polls the council Version counter; display-only except the tap into
     /// CouncilScreen.
     /// </summary>
@@ -19,8 +20,6 @@ namespace OriAscendant.UI
         [SerializeField] private Image[] _slots; // 5
         [SerializeField] private Button _stripButton;
         [SerializeField] private CouncilScreenView _councilScreen;
-
-        private static readonly Color EmptySlot = new Color(0.165f, 0.192f, 0.251f);
 
         private AncestralCouncilSystem _council;
         private SaveManager _saveManager;
@@ -57,15 +56,9 @@ namespace OriAscendant.UI
             for (int i = 0; i < _slots.Length; i++)
             {
                 if (_slots[i] == null) continue;
-                if (i < save.council.Count)
-                {
-                    var ancestor = save.council[i];
-                    _slots[i].color = PathMotif.AncestorTint(ancestor.path, ancestor.didAscend);
-                }
-                else
-                {
-                    _slots[i].color = EmptySlot;
-                }
+                _slots[i].color = i < save.council.Count
+                    ? ConstellationStarMapper.StarColor(save.council[i])
+                    : ConstellationStarMapper.EmptySeatColor();
             }
         }
 

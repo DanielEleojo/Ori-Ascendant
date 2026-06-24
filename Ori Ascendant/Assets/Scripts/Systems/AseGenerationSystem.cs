@@ -75,9 +75,12 @@ namespace OriAscendant.Systems
         /// <summary>
         /// Recomputes and caches the production rate (full GAMEPLAY §2.1 formula).
         /// Stage/path inputs come from CultivationSystem (currentPath == -1 reads
-        /// as 1.0 everywhere); the council sum arrives in Phase C. Recompute
-        /// triggers: OnStageAdvanced, OnPathChosen, OnTribulationComplete,
-        /// council changes. TryGet keeps bare test hosts neutral.
+        /// as 1.0 everywhere); the council sum arrives in Phase C. Called
+        /// imperatively at the four real recompute sites: GameManager cold start,
+        /// GameManager cloud-save adoption, CultivationSystem stage advance, and
+        /// TribulationSystem resolve (synchronous council mutation lives in that
+        /// atomic write — there is no event-driven council-change path).
+        /// TryGet keeps bare test hosts neutral.
         /// </summary>
         public void RecalculateRate()
         {
@@ -103,13 +106,17 @@ namespace OriAscendant.Systems
                 activeCouncilSum = council.ActiveCouncilSum;
             }
 
-            BigNumber rate = RateCalculator.ComputeRate(
+            double renownBonus = LineageRenown.ToBonus(_save.lineage.renown, _config.renownBonusCap);
+
+            var inputs = new RateInputs(
                 _config.baseRate,
                 stageMultiplier,
                 pathMultiplier,
                 councilBonusModifier,
                 _save.lineage.permanentAseBonus,
-                activeCouncilSum);
+                activeCouncilSum,
+                renownBonus);
+            BigNumber rate = RateCalculator.ComputeRate(in inputs);
 
             _save.SetAsePerSecond(rate);
             StateVersion++;

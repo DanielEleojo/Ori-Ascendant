@@ -1,0 +1,39 @@
+using System;
+using UnityEngine;
+
+namespace OriAscendant.Data
+{
+    /// <summary>
+    /// One vow-virtue option in the Ori seed set (PRD Phase 1, slice 1).
+    /// Placeholder copy — final names + descriptions land via the §7.10 review
+    /// before crossroads ship (Phase 2). Config only; never mutated at runtime.
+    /// </summary>
+    [Serializable]
+    public class OriVirtue
+    {
+        [Tooltip("Display name shown on the Ori card and the main-screen badge.")]
+        public string virtueName;
+
+        [Tooltip("Short vow line shown on the selection card; pre-§7.10 placeholder.")]
+        [TextArea]
+        public string vowLine;
+    }
+
+    /// <summary>
+    /// The seed set of Ori virtues a player can vow themselves to (Àkùnlẹ̀yàn,
+    /// chosen at birth) — surfaced once per generation. Marked placeholder until
+    /// the §7.10 native-speaker review (Phase 5); final crossroads-tied content
+    /// replaces this set, but the field shape stays the same.
+    /// </summary>
+    [CreateAssetMenu(fileName = "OriConfig", menuName = "Ori Ascendant/Ori Config")]
+    public class OriConfig : ScriptableObject
+    {
+        [Tooltip("Ordered virtue list — index is what persists in SaveData.chosenOri.")]
+        public OriVirtue[] virtues;
+
+        public int Count => virtues != null ? virtues.Length : 0;
+
+        public OriVirtue GetVirtue(int index) =>
+            virtues != null && index >= 0 && index < virtues.Length ? virtues[index] : null;
+    }
+}

@@ -1,0 +1,43 @@
+# Unity generated — regenerated on open, no signal (Library/ alone is ~2.5 GB)
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+MemoryCaptures/
+UserSettings/
+Crashlytics/
+
+# Version-control / IDE metadata
+.plastic/
+.vs/
+.vscode/
+.idea/
+
+# Generated project/solution files — large XML, no signal
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.suo
+
+# Crash dumps & logs
+mono_crash.*.json
+*.log
+*.stackdump
+
+# Binary assets — no text signal for search/read (.meta kept: carries GUIDs/refs)
+*.fbx
+*.psd
+*.tga
+*.wav
+*.mp3
+*.ogg
+*.aac
+*.unitypackage
+*.bundle

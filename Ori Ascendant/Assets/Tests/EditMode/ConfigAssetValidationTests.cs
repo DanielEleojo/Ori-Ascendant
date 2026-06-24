@@ -92,7 +92,9 @@ namespace OriAscendant.Tests.EditMode
         public void TribulationConfig_MatchesGameplaySpec()
         {
             var config = Load<TribulationConfig>("Assets/Configs/TribulationConfig.asset");
-            Assert.AreEqual(0.60, config.baseAscendChance, "LOCKED 60/40 coin");
+            Assert.AreEqual(0.60, config.baseAscendChance, "retained as the documented midpoint anchor (ADR-0004)");
+            Assert.AreEqual(0.25, config.ascendFloor, "ADR-0004 steadfastness floor");
+            Assert.AreEqual(0.90, config.ascendCeiling, "ADR-0004 steadfastness ceiling");
             Assert.AreEqual(new BigNumber(25.0, 6), config.GetAseThreshold(), "25M capstone gate");
             CollectionAssert.AreEqual(new[] { 0.5f, 0.8f, 1.0f }, config.ambientFractions);
             Assert.AreEqual(0.8, config.holdToConfirmSeconds);
@@ -104,6 +106,11 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(2.5f, config.revealSeconds);
             Assert.AreEqual(2.5f, config.ancestorCardSeconds);
             Assert.AreEqual(2.0f, config.finalBeatSeconds);
+            // Line-legacy compounding (issue #8): provisional values, awaiting balance sim.
+            Assert.AreEqual(0.05, config.lineLegacyBonusPerGen, 1e-12,
+                "lineLegacyBonusPerGen must be explicitly set by SceneBuilder — not left at 0 from a pre-issue-8 asset");
+            Assert.AreEqual(0.15, config.lineLegacyMaxBonus, 1e-12,
+                "lineLegacyMaxBonus must be explicitly set by SceneBuilder — not left at 0 from a pre-issue-8 asset");
         }
 
         [Test]
@@ -112,6 +119,121 @@ namespace OriAscendant.Tests.EditMode
             var config = Load<CouncilConfig>("Assets/Configs/CouncilConfig.asset");
             Assert.AreEqual(0.25, config.ancestorBaseBonus, "W");
             Assert.AreEqual(5, config.maxCouncil);
+        }
+
+        [Test]
+        public void OriConfig_HasASeedVirtueSet()
+        {
+            // Dynasty PRD Phase 1 (slice 1): seed virtue set ships pre-§7.10 with
+            // placeholder copy. Phase 5 swaps the content for native-speaker-vetted
+            // text but the shape (non-empty list, each entry named) is the contract.
+            var config = Load<OriConfig>("Assets/Configs/OriConfig.asset");
+            Assert.IsNotNull(config.virtues, "OriConfig must define a virtue list");
+            Assert.GreaterOrEqual(config.Count, 2,
+                "the choice needs to feel like a choice — at least two virtues");
+            foreach (var virtue in config.virtues)
+            {
+                Assert.IsNotEmpty(virtue.virtueName, "every Ori virtue needs a display name");
+                Assert.IsNotEmpty(virtue.vowLine, "every Ori virtue needs a vow line");
+            }
+        }
+
+        [Test]
+        public void CrossroadsConfig_HasASeedDeck()
+        {
+            // Dynasty PRD Phase 1 (slice 2a): seed deck ships pre-§7.10. The field
+            // shape (non-empty deck, each card with id + prompt + at least 2 options,
+            // each option with text) is the contract; final content is the review pass.
+            var config = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            Assert.IsNotNull(config.deck, "CrossroadsConfig must define a deck");
+            Assert.GreaterOrEqual(config.DeckSize, 1, "the deck needs at least one card");
+            Assert.IsTrue(config.GetMilestone() > BigNumber.Zero,
+                "milestone must be positive — a zero milestone fires immediately");
+            Assert.Greater(config.forebearSeedChance, 0f,
+                "forebearSeedChance must be explicitly set by SceneBuilder (issue #8) — 0 silently disables forebear seeding in production");
+            foreach (var card in config.deck)
+            {
+                Assert.IsNotEmpty(card.id, "every crossroads card needs a unique id");
+                Assert.IsNotEmpty(card.prompt, "every crossroads card needs a prompt");
+                Assert.IsNotNull(card.options);
+                Assert.GreaterOrEqual(card.options.Length, 2,
+                    $"card '{card.id}' must offer at least 2 options so it is a real dilemma");
+                foreach (var option in card.options)
+                {
+                    Assert.IsNotEmpty(option.optionText,
+                        $"every option in card '{card.id}' needs display text");
+                }
+            }
+        }
+
+        [Test]
+        public void RemembranceConfig_HasNamePoolAndFaithfulFallLine()
+        {
+            // Dynasty PRD slice 4a: seed content is placeholder (pre-§7.10).
+            // The shape — non-empty pool, non-empty faithful-fall line — is the contract.
+            var config = Load<RemembranceConfig>("Assets/Configs/RemembranceConfig.asset");
+            Assert.IsNotNull(config.personalNames, "RemembranceConfig must define a personal-name pool");
+            Assert.GreaterOrEqual(config.personalNames.Length, 1,
+                "at least one personal name is required to form a Title");
+            foreach (var name in config.personalNames)
+            {
+                Assert.IsNotEmpty(name, "every personal name in the pool must be non-empty");
+            }
+            Assert.IsNotEmpty(config.faithfulFallLine,
+                "faithfulFallLine is the dignified fallback for lives that held their Ori vow");
+        }
+
+        [Test]
+        public void CrossroadsDeckConfig_HasBeatsWithEpithets()
+        {
+            // Dynasty PRD Phase 5 (issue #10): production epithets, §7.10 self-reviewed.
+            var config = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeckConfig.asset");
+            Assert.IsNotNull(config.beats, "CrossroadsDeckConfig must define a beats array");
+            Assert.GreaterOrEqual(config.Count, 1,
+                "the deck must contain at least one beat");
+            foreach (var beat in config.beats)
+            {
+                Assert.IsNotNull(beat, "beats array must not contain null entries");
+                Assert.IsNotEmpty(beat.fallenEpithet,
+                    "every beat must supply a fallenEpithet — the Defining Deed Nickname");
+            }
+        }
+
+        [Test]
+        public void CrossroadsConfig_ProductionDeck_AlignedWithBeats()
+        {
+            // Phase 5: beats and deck are 1:1 so beatIndex is always valid.
+            var deck = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            var beats = Load<CrossroadsDeckConfig>("Assets/Configs/CrossroadsDeckConfig.asset");
+            Assert.AreEqual(deck.DeckSize, beats.Count,
+                "CrossroadsConfig.deck and CrossroadsDeckConfig.beats must be the same length " +
+                "— beatIndex indexes both arrays by position");
+        }
+
+        [Test]
+        public void CrossroadsConfig_EachCard_CoversAllVirtueIndices()
+        {
+            // Every card must offer an option for each of the 3 Ori virtues (0,1,2)
+            // so a player can always stay true to their chosen Ori (PRD §10).
+            var config = Load<CrossroadsConfig>("Assets/Configs/CrossroadsConfig.asset");
+            foreach (var card in config.deck)
+            {
+                var covered = new System.Collections.Generic.HashSet<int>();
+                foreach (var opt in card.options)
+                    if (opt.virtueIndex >= 0) covered.Add(opt.virtueIndex);
+                for (int v = 0; v <= 2; v++)
+                    Assert.IsTrue(covered.Contains(v),
+                        $"card '{card.id}' missing option for virtue index {v}");
+            }
+        }
+
+        [Test]
+        public void RemembranceConfig_PersonalNames_AtLeastFiveNames()
+        {
+            // Production pool needs variety; fewer than 5 makes Titles feel repetitive.
+            var config = Load<RemembranceConfig>("Assets/Configs/RemembranceConfig.asset");
+            Assert.GreaterOrEqual(config.personalNames.Length, 5,
+                "production name pool must have ≥5 names for meaningful Title variety");
         }
     }
 }

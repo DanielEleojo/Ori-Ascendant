@@ -25,8 +25,11 @@ namespace OriAscendant.Systems
         /// <summary>Raised after an ancestor is retired into the lineage foundation.</summary>
         public event Action<AncestorData> OnAncestorRetired;
 
-        /// <summary>Raised after any council mutation (induction or retirement).</summary>
-        public event Action OnCouncilChanged;
+        /// <summary>Raised when a new ancestor joins the council (the star ignites).
+        /// Fires inside InductAncestor() — before OnTribulationComplete — so
+        /// AudioManager can play the warm star-ignite impact ahead of the
+        /// tribulation success notification.</summary>
+        public event Action<AncestorData> OnAncestorAdded;
 
         /// <summary>Cheap change counter for polling views.</summary>
         public int Version { get; private set; }
@@ -85,7 +88,7 @@ namespace OriAscendant.Systems
 
             _save.council.Add(ancestor);
             Version++;
-            OnCouncilChanged?.Invoke();
+            OnAncestorAdded?.Invoke(ancestor);
             return retired;
         }
 

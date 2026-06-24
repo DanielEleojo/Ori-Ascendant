@@ -1,0 +1,559 @@
+using NUnit.Framework;
+using OriAscendant.Core;
+using OriAscendant.Data;
+using OriAscendant.Save;
+using OriAscendant.Systems;
+using UnityEngine;
+
+namespace OriAscendant.Tests.EditMode
+{
+    /// <summary>
+    /// Dynasty PRD Phase 1, slice 2a: Crossroads — a dilemma fires, the player
+    /// chooses, steadfastness moves, a Deed is recorded.
+    /// Tests are system-level: ServiceLocator + injected deck/RNG as specified
+    /// in the issue acceptance criteria.
+    /// </summary>
+    public class CrossroadsSystemTests
+    {
+        private GameObject _host;
+        private CrossroadsSystem _crossroads;
+        private AseGenerationSystem _aseGen;
+        private CrossroadsConfig _config;
+        private SaveData _save;
+
+        // Seed deck: card 0 has virtue-tagged options covering all three virtues
+        // (indices 0=Patience, 1=Courage, 2=Mercy). Card 1 is a second card.
+        private CrossroadsCard Card0 => new CrossroadsCard
+        {
+            id = "card_a",
+            prompt = "A stranger blocks the road.",
+            options = new[]
+            {
+                new CrossroadsOption { virtueIndex = 0, optionText = "Wait in patience." },
+                new CrossroadsOption { virtueIndex = 1, optionText = "Push past boldly." },
+                new CrossroadsOption { virtueIndex = 2, optionText = "Step aside and yield." },
+            }
+        };
+
+        private CrossroadsCard Card1 => new CrossroadsCard
+        {
+            id = "card_b",
+            prompt = "You find a coin in the road.",
+            options = new[]
+            {
+                new CrossroadsOption { virtueIndex = 0, optionText = "Wait to see whose it is." },
+                new CrossroadsOption { virtueIndex = -1, optionText = "Pocket it — no one saw." },
+            }
+        };
+
+        [SetUp]
+        public void SetUp()
+        {
+            ServiceLocator.Clear();
+            _host = new GameObject("CrossroadsTestHost");
+
+            _aseGen = _host.AddComponent<AseGenerationSystem>();
+            EditModeTestHelpers.Inject(_aseGen, "_config", EditModeTestHelpers.MakeGameplayConfig());
+            ServiceLocator.Register(_aseGen);
+
+            _config = EditModeTestHelpers.MakeCrossroadsConfig(Card0, Card1);
+
+            _crossroads = _host.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(_crossroads, "_config", _config);
+            ServiceLocator.Register(_crossroads);
+
+            _save = new SaveData { chosenOri = 0 }; // vowed Patience
+            _aseGen.Begin(_save);
+            _crossroads.Begin(_save);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Object.DestroyImmediate(_host);
+            ServiceLocator.Clear();
+        }
+
+        // ---- crossroads firing ----
+
+        [Test]
+        public void BelowMilestone_NoCrossroadsIsPending()
+        {
+            _save.SetAse(BigNumber.FromDouble(999)); // below 1 000 milestone
+            _crossroads.EvaluateMilestone();
+            Assert.IsFalse(_crossroads.HasPending, "no crossroads below the milestone");
+        }
+
+        [Test]
+        public void AtMilestone_CrossroadsBecomePending()
+        {
+            // FakeRandom(0) → index 0 → card_a
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+            _save.SetAse(BigNumber.FromDouble(1_000)); // hits milestone
+            _crossroads.EvaluateMilestone();
+
+            Assert.IsTrue(_crossroads.HasPending, "a crossroads fires at the milestone");
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId);
+            Assert.AreEqual("card_a", _crossroads.PendingCard?.id);
+        }
+
+        [Test]
+        public void MilestoneEvent_FiresOnCrossroadsReady()
+        {
+            string receivedId = null;
+            _crossroads.OnCrossroadsReady += id => receivedId = id;
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", receivedId, "OnCrossroadsReady fires with the card id");
+        }
+
+        [Test]
+        public void MilestoneFires_OnlyOncePerLife()
+        {
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone(); // fires card_a
+
+            // Resolve the crossroads, then re-evaluate milestone
+            _crossroads.MakeChoice(0);
+            Assert.AreEqual(1, _save.deeds.Count, "deed recorded after choice");
+
+            // Àṣẹ still above milestone — no second crossroads should fire
+            int readyCount = 0;
+            _crossroads.OnCrossroadsReady += _ => readyCount++;
+            _crossroads.EvaluateMilestone(); // would fire again if not guarded
+            Assert.IsFalse(_crossroads.HasPending, "milestone fires only once per life");
+            Assert.AreEqual(0, readyCount);
+        }
+
+        // ---- choice → tally mapping ----
+
+        [Test]
+        public void OriAlignedChoice_IncrementsHeldAndTrials()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0; // Patience = option index 0 in card_a
+
+            _crossroads.MakeChoice(0); // choose Patience option (index 0)
+
+            Assert.AreEqual(1, _save.oriTrials, "trials always increments");
+            Assert.AreEqual(1, _save.oriHeld,   "held increments for Ori-aligned choice");
+        }
+
+        [Test]
+        public void OffOriChoice_IncrementsTrialsOnly()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0; // Patience
+
+            _crossroads.MakeChoice(1); // choose Courage (virtueIndex 1, not Patience)
+
+            Assert.AreEqual(1, _save.oriTrials, "trials always increments");
+            Assert.AreEqual(0, _save.oriHeld,   "held does NOT increment for off-Ori choice");
+        }
+
+        [Test]
+        public void VirtueNeutralOption_IncrementsTrialsOnly()
+        {
+            ArmPending("card_b");
+            _save.chosenOri = 0; // Patience
+
+            _crossroads.MakeChoice(1); // virtueIndex -1 (neutral)
+
+            Assert.AreEqual(1, _save.oriTrials);
+            Assert.AreEqual(0, _save.oriHeld);
+        }
+
+        // ---- Deed recording ----
+
+        [Test]
+        public void OriAlignedChoice_RecordsDeed_WithAlignedTrue()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0);
+
+            Assert.AreEqual(1, _save.deeds.Count, "exactly one deed recorded");
+            var deed = _save.deeds[0];
+            Assert.AreEqual("card_a", deed.crossroadsId);
+            Assert.AreEqual(0, deed.chosenOptionIndex);
+            Assert.IsTrue(deed.wasOriAligned);
+        }
+
+        [Test]
+        public void OffOriChoice_RecordsDeed_WithAlignedFalse()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(2); // Mercy (virtueIndex 2)
+
+            var deed = _save.deeds[0];
+            Assert.AreEqual("card_a", deed.crossroadsId);
+            Assert.AreEqual(2, deed.chosenOptionIndex);
+            Assert.IsFalse(deed.wasOriAligned);
+        }
+
+        [Test]
+        public void OnCrossroadsResolved_FiresAfterStateIsWritten()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 1; // Courage = option[1] in card_a
+
+            DeedData eventDeed = null;
+            int trialsAtEvent = -1;
+            _crossroads.OnCrossroadsResolved += deed =>
+            {
+                eventDeed = deed;
+                trialsAtEvent = _save.oriTrials; // must already be updated
+            };
+
+            _crossroads.MakeChoice(1);
+
+            Assert.IsNotNull(eventDeed, "OnCrossroadsResolved fires");
+            Assert.IsTrue(eventDeed.wasOriAligned);
+            Assert.AreEqual(1, trialsAtEvent, "tally is written before the event fires");
+        }
+
+        // ---- MakeChoice guard-rails ----
+
+        [Test]
+        public void MakeChoice_NoPending_ReturnsFalse()
+        {
+            Assert.IsFalse(_crossroads.MakeChoice(0), "no-op when nothing is pending");
+            Assert.AreEqual(0, _save.oriTrials);
+            Assert.AreEqual(0, _save.deeds.Count);
+        }
+
+        [Test]
+        public void MakeChoice_OutOfRangeIndex_ReturnsFalse()
+        {
+            ArmPending("card_a"); // card_a has 3 options (indices 0-2)
+
+            Assert.IsFalse(_crossroads.MakeChoice(-1));
+            Assert.IsFalse(_crossroads.MakeChoice(3));
+            Assert.AreEqual(0, _save.oriTrials, "bad index never updates tally");
+            Assert.IsTrue(_crossroads.HasPending, "pending survives a bad choice attempt");
+        }
+
+        [Test]
+        public void MakeChoice_ClearsPendingState()
+        {
+            ArmPending("card_a");
+            _crossroads.MakeChoice(0);
+
+            Assert.IsFalse(_crossroads.HasPending);
+            Assert.AreEqual("", _save.pendingCrossroadsId);
+        }
+
+        // ---- Deed Remembrance fields (beatIndex / strayed) ----
+
+        [Test]
+        public void OriAlignedChoice_SetsStrayed_False_AndWasOriAligned_True()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0); // Patience option
+
+            var deed = _save.deeds[0];
+            Assert.IsFalse(deed.strayed, "Ori-aligned choice: strayed=false");
+            Assert.IsTrue(deed.wasOriAligned, "Ori-aligned choice: wasOriAligned=true");
+        }
+
+        [Test]
+        public void OffOriChoice_SetsStrayed_True_AndWasOriAligned_False()
+        {
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(1); // Courage — off-Ori
+
+            var deed = _save.deeds[0];
+            Assert.IsTrue(deed.strayed, "off-Ori choice: strayed=true");
+            Assert.IsFalse(deed.wasOriAligned, "off-Ori choice: wasOriAligned=false");
+        }
+
+        [Test]
+        public void MakeChoice_SetsBeatIndex_ForFirstCard()
+        {
+            // card_a is at index 0 in the test deck (Card0 first, Card1 second)
+            ArmPending("card_a");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0);
+
+            Assert.AreEqual(0, _save.deeds[0].beatIndex, "card_a is deck position 0");
+        }
+
+        [Test]
+        public void MakeChoice_SetsBeatIndex_ForSecondCard()
+        {
+            // card_b is at index 1 in the test deck
+            ArmPending("card_b");
+            _save.chosenOri = 0;
+
+            _crossroads.MakeChoice(0);
+
+            Assert.AreEqual(1, _save.deeds[0].beatIndex, "card_b is deck position 1");
+        }
+
+        // ---- session resume: pending crossroads is patient ----
+
+        [Test]
+        public void Begin_WithPendingSaved_FiresReadyEvent()
+        {
+            // Simulate a crossroads pending from a previous session
+            _save.pendingCrossroadsId = "card_b";
+
+            // Re-Begin (simulates session resume)
+            ServiceLocator.Clear();
+            var newHost = new GameObject("ResumeHost");
+            var newSystem = newHost.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(newSystem, "_config", _config);
+            ServiceLocator.Register(newSystem);
+
+            string receivedId = null;
+            newSystem.OnCrossroadsReady += id => receivedId = id;
+            newSystem.Begin(_save);
+
+            Assert.AreEqual("card_b", receivedId, "session resume surfaces the pending crossroads");
+            Assert.AreEqual("card_b", newSystem.PendingCard?.id);
+
+            Object.DestroyImmediate(newHost);
+        }
+
+        // ---- queue: multiple milestones reached while offline (slice 2b) ----
+
+        [Test]
+        public void TwoMilestonesCrossed_QueuesTwo_FirstIsActive()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            // FakeRandom: first draw → 0.0 (index 0 = card_a), second draw → 0.5 (index 1 = card_b)
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            // Àṣẹ passes BOTH milestones (1 000 and 5 000)
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.IsTrue(_crossroads.HasPending, "first crossroads is active");
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId, "card_a is the active crossroads");
+            Assert.AreEqual(1, _save.pendingCrossroadsQueue.Count, "second crossroads waits in queue");
+            Assert.AreEqual("card_b", _save.pendingCrossroadsQueue[0]);
+        }
+
+        [Test]
+        public void ResolveFirst_SurfacesSecond_ViaOnCrossroadsReady()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            string readyId = null;
+            _crossroads.OnCrossroadsReady += id => readyId = id;
+
+            _crossroads.MakeChoice(0); // resolve card_a
+
+            Assert.IsTrue(_crossroads.HasPending, "second crossroads is now active");
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId, "card_b promoted from queue");
+            Assert.AreEqual("card_b", readyId, "OnCrossroadsReady fires for the next crossroads");
+            Assert.AreEqual(0, _save.pendingCrossroadsQueue.Count, "queue is empty after promotion");
+        }
+
+        [Test]
+        public void PendingQueue_SurvivesSaveLoadRoundTrip()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            // Round-trip the save through JSON
+            string json = SaveSerializer.ToJson(_save);
+            var reloaded = SaveSerializer.FromJson(json);
+
+            Assert.AreEqual("card_a", reloaded.pendingCrossroadsId, "active crossroads survives round-trip");
+            Assert.IsNotNull(reloaded.pendingCrossroadsQueue, "queue must not be null after load");
+            Assert.AreEqual(1, reloaded.pendingCrossroadsQueue.Count, "queued crossroads survive round-trip");
+            Assert.AreEqual("card_b", reloaded.pendingCrossroadsQueue[0]);
+        }
+
+        [Test]
+        public void PendingCrossroads_NeverExpires_OnSessionResume()
+        {
+            // A crossroads fires
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.IsTrue(_crossroads.HasPending);
+
+            // Simulate app restart: fresh CrossroadsSystem, same save (no time-based expiry)
+            ServiceLocator.Clear();
+            var resumeHost = new GameObject("ResumeHost");
+            var resumed = resumeHost.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(resumed, "_config", _config);
+            ServiceLocator.Register(resumed);
+
+            string receivedId = null;
+            resumed.OnCrossroadsReady += id => receivedId = id;
+            resumed.Begin(_save);
+
+            Assert.IsTrue(resumed.HasPending, "crossroads still pending after app restart — no expiry");
+            Assert.AreEqual("card_a", resumed.PendingCard?.id, "same card is still pending");
+            Assert.AreEqual("card_a", receivedId, "OnCrossroadsReady fires on resume with the pending card");
+
+            Object.DestroyImmediate(resumeHost);
+        }
+
+        [Test]
+        public void QueuedCrossroads_NeverExpire_OnSessionResume()
+        {
+            var twoConfig = EditModeTestHelpers.MakeTwoMilestoneCrossroadsConfig(Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", twoConfig);
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.5));
+
+            _save.SetAse(BigNumber.FromDouble(10_000));
+            _crossroads.EvaluateMilestone();
+
+            // Simulate app restart
+            ServiceLocator.Clear();
+            var resumeHost = new GameObject("ResumeHost2");
+            var resumed = resumeHost.AddComponent<CrossroadsSystem>();
+            EditModeTestHelpers.Inject(resumed, "_config", twoConfig);
+            ServiceLocator.Register(resumed);
+            resumed.Begin(_save);
+
+            Assert.IsTrue(resumed.HasPending, "active crossroads still pending after restart");
+            Assert.AreEqual(1, _save.pendingCrossroadsQueue.Count, "queued crossroads intact after restart");
+
+            Object.DestroyImmediate(resumeHost);
+        }
+
+        // ---- Forebear-seeded crossroads (issue #8) ----
+
+        [Test]
+        public void FireCrossroads_EmptyChronicle_DrawsFromDeckNormally()
+        {
+            // No chronicle entries → forebear seeding is skipped; normal deck draw applies.
+            _crossroads.SetRandomSource(new FakeRandom(0.0)); // deck index 0 → card_a
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "empty chronicle → no forebear seeding → normal deck draw → card_a");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearDeedInChronicle_HighSeedChance_DrawsForebearCard()
+        {
+            // Chronicle has a forebear deed for card_b; seed chance = 1.0 guarantees seed.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: first draw = seed roll (0.0 < 1.0 → seed passes) → forebear card_b surfaces.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId,
+                "forebear seed roll passes → ancestor's card surfaces in the descendant's life");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearDeedInChronicle_SeedRollFails_FallsBackToRandomDraw()
+        {
+            // seedChance = 0.5; seed roll = 0.9 ≥ 0.5 → seed fails; fallback draw = 0.0 → card_a.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(0.5f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: [seed roll = 0.9 (fails), deck draw = 0.0 → index 0 → card_a]
+            _crossroads.SetRandomSource(new FakeRandom(0.9, 0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "seed roll fails → normal deck draw → card_a");
+        }
+
+        [Test]
+        public void FireCrossroads_ForebearCardNotInDeck_FallsBackToRandomDraw()
+        {
+            // Forebear's card ID ("card_unknown") not present in the current deck.
+            // Seed roll passes but card lookup fails → normal deck draw takes over.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_unknown" });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // FakeRandom: [seed roll = 0.0 (passes, but card not found), deck draw = 0.0 → card_a]
+            _crossroads.SetRandomSource(new FakeRandom(0.0, 0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "forebear card not in current deck → falls back to random deck draw");
+        }
+
+        [Test]
+        public void FireCrossroads_ChronicleHasOnlyFaithfulEntries_DrawsFromDeckNormally()
+        {
+            // Chronicle entries with empty forebearCrossroadsId (faithful lives) are skipped.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "" });
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = null });
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // No forebear card found → no seed roll consumed → normal draw uses first random value.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_a", _save.pendingCrossroadsId,
+                "faithful-only chronicle → no forebear seeding → normal deck draw");
+        }
+
+        [Test]
+        public void FireCrossroads_OnlyMostRecentForebearIsChecked()
+        {
+            // Older entry has card_a; most recent has card_b. Only most recent is seeded.
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_a" }); // older
+            _save.chronicle.Add(new ChronicleEntry { forebearCrossroadsId = "card_b" }); // most recent
+
+            var seededConfig = EditModeTestHelpers.MakeCrossroadsConfigWithSeedChance(1.0f, Card0, Card1);
+            EditModeTestHelpers.Inject(_crossroads, "_config", seededConfig);
+            // Seed roll = 0.0 → passes → most recent forebear's card (card_b) surfaces.
+            _crossroads.SetRandomSource(new FakeRandom(0.0));
+
+            _save.SetAse(BigNumber.FromDouble(1_000));
+            _crossroads.EvaluateMilestone();
+
+            Assert.AreEqual("card_b", _save.pendingCrossroadsId,
+                "only the most recent forebear's card is checked — not older entries");
+        }
+
+        // ---- helpers ----
+
+        /// <summary>Directly arms a pending crossroads by setting the save field,
+        /// bypassing the milestone (to test choice logic in isolation).</summary>
+        private void ArmPending(string cardId)
+        {
+            _save.pendingCrossroadsId = cardId;
+        }
+    }
+}

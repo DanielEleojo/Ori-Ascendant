@@ -62,7 +62,15 @@ namespace OriAscendant.Tests.EditMode
         public void NullHaptics_NeverThrows()
         {
             IHapticFeedback h = new NullHaptics();
-            Assert.DoesNotThrow(() => { h.Light(); h.Medium(); h.Heavy(); });
+            Assert.DoesNotThrow(() =>
+            {
+                h.Impact(ImpactStyle.Light);
+                h.Impact(ImpactStyle.Medium);
+                h.Impact(ImpactStyle.Heavy);
+                h.Notify(NotificationStyle.Success);
+                h.Notify(NotificationStyle.Warning);
+                h.Select();
+            });
         }
     }
 }

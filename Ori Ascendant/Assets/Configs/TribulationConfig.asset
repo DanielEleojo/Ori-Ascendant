@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: TribulationConfig
   m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.TribulationConfig
   baseAscendChance: 0.6
+  ascendFloor: 0.25
+  ascendCeiling: 0.9
   aseThresholdMantissa: 25
   aseThresholdExponent: 6
   ambientFractions:
@@ -20,6 +22,8 @@ MonoBehaviour:
   - 0.8
   - 1
   holdToConfirmSeconds: 0.8
+  lineLegacyBonusPerGen: 0.05
+  lineLegacyMaxBonus: 0.15
   transitionSeconds: 2
   stormWaveCount: 3
   stormWaveIntervalSeconds: 1
@@ -27,3 +31,6 @@ MonoBehaviour:
   revealSeconds: 2.5
   ancestorCardSeconds: 2.5
   finalBeatSeconds: 2
+  ascendRenownGrant: 0.05
+  fallRenownGrant: 0.02
+  crownedAscendedRevealPortrait: {fileID: 0}

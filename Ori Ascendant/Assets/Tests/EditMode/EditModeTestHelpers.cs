@@ -88,8 +88,14 @@ namespace OriAscendant.Tests.EditMode
         {
             var config = ScriptableObject.CreateInstance<TribulationConfig>();
             config.baseAscendChance = 0.60;
+            config.ascendFloor = 0.25;
+            config.ascendCeiling = 0.90;
             config.aseThresholdMantissa = 25.0;
             config.aseThresholdExponent = 6;
+            config.lineLegacyBonusPerGen = 0.05;
+            config.lineLegacyMaxBonus = 0.15;
+            config.ascendRenownGrant = 0.05;
+            config.fallRenownGrant = 0.02;
             return config;
         }
 
@@ -98,6 +104,99 @@ namespace OriAscendant.Tests.EditMode
             var config = ScriptableObject.CreateInstance<CouncilConfig>();
             config.ancestorBaseBonus = 0.25;
             config.maxCouncil = 5;
+            return config;
+        }
+
+        /// <summary>Crossroads seed deck with the supplied cards and the
+        /// default milestone (Àṣẹ 1 000). Forebear seeding disabled (forebearSeedChance = 0)
+        /// so existing tests are unaffected by the issue-#8 compounding feature.</summary>
+        public static CrossroadsConfig MakeCrossroadsConfig(params CrossroadsCard[] cards)
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new CrossroadsMilestone[0];
+            config.forebearSeedChance = 0f;
+            config.deck = cards ?? new CrossroadsCard[0];
+            return config;
+        }
+
+        /// <summary>Two-milestone config (Àṣẹ 1 000 and 5 000) for queue tests (slice 2b).
+        /// Forebear seeding disabled (forebearSeedChance = 0) so queue tests are unaffected.</summary>
+        public static CrossroadsConfig MakeTwoMilestoneCrossroadsConfig(params CrossroadsCard[] cards)
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new[]
+            {
+                new CrossroadsMilestone { mantissa = 5.0, exponent = 3 }, // 5 000 Àṣẹ
+            };
+            config.forebearSeedChance = 0f;
+            config.deck = cards ?? new CrossroadsCard[0];
+            return config;
+        }
+
+        /// <summary>Crossroads config with explicit forebear seed chance (issue #8).
+        /// Use this in forebear-seeding tests where the seed probability must be controlled.</summary>
+        public static CrossroadsConfig MakeCrossroadsConfigWithSeedChance(float seedChance,
+            params CrossroadsCard[] cards)
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsConfig>();
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new CrossroadsMilestone[0];
+            config.forebearSeedChance = seedChance;
+            config.deck = cards ?? new CrossroadsCard[0];
+            return config;
+        }
+
+        /// <summary>Two placeholder personal names + a faithful-fall line for remembrance tests.</summary>
+        public static RemembranceConfig MakeRemembranceConfig()
+        {
+            var config = ScriptableObject.CreateInstance<RemembranceConfig>();
+            config.personalNames = new[] { "Adé", "Bàbá" };
+            config.faithfulFallLine = "The Faithful";
+            return config;
+        }
+
+        /// <summary>Three placeholder beats, each with a distinct fallenEpithet.</summary>
+        public static CrossroadsDeckConfig MakeCrossroadsDeckConfig()
+        {
+            var config = ScriptableObject.CreateInstance<CrossroadsDeckConfig>();
+            config.beats = new[]
+            {
+                new CrossroadsBeat { fallenEpithet = "The Wavering" },
+                new CrossroadsBeat { fallenEpithet = "The Divided" },
+                new CrossroadsBeat { fallenEpithet = "The Turned" },
+            };
+            return config;
+        }
+
+        public static OriAscendant.Data.ContestConfig MakeContestConfig()
+        {
+            var config = ScriptableObject.CreateInstance<OriAscendant.Data.ContestConfig>();
+            config.stanceTilt = 0.20;
+            config.powerWeight = 0.30;
+            config.oddsMin = 0.10;
+            config.oddsMax = 0.90;
+            config.stakeBase = 0.10;
+            config.lossSoftness = 0.5;
+            config.housePowerMin = 0.75;
+            config.housePowerMax = 1.25;
+            config.milestoneMantissa = 1.0;
+            config.milestoneExponent = 3; // 1 000 Àṣẹ
+            config.extraMilestones = new OriAscendant.Data.ContestMilestone[0];
+            config.holdToConfirmSeconds = 0.8;
+            config.revealSeconds = 2.0;
+            return config;
+        }
+
+        /// <summary>Two-milestone contest config (Àṣẹ 1 000 and 5 000) for patient-queue tests.</summary>
+        public static OriAscendant.Data.ContestConfig MakeTwoMilestoneContestConfig()
+        {
+            var config = MakeContestConfig();
+            config.extraMilestones = new[] { new OriAscendant.Data.ContestMilestone { mantissa = 5.0, exponent = 3 } };
             return config;
         }
 

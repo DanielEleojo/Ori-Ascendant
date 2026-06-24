@@ -21,5 +21,8 @@ namespace OriAscendant.Data
 
         [Tooltip("Seconds between background autosaves.")]
         public int autosaveIntervalSeconds = 30;
+
+        [Tooltip("Cap on the Renown rate bonus — the 7th additive term in the §2.1 rate. PLACEHOLDER pending the balance pass (issue #40).")]
+        public double renownBonusCap = 0.25;
     }
 }

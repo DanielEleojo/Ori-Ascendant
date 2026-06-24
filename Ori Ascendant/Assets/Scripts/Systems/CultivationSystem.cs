@@ -66,6 +66,9 @@ namespace OriAscendant.Systems
         public bool IsAtFinalStage => _save != null && _progression != null &&
                                       _save.currentStage == _progression.FinalStageIndex;
 
+        /// <summary>Total stage count — used by VesselFillRatio to normalise fill.</summary>
+        public int StageCount => _progression?.StageCount ?? 0;
+
         public bool IsAtPathGate => _save != null && _save.currentStage == _pathGateStageIndex &&
                                     _save.currentPath < 0;
 

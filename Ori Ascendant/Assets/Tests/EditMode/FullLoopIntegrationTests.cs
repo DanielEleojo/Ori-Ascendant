@@ -113,16 +113,17 @@ namespace OriAscendant.Tests.EditMode
             Assert.IsTrue(_save.GetAse().IsZero);
             Assert.AreEqual(1, _save.lineage.generationCount);
             Assert.AreEqual(1, _save.council.Count);
-            Assert.AreEqual(BigNumber.FromDouble(1.25), _save.GetAsePerSecond(),
-                "gen 2 starts visibly stronger: ×1.25 from one radiant ancestor");
+            Assert.AreEqual(BigNumber.FromDouble(1.30), _save.GetAsePerSecond(),
+                "gen 2 starts visibly stronger: 1 × (1 + 0.25 council + 0.05 renown)");
 
             // ---- Generation 2: walk Osun, fall ----
             ClimbToArmedPeak(pathIndex: 2);
             Assert.AreEqual(2, _announcements, "eligibility must re-announce in gen 2");
 
             // Mid-walk sanity: Osun doubles the lineage term while walking it.
-            // (Stage 5 → ×1250; council 0.25 → factor 1 + 2×0.25 = 1.5.)
-            Assert.AreEqual(BigNumber.FromDouble(1250 * 1.5), _save.GetAsePerSecond());
+            // Stage 5 → ×1250; council 0.25 from gen 1's ascend (renown 0.05 is OUTSIDE the Osun wrap).
+            // rate = 1250 × (1 + 2×0.25 council + 0.05 renown) = 1250 × 1.55.
+            Assert.AreEqual(BigNumber.FromDouble(1250 * 1.55), _save.GetAsePerSecond());
 
             _random.Value = 0.99; // fall
             var second = _tribulation.Resolve();
@@ -133,8 +134,8 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(2, _save.lineage.generationCount);
             Assert.AreEqual(2, _save.council.Count);
             Assert.AreEqual(0.0, _save.lineage.permanentAseBonus);
-            Assert.AreEqual(BigNumber.FromDouble(1.35), _save.GetAsePerSecond(),
-                "gen 3 rate = 1 × (1 + 0.25×1.0 + 0.25×0.4)");
+            Assert.AreEqual(BigNumber.FromDouble(1.42), _save.GetAsePerSecond(),
+                "gen 3 rate = 1 × (1 + 0.35 council + 0.07 renown); renown = 0.05 + 0.02 = 0.07");
             Assert.AreEqual(1.25, second.LineageFactorBefore, 1e-12);
             Assert.AreEqual(1.35, second.LineageFactorAfter, 1e-12);
         }
@@ -168,6 +169,35 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(1, _save.council.Count, "the line endures");
             Assert.IsTrue(_save.GetAsePerSecond() > BigNumber.One,
                 "gen 2 is strictly stronger even after a fall");
+        }
+
+        /// <summary>Capstone for this architecture pass: six ascending generations fill the
+        /// Council past its cap of five, retiring the oldest into lineage.permanentAseBonus.
+        /// The rate is read back through AseGenerationSystem (the RateInputs gather, B), proving
+        /// the retired ancestor's bonus is baked into permanence and still feeds production —
+        /// end-to-end, not just at the RateCalculator unit level.</summary>
+        [Test]
+        public void SixGenerations_CouncilCapsAtFive_RetiredBonusStaysInTheRate()
+        {
+            for (int gen = 0; gen < 6; gen++)
+            {
+                ClimbToArmedPeak(pathIndex: 0); // Ane — council modifier ×1.0
+                _random.Value = 0.0;            // ascend every time
+                Assert.IsNotNull(_tribulation.Resolve(), $"gen {gen + 1} must resolve");
+            }
+
+            Assert.AreEqual(6, _save.lineage.generationCount);
+            Assert.AreEqual(5, _save.council.Count, "the Council caps at five");
+            Assert.AreEqual(0.25 * 1.0, _save.lineage.permanentAseBonus, 1e-12,
+                "the oldest ancestor retired into permanence (W × 1.0)");
+
+            // Gen 7 starts at stage 0 with no path: rate = 1 × (1 + 1.0 × (perm + activeSum) + renown-capped)
+            //   perm = 0.25 (one retired ascended), active = 5 × 0.25 = 1.25, council factor = 2.5.
+            //   Six ascends grant 6 × 0.05 = 0.30 renown; the renown cap clamps it to 0.25.
+            //   Final rate = 1 × (2.5 + 0.25 renown-capped) = 2.75.
+            // Nice end-to-end cap check: renown bonus saturates exactly here.
+            Assert.AreEqual(BigNumber.FromDouble(2.75), _save.GetAsePerSecond(),
+                "retired bonus is baked into permanence and still feeds the gathered rate; renown capped at 0.25");
         }
     }
 }

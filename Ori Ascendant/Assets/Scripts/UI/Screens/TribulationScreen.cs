@@ -1,3 +1,4 @@
+using System;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -18,12 +19,18 @@ namespace OriAscendant.UI.Screens
     /// </summary>
     public class TribulationScreen : MonoBehaviour
     {
-        private enum Phase { Hidden, Confirm, Transition, StormWaves, Silence, Reveal, AncestorCard, Summary, FinalBeat }
+        /// <summary>Fires in Finish() after HideAllRoots() — the overlay is fully down.
+        /// MainScreenSkin subscribes to start the star-ignition ceremony at this moment
+        /// rather than when OnTribulationComplete fires (which is while the overlay is still up).</summary>
+        public event Action OnCeremonyClosed;
+
+        private enum Phase { Hidden, Confirm, ClosingConfirm, Transition, StormWaves, Silence, Reveal, AncestorCard, Summary, FinalBeat }
 
         [SerializeField] private TribulationConfig _config;
 
         [Header("Confirm sheet")]
         [SerializeField] private GameObject _confirmRoot;
+        [SerializeField] private TMP_Text _chanceToAscendText;
         [SerializeField] private TMP_Text _ascendLine;
         [SerializeField] private TMP_Text _fallLine;
         [SerializeField] private GameObject _oddsPanel;
@@ -40,6 +47,8 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _revealSubtitle;
         [SerializeField] private TMP_Text _deltaLine;
         [SerializeField] private Button _ceremonyTapCatcher;
+        [SerializeField] private Image _victoryPortrait;
+        [SerializeField] private Image _ascensionFxOverlay;
 
         [Header("Ancestor card")]
         [SerializeField] private GameObject _cardRoot;
@@ -66,13 +75,19 @@ namespace OriAscendant.UI.Screens
         private TribulationSystem _tribulation;
         private SaveManager _saveManager;
 
+        private CanvasGroup _confirmCanvasGroup;
+        private OverlayTransition _confirmTransition;
+
         private void Awake()
         {
             if (_oddsToggle != null) _oddsToggle.onClick.AddListener(ToggleOdds);
             if (_notYetButton != null) _notYetButton.onClick.AddListener(HideConfirm);
             if (_ceremonyTapCatcher != null) _ceremonyTapCatcher.onClick.AddListener(HandleCeremonyTap);
             if (_continueButton != null) _continueButton.onClick.AddListener(AdvanceFromSummary);
+            if (_confirmRoot != null)
+                _confirmCanvasGroup = _confirmRoot.GetComponent<CanvasGroup>() ?? _confirmRoot.AddComponent<CanvasGroup>();
             HideAllRoots();
+            ServiceLocator.Register(this);
         }
 
         private void OnDestroy()
@@ -99,8 +114,6 @@ namespace OriAscendant.UI.Screens
             _tribulation = ServiceLocator.Get<TribulationSystem>();
             ServiceLocator.TryGet(out _saveManager);
 
-            // Outcome table computed from the live config — never static strings
-            // (Osun's ×2 must show; GAMEPLAY adjudication #6).
             double w = ServiceLocator.TryGet(out AncestralCouncilSystem council) ? council.W : 0.25;
             double mod = ServiceLocator.TryGet(out CultivationSystem cultivation)
                 ? cultivation.CouncilBonusModifier : 1.0;
@@ -110,10 +123,15 @@ namespace OriAscendant.UI.Screens
             if (_fallLine != null)
                 _fallLine.text = "Fall — ember Ancestor, " + BonusCopy(w * 0.4, mod);
 
+            if (_chanceToAscendText != null && _tribulation != null)
+                _chanceToAscendText.text = $"Chance to ascend: {_tribulation.AscendChance:P0}";
+
             if (_oddsPanel != null) _oddsPanel.SetActive(false);
             _holdTimer = 0f;
             if (_holdFill != null) _holdFill.fillAmount = 0f;
             if (_confirmRoot != null) _confirmRoot.SetActive(true);
+            if (_confirmCanvasGroup != null) _confirmCanvasGroup.alpha = 0f;
+            _confirmTransition.Open();
             _phase = Phase.Confirm;
         }
 
@@ -134,8 +152,8 @@ namespace OriAscendant.UI.Screens
 
         private void HideConfirm()
         {
-            if (_confirmRoot != null) _confirmRoot.SetActive(false);
-            _phase = Phase.Hidden;
+            _confirmTransition.Close();
+            _phase = Phase.ClosingConfirm;
         }
 
         // ---- the crossing ----
@@ -149,11 +167,10 @@ namespace OriAscendant.UI.Screens
                 return;
             }
 
-            // Skippability: full ceremony the first time each OUTCOME is seen.
             var save = _saveManager?.Current;
             int seenBit = _result.DidAscend ? SeenFlags.AscendCeremony : SeenFlags.FallCeremony;
             _canSkipWaves = save != null && save.HasSeen(seenBit);
-            save?.MarkSeen(seenBit); // persists with the next save trigger
+            save?.MarkSeen(seenBit);
 
             if (_confirmRoot != null) _confirmRoot.SetActive(false);
             if (_ceremonyRoot != null) _ceremonyRoot.SetActive(true);
@@ -164,7 +181,6 @@ namespace OriAscendant.UI.Screens
 
         private void HandleCeremonyTap()
         {
-            // Tap during the waves jumps to the held-breath beat — repeat views only.
             if (_canSkipWaves && (_phase == Phase.Transition || _phase == Phase.StormWaves))
             {
                 EnterSilence();
@@ -176,10 +192,11 @@ namespace OriAscendant.UI.Screens
             switch (_phase)
             {
                 case Phase.Confirm: TickHold(); break;
+                case Phase.ClosingConfirm: TickClosingConfirm(); break;
                 case Phase.Transition: TickTransition(); break;
                 case Phase.StormWaves: TickStormWaves(); break;
                 case Phase.Silence: TickSilence(); break;
-                case Phase.Reveal: TickTimed(_config.revealSeconds, EnterAncestorCard); break;
+                case Phase.Reveal: TickReveal(); break;
                 case Phase.AncestorCard: TickTimed(_config.ancestorCardSeconds, EnterSummary); break;
                 case Phase.FinalBeat: TickTimed(_config.finalBeatSeconds, Finish); break;
             }
@@ -187,6 +204,10 @@ namespace OriAscendant.UI.Screens
 
         private void TickHold()
         {
+            Transform rootT = _confirmRoot != null ? _confirmRoot.transform : null;
+            _confirmTransition.TickAndApply(_confirmCanvasGroup, rootT,
+                Time.unscaledDeltaTime, MotionHelper.IsReduceMotion());
+
             if (_holdButton == null || _config == null) return;
 
             _holdTimer = _holdButton.IsHeld
@@ -199,6 +220,17 @@ namespace OriAscendant.UI.Screens
             if (_holdTimer >= (float)_config.holdToConfirmSeconds)
             {
                 BeginCrossing();
+            }
+        }
+
+        private void TickClosingConfirm()
+        {
+            Transform rootT = _confirmRoot != null ? _confirmRoot.transform : null;
+            if (_confirmTransition.TickAndApply(_confirmCanvasGroup, rootT,
+                    Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+            {
+                if (_confirmRoot != null) _confirmRoot.SetActive(false);
+                _phase = Phase.Hidden;
             }
         }
 
@@ -217,8 +249,6 @@ namespace OriAscendant.UI.Screens
             _timer += Time.unscaledDeltaTime;
             float total = _config.stormWaveCount * _config.stormWaveIntervalSeconds;
 
-            // Each wave: a flash that decays over its interval. Identical for
-            // both outcomes by construction — _result is never read here.
             float withinWave = Mathf.Repeat(_timer, _config.stormWaveIntervalSeconds);
             float decay = 1f - withinWave / _config.stormWaveIntervalSeconds;
             SetCeremonyVisuals(flashAlpha: decay * 0.85f, whiteAlpha: 0f, showReveal: false);
@@ -230,7 +260,7 @@ namespace OriAscendant.UI.Screens
         {
             _timer = 0f;
             _phase = Phase.Silence;
-            SetCeremonyVisuals(flashAlpha: 0f, whiteAlpha: 1f, showReveal: false); // whiteout, no UI, no sound
+            SetCeremonyVisuals(flashAlpha: 0f, whiteAlpha: 1f, showReveal: false);
         }
 
         private void TickSilence()
@@ -242,6 +272,26 @@ namespace OriAscendant.UI.Screens
                 _phase = Phase.Reveal;
                 ShowReveal();
             }
+        }
+
+        private void TickReveal()
+        {
+            _timer += Time.unscaledDeltaTime;
+            TickAscensionFx();
+            if (_timer >= _config.revealSeconds)
+            {
+                _timer = 0f;
+                EnterAncestorCard();
+            }
+        }
+
+        private void TickAscensionFx()
+        {
+            if (_ascensionFxOverlay == null || _result == null || !_result.DidAscend) return;
+            float pulse = 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * 1.2f);
+            var c = _ascensionFxOverlay.color;
+            c.a = pulse;
+            _ascensionFxOverlay.color = c;
         }
 
         private void ShowReveal()
@@ -262,11 +312,20 @@ namespace OriAscendant.UI.Screens
             }
             if (_deltaLine != null)
             {
-                // Prove the gain is real — the honest inverse of losses-disguised-
-                // as-wins (GAMEPLAY §8). Shown on both branches.
                 _deltaLine.text =
                     $"Lineage Àṣẹ: ×{_result.LineageFactorBefore:0.00} → ×{_result.LineageFactorAfter:0.00}";
             }
+
+            if (_victoryPortrait != null)
+            {
+                ServiceLocator.TryGet(out CultivationSystem cultivation);
+                Sprite stage6Portrait = cultivation?.CurrentStageConfig?.portrait;
+                _victoryPortrait.sprite = _config?.RevealSprite(ascended, stage6Portrait);
+                _victoryPortrait.gameObject.SetActive(true);
+            }
+
+            if (_ascensionFxOverlay != null)
+                _ascensionFxOverlay.gameObject.SetActive(ascended);
         }
 
         private void TickTimed(float duration, System.Action next)
@@ -312,7 +371,7 @@ namespace OriAscendant.UI.Screens
 
         private void EnterSummary()
         {
-            _phase = Phase.Summary; // user-paced — peak-end rule: end on the number going up
+            _phase = Phase.Summary;
             if (_cardRoot != null) _cardRoot.SetActive(false);
             if (_summaryRoot != null) _summaryRoot.SetActive(true);
 
@@ -328,13 +387,13 @@ namespace OriAscendant.UI.Screens
                     : "No path walked";
                 long h = _result.TimeInGenerationSeconds / 3600;
                 long m = (_result.TimeInGenerationSeconds % 3600) / 60;
-                _summaryStats.text = $"{pathName}\nTime on the road: {h}h {m:D2}m\nPeak Àṣẹ: {_result.PeakAse}";
+                _summaryStats.text = $"{pathName}\nTime on the road: {h}h {m:D2}m\nPeak Àṣẹ: {_result.PeakAse}\nRenown gained: +{_result.RenownGranted:0.00}";
             }
 
             if (_ratePreview != null)
             {
                 _ratePreview.text =
-                    $"Stage 1 rate: {_result.OldStage1Rate}/s → {_result.NewStage1Rate}/s";
+                    $"Stage 1 rate: {_result.OldStage1Rate} → {_result.NewStage1Rate} Àṣẹ per breath";
             }
         }
 
@@ -353,6 +412,7 @@ namespace OriAscendant.UI.Screens
             HideAllRoots();
             _phase = Phase.Hidden;
             _result = null;
+            OnCeremonyClosed?.Invoke();
         }
 
         private void SetCeremonyVisuals(float flashAlpha, float whiteAlpha, bool showReveal)
@@ -368,6 +428,12 @@ namespace OriAscendant.UI.Screens
             if (_revealTitle != null) _revealTitle.gameObject.SetActive(showReveal);
             if (_revealSubtitle != null) _revealSubtitle.gameObject.SetActive(showReveal);
             if (_deltaLine != null) _deltaLine.gameObject.SetActive(showReveal);
+
+            if (!showReveal)
+            {
+                if (_victoryPortrait != null) _victoryPortrait.gameObject.SetActive(false);
+                if (_ascensionFxOverlay != null) _ascensionFxOverlay.gameObject.SetActive(false);
+            }
         }
     }
 }

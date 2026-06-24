@@ -12,6 +12,7 @@ namespace OriAscendant.Audio
     /// every play is null-guarded, so the system is fully functional before
     /// Daniel's audio assets land (they slot straight into these fields).
     /// Subscribes in Start (systems register in their Awakes).
+    /// Haptic routing delegates to HapticRouter (issue #21).
     /// </summary>
     public class AudioManager : MonoBehaviour
     {
@@ -38,6 +39,7 @@ namespace OriAscendant.Audio
         private CultivationSystem _cultivation;
         private TribulationSystem _tribulation;
         private AseGenerationSystem _aseGen;
+        private AncestralCouncilSystem _council;
 
         private void Awake()
         {
@@ -45,9 +47,9 @@ namespace OriAscendant.Audio
             _bgmB = CreateSource("BGM_B", loop: true);
             _sfx = CreateSource("SFX", loop: false);
 #if UNITY_IOS && !UNITY_EDITOR
-            _haptics = new DeviceHaptics();
+            _haptics = new GatedHaptics(new iOSHaptics());
 #else
-            _haptics = new NullHaptics();
+            _haptics = new GatedHaptics(new NullHaptics());
 #endif
             ServiceLocator.Register(this);
         }
@@ -67,6 +69,10 @@ namespace OriAscendant.Audio
             {
                 _aseGen.OnAseChanneled += HandleChanneled;
             }
+            if (ServiceLocator.TryGet(out _council))
+            {
+                _council.OnAncestorAdded += HandleAncestorAdded;
+            }
             OfflineProgressCalculator.OnOfflineProgressApplied += HandleOfflineCollected;
 
             PlayTheme(AudioTrackSelector.ThemeIndexForPath(-1), immediate: true);
@@ -81,6 +87,7 @@ namespace OriAscendant.Audio
             }
             if (_tribulation != null) _tribulation.OnTribulationComplete -= HandleTribulationComplete;
             if (_aseGen != null) _aseGen.OnAseChanneled -= HandleChanneled;
+            if (_council != null) _council.OnAncestorAdded -= HandleAncestorAdded;
             OfflineProgressCalculator.OnOfflineProgressApplied -= HandleOfflineCollected;
             ServiceLocator.Unregister(this);
         }
@@ -106,26 +113,34 @@ namespace OriAscendant.Audio
         private void HandleStageAdvanced(int _)
         {
             PlaySfx(_sfxAdvance);
-            _haptics.Medium();
+            HapticRouter.RouteStageAdvanced(_haptics);
         }
 
         private void HandleTribulationComplete(bool didAscend, AncestorData _)
         {
             PlaySfx(_tribulationStinger);
             PlaySfx(didAscend ? _sfxAscend : _sfxFall);
-            _haptics.Heavy();
+            HapticRouter.RouteTribulationComplete(_haptics, didAscend);
         }
 
         private void HandleChanneled(Core.BigNumber _)
         {
             PlaySfx(_sfxChannel);
-            _haptics.Light();
+            HapticRouter.RouteChanneled(_haptics);
         }
+
+        private void HandleAncestorAdded(Save.AncestorData _) =>
+            HapticRouter.RouteAncestorStarIgnite(_haptics);
 
         private void HandleOfflineCollected(Core.BigNumber earned, long seconds)
         {
             if (!earned.IsZero) PlaySfx(_sfxCollect);
         }
+
+        /// <summary>Selection tick for UI button presses. Call from UI components
+        /// that lack a corresponding game-event (e.g. settings, navigation buttons).
+        /// Channel tap and stage advance already route via their own game events.</summary>
+        public void PlaySelect() => _haptics.Select();
 
         // ---- playback ----
 
@@ -151,6 +166,27 @@ namespace OriAscendant.Audio
             {
                 _crossfade.Begin(_crossfadeSeconds);
             }
+        }
+
+        /// <summary>Installs a runtime-generated clip as the default (path-less) BGM
+        /// theme and plays it if the player is currently on the default theme. Lets
+        /// <see cref="ProceduralAmbience"/> supply the ambient bed without a serialised
+        /// asset. Respects <see cref="AudioPrefs.BgmEnabled"/> + <see cref="_bgmVolume"/>.
+        /// No-op if <paramref name="clip"/> is null.</summary>
+        public void InstallDefaultTheme(AudioClip clip)
+        {
+            if (clip == null) return;
+            _bgmThemes[0] = clip;
+            // If we are currently path-less (default theme slot 0 is active), replay
+            // so the new clip starts immediately.  PlayTheme is the existing crossfade
+            // path — passing immediate:true matches the Start() boot so there is no
+            // fade-in on the very first load.
+            int currentSlot = AudioTrackSelector.ThemeIndexForPath(-1); // 0
+            AudioSource active = _bgmAIsActive ? _bgmA : _bgmB;
+            bool isDefaultPlaying = active.clip == null || active.clip == clip ||
+                                    currentSlot == 0;
+            if (isDefaultPlaying)
+                PlayTheme(currentSlot, immediate: true);
         }
 
         private void PlaySfx(AudioClip clip)

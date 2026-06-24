@@ -9,6 +9,10 @@ namespace OriAscendant.UI
     /// </summary>
     public static class PathMotif
     {
+        /// <summary>Canonical fallen-ancestor alpha shared by all mappers — 0.45 = present,
+        /// honoured, softer. ChronicleThreadMapper uses this same value on its EmberWarm base.</summary>
+        public const float FallenAlpha = 0.45f;
+
         public static readonly Color Radiance = new Color(0.851f, 0.643f, 0.255f); // gold
         public static readonly Color Ember = new Color(0.804f, 0.412f, 0.227f);    // warm ember — never grey/red
         public static readonly Color Neutral = new Color(0.165f, 0.192f, 0.251f);
@@ -28,18 +32,27 @@ namespace OriAscendant.UI
         /// <summary>"Aṣẹ́gun of {…}" card title fragment.</summary>
         public static string TitleOf(int pathIndex) => pathIndex switch
         {
-            0 => "Earth",
-            1 => "Thunder",
-            2 => "the River",
-            _ => "the First Road", // gen with no path recorded (defensive)
+            0 => "the Mountain Path",  // Ane — earth, endurance
+            1 => "the Storm Path",     // Sango — thunder, force
+            2 => "the River Path",     // Osun — lineage, flow
+            _ => "the First Road",     // gen with no path recorded (defensive)
         };
 
-        /// <summary>Strip/card tint: fallen ancestors render dimmed (0.4 alpha
+        /// <summary>Long display name for UI badges and skin layer — title-cased.</summary>
+        public static string LongNameOf(int pathIndex) => pathIndex switch
+        {
+            0 => "The Earth Path",
+            1 => "The Thunder Path",
+            2 => "The River Path",
+            _ => "No path walked",
+        };
+
+        /// <summary>Strip/card tint: fallen ancestors render dimmed (FallenAlpha
         /// treatment per GAMEPLAY §3.2) — present, honored, softer.</summary>
         public static Color AncestorTint(int pathIndex, bool didAscend)
         {
-            Color c = ColorOf(pathIndex);
-            c.a = didAscend ? 1.0f : 0.4f;
+            Color c = pathIndex < 0 ? Palette.AseGold : ColorOf(pathIndex);
+            c.a = didAscend ? 1.0f : FallenAlpha;
             return c;
         }
     }

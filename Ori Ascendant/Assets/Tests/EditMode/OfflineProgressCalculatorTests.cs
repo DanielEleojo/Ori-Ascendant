@@ -7,7 +7,8 @@ namespace OriAscendant.Tests.EditMode
 {
     /// <summary>
     /// Gate A: the pure offline-progress math — clamp behavior, fresh-install
-    /// guard, path offline modifiers, and Apply's mutation contract.
+    /// guard, path offline modifiers, and the two intent-named save mutations
+    /// (first-launch init vs resume accrual; issue #17 / PRD #13 ⑥).
     /// </summary>
     public class OfflineProgressCalculatorTests
     {
@@ -76,37 +77,87 @@ namespace OriAscendant.Tests.EditMode
             Assert.AreEqual(BigNumber.FromDouble(expected), r.Earned);
         }
 
-        [Test]
-        public void Apply_CreditsAse_AndStampsTimestamp()
-        {
-            var save = new SaveData { lastSaveTimestamp = Now - 600 };
-            save.SetAse(new BigNumber(500.0, 0));
-            save.SetAsePerSecond(Rate10);
-
-            var r = OfflineProgressCalculator.Apply(save, Now, 1.0);
-
-            Assert.AreEqual(600, r.CountedSeconds);
-            Assert.AreEqual(BigNumber.FromDouble(6_500.0), save.GetAse()); // 500 + 10×600
-            Assert.AreEqual(Now, save.lastSaveTimestamp);
-        }
+        // ---- Split mutation API (issue #17): InitializeFirstLaunch vs ApplyAccrual ----
 
         [Test]
-        public void Apply_FirstLaunch_StampsBothTimestamps_AndKeepsZeroAse()
+        public void InitializeFirstLaunch_StampsBothTimestamps_AndCreditsZeroAse()
         {
+            // A fresh install MUST NOT credit any Àṣẹ — both timestamps stamp to now.
             var save = new SaveData();
+            BigNumber preAse = save.GetAse();
 
-            var r = OfflineProgressCalculator.Apply(save, Now, 1.0);
+            OfflineProgressCalculator.InitializeFirstLaunch(save, Now);
 
-            Assert.IsTrue(r.IsFirstLaunch);
+            Assert.AreEqual(preAse, save.GetAse(), "first launch credits zero Àṣẹ");
             Assert.IsTrue(save.GetAse().IsZero);
             Assert.AreEqual(Now, save.lastSaveTimestamp);
             Assert.AreEqual(Now, save.generationStartTimestamp, "first launch begins generation 1");
         }
 
         [Test]
-        public void Apply_RaisesEvent_WithEarnedAndSeconds()
+        public void InitializeFirstLaunch_DoesNotRaiseEvent()
         {
-            var save = new SaveData { lastSaveTimestamp = Now - 120 };
+            // First launch is not an "offline progress applied" moment — the
+            // Welcome Back UI must not flash on a brand-new install.
+            var save = new SaveData();
+
+            bool raised = false;
+            void Handler(BigNumber _, long __) { raised = true; }
+
+            OfflineProgressCalculator.OnOfflineProgressApplied += Handler;
+            try
+            {
+                OfflineProgressCalculator.InitializeFirstLaunch(save, Now);
+            }
+            finally
+            {
+                OfflineProgressCalculator.OnOfflineProgressApplied -= Handler;
+            }
+
+            Assert.IsFalse(raised, "first-launch init must not fire the offline-progress event");
+        }
+
+        [Test]
+        public void ApplyAccrual_CreditsAse_AndStampsLastSave()
+        {
+            var save = new SaveData { lastSaveTimestamp = Now - 600, generationStartTimestamp = Now - 5000 };
+            save.SetAse(new BigNumber(500.0, 0));
+            save.SetAsePerSecond(Rate10);
+
+            var r = OfflineProgressCalculator.ApplyAccrual(save, Now, 1.0);
+
+            Assert.IsFalse(r.IsFirstLaunch);
+            Assert.AreEqual(600, r.CountedSeconds);
+            Assert.AreEqual(BigNumber.FromDouble(6_500.0), save.GetAse()); // 500 + 10×600
+            Assert.AreEqual(Now, save.lastSaveTimestamp);
+            Assert.AreEqual(Now - 5000, save.generationStartTimestamp,
+                "accrual must never touch generationStartTimestamp");
+        }
+
+        [Test]
+        public void ApplyAccrual_Idempotent_DoesNotReinitGenerationTimestamp()
+        {
+            // Acceptance: applying accrual twice does not re-initialize the
+            // generation timestamp (the only way to set it is first-launch or
+            // a Tribulation resolve — never accrual).
+            long genStart = Now - 12345;
+            var save = new SaveData { lastSaveTimestamp = Now - 100, generationStartTimestamp = genStart };
+            save.SetAsePerSecond(Rate10);
+
+            OfflineProgressCalculator.ApplyAccrual(save, Now, 1.0);
+            Assert.AreEqual(genStart, save.generationStartTimestamp, "first accrual must not stamp generation");
+
+            // Simulate a later resume — accrual again with a fresh elapsed window.
+            OfflineProgressCalculator.ApplyAccrual(save, Now + 200, 1.0);
+
+            Assert.AreEqual(genStart, save.generationStartTimestamp, "second accrual must not stamp generation");
+            Assert.AreEqual(Now + 200, save.lastSaveTimestamp);
+        }
+
+        [Test]
+        public void ApplyAccrual_RaisesEvent_WithEarnedAndSeconds()
+        {
+            var save = new SaveData { lastSaveTimestamp = Now - 120, generationStartTimestamp = Now - 1000 };
             save.SetAsePerSecond(Rate10);
 
             BigNumber eventEarned = BigNumber.Zero;
@@ -120,7 +171,7 @@ namespace OriAscendant.Tests.EditMode
             OfflineProgressCalculator.OnOfflineProgressApplied += Handler;
             try
             {
-                OfflineProgressCalculator.Apply(save, Now, 1.0);
+                OfflineProgressCalculator.ApplyAccrual(save, Now, 1.0);
             }
             finally
             {
@@ -129,6 +180,23 @@ namespace OriAscendant.Tests.EditMode
 
             Assert.AreEqual(120, eventSeconds);
             Assert.AreEqual(BigNumber.FromDouble(1200.0), eventEarned);
+        }
+
+        [Test]
+        public void ApplyAccrual_OnFreshSave_IsNoOp_AndDoesNotInitialize()
+        {
+            // Defense-in-depth: if the caller routes a fresh save through
+            // accrual by mistake, accrual must NOT secretly initialize the
+            // timestamps (that is first-launch's job). It credits zero and
+            // leaves the save alone for the lifecycle owner to notice.
+            var save = new SaveData(); // lastSaveTimestamp == 0
+
+            var r = OfflineProgressCalculator.ApplyAccrual(save, Now, 1.0);
+
+            Assert.IsTrue(r.IsFirstLaunch, "Compute reports first-launch on lastSave==0");
+            Assert.IsTrue(save.GetAse().IsZero);
+            Assert.AreEqual(0, save.lastSaveTimestamp, "accrual must not stamp on a fresh save");
+            Assert.AreEqual(0, save.generationStartTimestamp);
         }
     }
 }

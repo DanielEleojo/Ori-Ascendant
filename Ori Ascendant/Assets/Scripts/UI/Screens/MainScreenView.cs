@@ -19,6 +19,8 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _stageText;
         [SerializeField] private TMP_Text _generationText;
         [SerializeField] private TMP_Text _pathBadge;
+        [SerializeField] private TMP_Text _oriBadge;
+        [SerializeField] private TMP_Text _steadfastnessText;
 
         private AseGenerationSystem _aseGeneration;
         private SaveManagerHandle _saveHandle;
@@ -44,7 +46,7 @@ namespace OriAscendant.UI.Screens
                 if (_aseCounterText != null) _aseCounterText.text = counter;
             }
 
-            string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ/s";
+            string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ per breath";
             if (rate != _lastRate)
             {
                 _lastRate = rate;
@@ -78,6 +80,34 @@ namespace OriAscendant.UI.Screens
                 bool show = path != null && !string.IsNullOrEmpty(path.hookBadge);
                 if (_pathBadge.gameObject.activeSelf != show) _pathBadge.gameObject.SetActive(show);
                 if (show && _pathBadge.text != path.hookBadge) _pathBadge.text = path.hookBadge;
+            }
+            if (_oriBadge != null)
+            {
+                // Àkùnlẹ̀yàn vow shown on the main screen for the whole life
+                // (Dynasty PRD Phase 1, slice 1). Cleared by the Crossing reset.
+                ServiceLocator.TryGet(out OriSystem oriSystem);
+                var virtue = oriSystem?.ChosenVirtue;
+                bool show = virtue != null && !string.IsNullOrEmpty(virtue.virtueName);
+                if (_oriBadge.gameObject.activeSelf != show) _oriBadge.gameObject.SetActive(show);
+                if (show)
+                {
+                    string label = $"Ori — {virtue.virtueName}";
+                    if (_oriBadge.text != label) _oriBadge.text = label;
+                }
+            }
+            if (_steadfastnessText != null)
+            {
+                // Live steadfastness tally (Dynasty PRD Phase 1, slice 2a).
+                // Hidden until the first crossroads has been resolved (oriTrials == 0
+                // means no dilemma has been faced yet this life).
+                bool show = save.oriTrials > 0;
+                if (_steadfastnessText.gameObject.activeSelf != show)
+                    _steadfastnessText.gameObject.SetActive(show);
+                if (show)
+                {
+                    string label = $"held {save.oriHeld} of {save.oriTrials}";
+                    if (_steadfastnessText.text != label) _steadfastnessText.text = label;
+                }
             }
         }
 

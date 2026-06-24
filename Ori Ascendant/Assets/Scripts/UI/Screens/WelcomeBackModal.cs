@@ -62,7 +62,7 @@ namespace OriAscendant.UI.Screens
                 // The cached rate the calculation actually used (recalc happens after).
                 if (ServiceLocator.TryGet(out AseGenerationSystem gen))
                 {
-                    _rateContextText.text = "at " + gen.CurrentRate + " Àṣẹ/s";
+                    _rateContextText.text = "at " + gen.CurrentRate + " Àṣẹ per breath";
                 }
                 else
                 {
