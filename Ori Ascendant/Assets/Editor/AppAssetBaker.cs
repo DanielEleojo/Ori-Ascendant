@@ -14,8 +14,9 @@ namespace OriAscendant.EditorTools
     /// </summary>
     public static class AppAssetBaker
     {
-        private const int    IconSize       = 1024;
-        private const string IconOutputPath = "Assets/AppIcon_1024.png";
+        private const int    IconSize        = 1024;
+        private const string IconOutputPath  = "Assets/AppIcon_1024.png";
+        private const string SplashImagePath = "Assets/Vellicade_Games_Splash_screen.png";
 
         // ---- Colour palette (Editor-only copy — no runtime Palette dependency) ----
         private static Color IndigoNight => HexColor(0x07091A);
@@ -218,6 +219,22 @@ namespace OriAscendant.EditorTools
             var bgColor = new Color(0x07 / 255f, 0x09 / 255f, 0x1A / 255f, 1f);
             PlayerSettings.SplashScreen.backgroundColor = bgColor;
             PlayerSettings.SplashScreen.show            = false;
+
+            // Native iOS launch screen: the Vallicade splash paints instantly on every
+            // cold launch, before Unity even loads — then ColdOpenSkin takes over.
+            // Relative = the image is scaled across the whole screen (no letterbox).
+            // ponytail: iPhone portrait only — iPad isn't a target device (PRD §iOS 15+, iPhone).
+            var splashTex = AssetDatabase.LoadAssetAtPath<Texture2D>(SplashImagePath);
+            if (splashTex != null)
+            {
+                PlayerSettings.iOS.SetLaunchScreenImage(splashTex, iOSLaunchScreenImageType.iPhonePortraitImage);
+                PlayerSettings.iOS.SetiPhoneLaunchScreenType(iOSLaunchScreenType.ImageAndBackgroundRelative);
+                Debug.Log("[AppAssetBaker] iOS launch screen wired → portrait Vallicade splash (full-screen).");
+            }
+            else
+            {
+                Debug.LogWarning($"[AppAssetBaker] Launch splash not found at {SplashImagePath} — iOS launch screen left at default.");
+            }
 
             AssetDatabase.SaveAssets();
             Debug.Log("[AppAssetBaker] iOS PlayerSettings configured.");
