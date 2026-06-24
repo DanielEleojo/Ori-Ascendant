@@ -15,9 +15,9 @@ namespace OriAscendant.UI
         public const float FractionSkyTint = 0.50f;
         public const float FractionStormVignette = 0.80f;
 
-        // Warm storm-amber shadow: a rich amber-dark overtone, never a neutral grey
-        // (ART_BIBLE §5.5 "majestic awe, not menace" — warm red dominates).
-        private static readonly Color s_stormTint = new Color(0.28f, 0.12f, 0.04f);
+        // Warm storm-amber shadow: sourced from Palette.StormTint so the hue is
+        // maintained consistently with the rest of the colour system (Unit 1 token). // ponytail:
+        private static readonly Color s_stormTint = Palette.StormTint;
 
         /// <summary>Alpha for the fullscreen storm-sky overlay. Step function at the
         /// two canonical fractions; held constant past the second trigger so the sky

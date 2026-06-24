@@ -75,5 +75,31 @@ namespace OriAscendant.Tests.EditMode
             Assert.Greater(c.r, c.b + 0.05f,
                 "Storm tint must be warm (red > blue) — never a cool or neutral grey");
         }
+
+        // ---- Cohesion (Unit 6) ----
+
+        [Test]
+        public void SkyOverlayColor_Hue_MatchesPaletteStormTint()
+        {
+            // Palette.StormTint is the single source of truth for the storm hue (Unit 1).
+            // TribulationAtmosphere.SkyOverlayColor must use that hue — not a private literal.
+            Color sky = TribulationAtmosphere.SkyOverlayColor(1.0); // full fraction → peak alpha
+            Color tint = Palette.StormTint;
+            // Only the RGB channels define the hue; alpha is driven independently by the lerp.
+            Assert.AreEqual(tint.r, sky.r, 0.001f, "red channel must match Palette.StormTint");
+            Assert.AreEqual(tint.g, sky.g, 0.001f, "green channel must match Palette.StormTint");
+            Assert.AreEqual(tint.b, sky.b, 0.001f, "blue channel must match Palette.StormTint");
+        }
+
+        [Test]
+        public void SkyOverlayColor_Alpha_IsIndependentOfPaletteStormTintAlpha()
+        {
+            // The alpha is driven by the lerp, not by Palette.StormTint.a (which is 1.0).
+            // At full fraction the alpha must be 0.28 (the peak atmosphere value), never 1.0.
+            Color sky = TribulationAtmosphere.SkyOverlayColor(1.0);
+            Assert.Less(sky.a, 0.30f,
+                "Sky overlay alpha at full fraction must remain below 0.30 — not the palette opaque value");
+            Assert.Greater(sky.a, 0f, "Sky overlay must be visible at full fraction");
+        }
     }
 }
