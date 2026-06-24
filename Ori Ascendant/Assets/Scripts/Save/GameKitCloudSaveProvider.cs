@@ -9,7 +9,11 @@
 // surfaced, but it has never been compiled against the real package on this
 // Linux box. Verify the exact Apple.GameKit 3.0.2 signatures on the first iOS
 // build, and keep an early TestFlight build to shake out auth/entitlements.
-#if UNITY_IOS && !UNITY_EDITOR
+// APPLE_GAMEKIT define gate: this file only compiles once the Apple.Core +
+// Apple.GameKit packages are wired in (Phase D). Until that define is added to
+// the iOS player settings, the device build falls back to NullCloudSaveProvider
+// (local save only) — see CloudSaveManager.CreateProvider.
+#if UNITY_IOS && !UNITY_EDITOR && APPLE_GAMEKIT
 using System;
 using System.Text;
 using System.Threading.Tasks;

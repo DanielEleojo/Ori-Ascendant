@@ -8,6 +8,6 @@ extern "C"
 {
     bool OriAccessibility_IsReduceMotionEnabled()
     {
-        return UIAccessibility.isReduceMotionEnabled;
+        return UIAccessibilityIsReduceMotionEnabled();
     }
 }
