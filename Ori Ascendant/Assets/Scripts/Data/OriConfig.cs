@@ -5,8 +5,8 @@ namespace OriAscendant.Data
 {
     /// <summary>
     /// One vow-virtue option in the Ori seed set (PRD Phase 1, slice 1).
-    /// Placeholder copy — final names + descriptions land via the §7.10 review
-    /// before crossroads ship (Phase 2). Config only; never mutated at runtime.
+    /// Copy fully authored — awaiting only the §7.10 native-speaker review.
+    /// Config only; never mutated at runtime.
     /// </summary>
     [Serializable]
     public class OriVirtue

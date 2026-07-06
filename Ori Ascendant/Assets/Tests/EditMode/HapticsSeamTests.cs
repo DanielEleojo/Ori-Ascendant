@@ -125,6 +125,27 @@ namespace OriAscendant.Tests.EditMode
         }
 
         [Test]
+        public void ContestWin_TriggersNotifySuccess()
+        {
+            var spy = new SpyHaptics();
+            HapticRouter.RouteContestResolved(spy, didWin: true);
+            Assert.AreEqual(1, spy.NotifyCalls.Count);
+            Assert.AreEqual(NotificationStyle.Success, spy.NotifyCalls[0], "contest win must fire Notify(Success)");
+            Assert.AreEqual(0, spy.ImpactCalls.Count);
+        }
+
+        [Test]
+        public void ContestLoss_TriggersImpactLight_NeverWarning()
+        {
+            // Mirrors the Fall rule (ART_BIBLE 3.2): a loss lands soft — never Notify(Warning).
+            var spy = new SpyHaptics();
+            HapticRouter.RouteContestResolved(spy, didWin: false);
+            Assert.AreEqual(0, spy.NotifyCalls.Count, "contest loss must never fire a notification haptic");
+            Assert.AreEqual(1, spy.ImpactCalls.Count);
+            Assert.AreEqual(ImpactStyle.Light, spy.ImpactCalls[0], "contest loss must fire Impact(Light) — soft, not harsh");
+        }
+
+        [Test]
         public void TribulationComplete_Fall_ImpactNotNotification()
         {
             // Regression guard for ART_BIBLE 3.2: ensure no future refactor

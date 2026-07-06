@@ -18,7 +18,7 @@ namespace OriAscendant.Tests.EditMode
         public void ProductIdentity_IsSet()
         {
             Assert.AreEqual("Ori Ascendant", PlayerSettings.productName);
-            Assert.AreEqual("0.1.0", PlayerSettings.bundleVersion);
+            Assert.AreEqual("1.0.0", PlayerSettings.bundleVersion);
         }
 
         [Test]

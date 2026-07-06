@@ -44,5 +44,18 @@ namespace OriAscendant.UI
             float alpha = Mathf.Lerp(0.10f, 0.28f, t);
             return new Color(s_stormTint.r, s_stormTint.g, s_stormTint.b, alpha);
         }
+
+        /// <summary>BGM tension level 0..1 for the tribulation buildup: 0 below the
+        /// sky-tint fraction, ramping to 1 at the storm-vignette fraction — the same
+        /// canonical window SkyOverlayColor lerps across. MainScreenSkin pushes this
+        /// into AudioManager.SetTribulationTension each frame (the asmdef direction is
+        /// UI → Audio, so Audio cannot reference these fractions itself).</summary>
+        public static float TensionLevel(double fraction)
+        {
+            if (fraction < FractionSkyTint) return 0f;
+            return (float)System.Math.Min(
+                1.0,
+                (fraction - FractionSkyTint) / (FractionStormVignette - FractionSkyTint));
+        }
     }
 }

@@ -9,8 +9,10 @@ namespace OriAscendant.UI.Screens
     /// MainScreen read-only view (GAMEPLAY §3.2 zones 2–3). UI never writes game
     /// state. The counter polls AseGenerationSystem.StateVersion — a cheap int
     /// compare per frame — instead of racing event-subscription order at scene
-    /// start; text is rebuilt only when the version changes, and assigned only
-    /// when the formatted string actually differs (minimizes canvas rebuilds).
+    /// start. The hero counter is an odometer: the displayed value eases toward
+    /// the latest true Àṣẹ (WelcomeBackModal count-up feel) instead of snapping;
+    /// text is assigned only when the formatted string actually differs
+    /// (minimizes canvas rebuilds).
     /// </summary>
     public class MainScreenView : MonoBehaviour
     {
@@ -28,6 +30,17 @@ namespace OriAscendant.UI.Screens
         private string _lastCounter;
         private string _lastRate;
 
+        // Hero counter odometer roll: display-only interpolation in double space
+        // (.ToDouble() — game math stays in BigNumber). Retargeted to the latest
+        // true value on every state change, never queued.
+        private const float RollSeconds = 0.4f; // capped approach — even an 8h offline jump lands in one roll
+        private BigNumber _targetAse;
+        private double _targetDouble;
+        private double _displayedDouble;
+        private double _rollFrom;
+        private float _rollElapsed;
+        private bool _rolling;
+
         private void Start()
         {
             _aseGeneration = ServiceLocator.Get<AseGenerationSystem>();
@@ -36,24 +49,86 @@ namespace OriAscendant.UI.Screens
 
         private void Update()
         {
-            if (_aseGeneration == null || _aseGeneration.StateVersion == _lastVersion) return;
-            _lastVersion = _aseGeneration.StateVersion;
+            if (_aseGeneration == null) return;
 
-            string counter = _aseGeneration.CurrentAse.ToString();
-            if (counter != _lastCounter)
+            if (_aseGeneration.StateVersion != _lastVersion)
             {
-                _lastCounter = counter;
-                if (_aseCounterText != null) _aseCounterText.text = counter;
+                _lastVersion = _aseGeneration.StateVersion;
+                RetargetCounter();
+
+                string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ per breath";
+                if (rate != _lastRate)
+                {
+                    _lastRate = rate;
+                    if (_rateText != null) _rateText.text = rate;
+                }
+
+                RefreshIdentity();
             }
 
-            string rate = "+" + _aseGeneration.CurrentRate + " Àṣẹ per breath";
-            if (rate != _lastRate)
+            TickCounterRoll();
+        }
+
+        /// <summary>Points the odometer at the latest true Àṣẹ. Increases roll
+        /// (same ease-out feel as the WelcomeBackModal count-up); Reduce Motion,
+        /// decreases (spend/reset), and values past double range snap instead.</summary>
+        private void RetargetCounter()
+        {
+            _targetAse = _aseGeneration.CurrentAse;
+            _targetDouble = _targetAse.ToDouble();
+
+            // ponytail: ToDouble() saturates past e300 — interpolating there would
+            // overflow, so extreme late-game just snaps like today.
+            bool snap = MotionHelper.IsReduceMotion()
+                || _targetDouble <= _displayedDouble
+                || _targetDouble >= double.MaxValue;
+            if (snap)
             {
-                _lastRate = rate;
-                if (_rateText != null) _rateText.text = rate;
+                FinishRoll();
+                return;
             }
 
-            RefreshIdentity();
+            _rollFrom = _displayedDouble;
+            _rollElapsed = 0f;
+            _rolling = true;
+        }
+
+        private void TickCounterRoll()
+        {
+            if (!_rolling) return;
+
+            _rollElapsed += Time.unscaledDeltaTime;
+            float t = _rollElapsed / RollSeconds;
+            double shown = _rollFrom + (_targetDouble - _rollFrom) * MotionHelper.EaseOut(t);
+
+            // Land exactly at end-of-roll or within epsilon of the target;
+            // Reduce Motion toggled mid-roll also snaps to done.
+            if (t >= 1f || _targetDouble - shown <= _targetDouble * 1e-9 || MotionHelper.IsReduceMotion())
+            {
+                FinishRoll();
+                return;
+            }
+
+            _displayedDouble = shown;
+            // Same formatter as the true value so rolled digits read identically.
+            // One small ToString per frame while rolling is the TMP floor; settled
+            // frames do zero work.
+            SetCounterText(BigNumber.FromDouble(shown).ToString());
+        }
+
+        private void FinishRoll()
+        {
+            _rolling = false;
+            _displayedDouble = _targetDouble;
+            // The true BigNumber's own string — no double round-trip on the final value.
+            SetCounterText(_targetAse.ToString());
+        }
+
+        private void SetCounterText(string counter)
+        {
+            if (counter == _lastCounter) return;
+            _lastCounter = counter;
+            if (_aseCounterText != null) _aseCounterText.text = counter;
         }
 
         private void RefreshIdentity()

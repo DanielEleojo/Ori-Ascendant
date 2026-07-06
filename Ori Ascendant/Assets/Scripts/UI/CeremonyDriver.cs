@@ -44,8 +44,11 @@ namespace OriAscendant.UI
 
         /// <summary>Advances the ceremony clock and outputs the new-star alpha, its base colour
         /// (ascended = path colour, fallen = ember), and the column's exit alpha. Returns false
-        /// when no ceremony is playing (the skin should clear the star).</summary>
-        public bool Tick(float dt, out float starAlpha, out Color starBase, out float columnExitAlpha)
+        /// when no ceremony is playing (the skin should clear the star). Under Reduce Motion the
+        /// kindling overshoot is skipped: the star holds its settled alpha and the column snaps
+        /// out — alpha-only, matching the MotionHelper reduce-motion contract.</summary>
+        public bool Tick(float dt, out float starAlpha, out Color starBase, out float columnExitAlpha,
+            bool reduceMotion = false) // ponytail: defaulted — pre-RM call sites (headless tests) stay source-compatible
         {
             starAlpha = 0f;
             starBase = default;
@@ -53,11 +56,17 @@ namespace OriAscendant.UI
             if (!_ignited) return false;
             _elapsed += dt;
             if (!CrossingCeremonySpec.IsActive(_elapsed)) return false;
-            starAlpha = CrossingCeremonySpec.StarIgnitionAlpha(
-                _elapsed, CrossingCeremonySpec.StarIgnitionSeconds, _didAscend);
             starBase = _didAscend && _path >= 0
                 ? PathMotif.ColorOf(_path)
                 : PathMotif.Ember;
+            if (reduceMotion)
+            {
+                // No flash pulse: the star simply appears settled; the column is already out.
+                starAlpha = CrossingCeremonySpec.NewStarAlpha(_didAscend);
+                return true;
+            }
+            starAlpha = CrossingCeremonySpec.StarIgnitionAlpha(
+                _elapsed, CrossingCeremonySpec.StarIgnitionSeconds, _didAscend);
             columnExitAlpha = CrossingCeremonySpec.ColumnExitAlpha(
                 _elapsed, CrossingCeremonySpec.ColumnFadeSeconds);
             return true;

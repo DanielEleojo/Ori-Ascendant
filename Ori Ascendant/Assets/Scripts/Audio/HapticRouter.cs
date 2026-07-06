@@ -27,5 +27,14 @@ namespace OriAscendant.Audio
         public static void RouteFall(IHapticFeedback h) => h.Impact(ImpactStyle.Light);
 
         public static void RouteAncestorStarIgnite(IHapticFeedback h) => h.Impact(ImpactStyle.Light);
+
+        /// <summary>Ọjà contest resolution (issue #38). A loss mirrors RouteFall —
+        /// soft Impact(Light), never Notify(Warning): losing a contest is sandboxed
+        /// from core progression and must land soft, not read as an error.</summary>
+        public static void RouteContestResolved(IHapticFeedback h, bool didWin)
+        {
+            if (didWin) h.Notify(NotificationStyle.Success);
+            else h.Impact(ImpactStyle.Light);
+        }
     }
 }

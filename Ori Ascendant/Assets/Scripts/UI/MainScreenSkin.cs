@@ -149,15 +149,17 @@ namespace OriAscendant.UI
         private Image _vesselFillImage;
         private CultivationSystem _cultivation;
         private AseGenerationSystem _aseGen;
+        private Audio.AudioManager _audio; // BGM storm tension push (SetTribulationTension)
         private double _lastProgressFraction; // within-stage fraction; read by RefreshTribulationAtmosphere
 
         // Hero idle breathing (ADR-0005): BreathingDriver owns the breath clock + constants.
         private BreathingDriver _breathing;
 
         // Micro-feedback motions (issue #24) + hero counter glow (issue #30)
-        private TMP_Text _aseCounter;               // the hero Àṣẹ counter — AseFlashDriver watches its text
+        private TMP_Text _aseCounter;               // the hero Àṣẹ counter — flashed on meaningful Àṣẹ events
         private Image _aseCounterGlow;              // faint gold glow behind the hero number
-        private AseFlashDriver _aseFlash;           // counter-change flash clock + last-seen value
+        private AseFlashDriver _aseFlash;           // flash clock; watches _aseFlashKey, not raw counter text
+        private string _aseFlashKey = "0";          // "flash requested" flag: flipped by the channel/advance/collect events
         private float _silhouettePulseElapsed = float.MaxValue; // large = no active pulse (tap-response)
         private const float SilhouettePulseDuration   = 0.25f;
         private const float SilhouettePulseAmplitude  = 0.04f; // ±4% scale burst
@@ -193,6 +195,14 @@ namespace OriAscendant.UI
                     trib.OnTribulationComplete += OnCeremonyFired;
                 if (ServiceLocator.TryGet(out TribulationScreen tribScreen))
                     tribScreen.OnCeremonyClosed += StartCeremony;
+
+                // Hero-counter flash fires on MEANINGFUL Àṣẹ changes only (channel tap,
+                // stage advance, offline collect) — never on passive counter ticks.
+                if (ServiceLocator.TryGet(out _aseGen))
+                    _aseGen.OnAseChanneled += HandleAseChanneled;
+                if (ServiceLocator.TryGet(out _cultivation))
+                    _cultivation.OnStageAdvanced += HandleStageAdvanced;
+                OfflineProgressCalculator.OnOfflineProgressApplied += HandleOfflineCollected;
             }
             catch (System.Exception e)
             {
@@ -206,6 +216,9 @@ namespace OriAscendant.UI
                 trib.OnTribulationComplete -= OnCeremonyFired;
             if (ServiceLocator.TryGet(out TribulationScreen tribScreen))
                 tribScreen.OnCeremonyClosed -= StartCeremony;
+            if (_aseGen != null) _aseGen.OnAseChanneled -= HandleAseChanneled;
+            if (_cultivation != null) _cultivation.OnStageAdvanced -= HandleStageAdvanced;
+            OfflineProgressCalculator.OnOfflineProgressApplied -= HandleOfflineCollected;
             if (_portraitButton != null)
                 _portraitButton.onClick.RemoveListener(OnPortraitTapped);
         }
@@ -222,8 +235,13 @@ namespace OriAscendant.UI
         private void Update()
         {
             float dt = Time.unscaledDeltaTime;
+            bool rm = IsReduceMotion();
             _pulseT += dt;
-            float pulse = 0.5f + 0.5f * Mathf.Sin(_pulseT * 2.2f); // 0..1, ~0.35Hz
+            // Ambient pulse — feeds the CTA glow, waterline breath and crossing column.
+            // Reduce Motion: hold at the steady mid value instead of the sine.
+            float pulse = rm
+                ? 0.5f
+                : 0.5f + 0.5f * Mathf.Sin(_pulseT * MotionScale.CtaPulseFrequency); // 0..1, ~0.35Hz
 
             // Age the silhouette when the cultivation stage changes (rare → rebuild).
             int stage = CurrentStage();
@@ -241,7 +259,7 @@ namespace OriAscendant.UI
                 ApplyPathTheme(path);
             }
 
-            for (int i = 0; i < _motes.Count; i++) _motes[i].Tick(dt);
+            for (int i = 0; i < _motes.Count; i++) _motes[i].Tick(dt, rm);
 
             RefreshTribulationAtmosphere();
             TickMicroFeedback(dt);
@@ -712,13 +730,45 @@ namespace OriAscendant.UI
         private void OnPortraitTapped() => _silhouettePulseElapsed = 0f;
 
         /// <summary>Attaches ButtonPressDip to every Button in the canvas so all
-        /// interactive elements share the same press-dip tactile response.</summary>
+        /// interactive elements share the same press-dip tactile response.
+        /// Two exclusions: selection cards — CardSelectionVisual.Apply drives localScale
+        /// on the same transform, and the dip's every-idle-frame 1.0 write would stomp
+        /// the 1.02 selected lift — and large tap-surfaces (title "begin", the Crossing
+        /// ceremony catcher, the how-to card), where a dip reads as the screen shrinking.</summary>
         private static void SkinButtons(Transform root)
         {
             var buttons = root.GetComponentsInChildren<Button>(true);
             foreach (var btn in buttons)
-                if (btn.GetComponent<ButtonPressDip>() == null)
-                    btn.gameObject.AddComponent<ButtonPressDip>();
+            {
+                if (btn.GetComponent<ButtonPressDip>() != null) continue;
+                if (IsSelectionCard(btn) || IsTapSurface(btn)) continue;
+                btn.gameObject.AddComponent<ButtonPressDip>();
+            }
+        }
+
+        // The three card views scale THIS transform via CardSelectionVisual.Apply;
+        // a ButtonPressDip on the same transform would fight it every frame.
+        private static bool IsSelectionCard(Button btn) =>
+            btn.GetComponent<PathCardView>() != null
+            || btn.GetComponent<OriCardView>() != null
+            || btn.GetComponent<CrossroadsOptionView>() != null;
+
+        // A button that claims most of the SCREEN via its anchor chain is a passive
+        // tap-surface, not a control: the full-bleed catchers span 1×1, the how-to
+        // card 0.84×0.40. The cumulative product keeps band-local buttons (council
+        // strip tap target, CTA) dipping. // ponytail: anchors only — this UI never
+        // sizes large surfaces via offsets/sizeDelta.
+        private static bool IsTapSurface(Button btn)
+        {
+            float w = 1f, h = 1f;
+            for (var rt = btn.transform as RectTransform;
+                 rt != null && rt.GetComponent<Canvas>() == null;
+                 rt = rt.parent as RectTransform)
+            {
+                w *= rt.anchorMax.x - rt.anchorMin.x;
+                h *= rt.anchorMax.y - rt.anchorMin.y;
+            }
+            return w >= 0.8f && h >= 0.35f;
         }
 
         // ================= deep field: growing bloodline sky (issue #26) =================
@@ -764,12 +814,19 @@ namespace OriAscendant.UI
 
         // ================= Wave 3: tribulation atmosphere =================
 
-        /// <summary>Drives both storm atmosphere layers from the tribulation fraction.
-        /// Fraction sourced from _lastProgressFraction (TickVesselFill keeps it live).
-        /// At stages 0-4 fraction stays 0 so both layers remain transparent.</summary>
+        /// <summary>Drives both storm atmosphere layers — and the BGM storm tension —
+        /// from the tribulation fraction. Fraction sourced from _lastProgressFraction
+        /// (TickVesselFill keeps it live). At stages 0-4 fraction stays 0 so the
+        /// layers remain transparent and the audio tension resets to open.</summary>
         private void RefreshTribulationAtmosphere()
         {
             double fraction = CurrentStage() >= 5 ? _lastProgressFraction : 0.0;
+
+            // BGM rides the same fraction as the visuals: TensionLevel owns the
+            // canonical window (UI → Audio asmdef direction, so the level is pushed).
+            if (_audio == null) ServiceLocator.TryGet(out _audio);
+            if (_audio != null)
+                _audio.SetTribulationTension(TribulationAtmosphere.TensionLevel(fraction));
 
             if (_stormSkyTint != null)
                 _stormSkyTint.color = TribulationAtmosphere.SkyOverlayColor(fraction);
@@ -811,15 +868,28 @@ namespace OriAscendant.UI
         }
 
         /// <summary>Ticks all micro-feedback timers and applies their visual outputs
-        /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash on value change.</summary>
+        /// (issue #24): silhouette pulse elapsed, Àṣẹ counter flash. The flash fires
+        /// only on meaningful changes — channel tap, stage advance, offline collect
+        /// (the handlers below flip _aseFlashKey) — never on passive counter ticks.</summary>
         private void TickMicroFeedback(float dt)
         {
             _silhouettePulseElapsed += dt; // tap-response pulse clock (consumed by TickBreathing)
 
             if (_aseCounter == null) return;
 
-            float alpha = _aseFlash.Tick(dt, _aseCounter.text, IsReduceMotion());
+            float alpha = _aseFlash.Tick(dt, _aseFlashKey, IsReduceMotion());
             _aseCounter.color = Color.Lerp(Palette.AseGold, Palette.AseCore, alpha);
+        }
+
+        // Flipping the key restarts AseFlashDriver — it watches the key exactly as it
+        // watched the counter text, so the driver needs no change. // ponytail:
+        private void RequestAseFlash() => _aseFlashKey = _aseFlashKey == "0" ? "1" : "0";
+
+        private void HandleAseChanneled(BigNumber _) => RequestAseFlash();
+        private void HandleStageAdvanced(int _) => RequestAseFlash();
+        private void HandleOfflineCollected(BigNumber earned, long _)
+        {
+            if (!earned.IsZero) RequestAseFlash(); // silent when nothing accrued (mirrors AudioManager)
         }
 
         // ================= vessel fill (issue #25, PRD W2) =================
@@ -854,7 +924,8 @@ namespace OriAscendant.UI
         /// after the ceremony so the new near-star is present. (#10)</summary>
         private void TickCeremony(float dt)
         {
-            bool active = _ceremony.Tick(dt, out float starAlpha, out Color starBase, out float columnExitAlpha);
+            bool active = _ceremony.Tick(dt, out float starAlpha, out Color starBase, out float columnExitAlpha,
+                IsReduceMotion());
 
             if (_crossingNewStar == null) return;
 
@@ -1001,8 +1072,12 @@ namespace OriAscendant.UI
                 _style = style;
             }
 
-            public void Tick(float dt)
+            public void Tick(float dt, bool reduceMotion)
             {
+                // Reduce Motion: freeze the drift clock — position motion stops and the
+                // mote holds its point (and current alpha). // ponytail: hold, don't re-choreograph
+                if (reduceMotion) dt = 0f;
+
                 // Storm motes crackle fast; earth motes barely lift off the ground.
                 float speedScale = _style == MoteStyle.Storm ? 1.7f
                                  : _style == MoteStyle.Earth ? 0.50f

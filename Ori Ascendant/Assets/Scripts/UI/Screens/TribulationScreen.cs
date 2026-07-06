@@ -250,7 +250,9 @@ namespace OriAscendant.UI.Screens
             float total = _config.stormWaveCount * _config.stormWaveIntervalSeconds;
 
             float withinWave = Mathf.Repeat(_timer, _config.stormWaveIntervalSeconds);
-            float decay = 1f - withinWave / _config.stormWaveIntervalSeconds;
+            float decay = MotionHelper.IsReduceMotion()
+                ? 0f // Reduce Motion: no wave flashes — flash stays at base; phase timing unchanged
+                : 1f - withinWave / _config.stormWaveIntervalSeconds;
             SetCeremonyVisuals(flashAlpha: decay * 0.85f, whiteAlpha: 0f, showReveal: false);
 
             if (_timer >= total) EnterSilence();
@@ -288,7 +290,9 @@ namespace OriAscendant.UI.Screens
         private void TickAscensionFx()
         {
             if (_ascensionFxOverlay == null || _result == null || !_result.DidAscend) return;
-            float pulse = 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * 1.2f);
+            float pulse = MotionHelper.IsReduceMotion()
+                ? 0.4f // Reduce Motion: hold the glow at the pulse's centre — steady, no pulsing
+                : 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * MotionScale.AscensionPulseFrequency);
             var c = _ascensionFxOverlay.color;
             c.a = pulse;
             _ascensionFxOverlay.color = c;

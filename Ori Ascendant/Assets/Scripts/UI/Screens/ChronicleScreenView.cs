@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Save;
@@ -40,6 +41,17 @@ namespace OriAscendant.UI.Screens
         private CanvasGroup _canvasGroup;
         private OverlayTransition _transition;
 
+        // Row cache: rows persist between opens; Refresh rebuilds only when the
+        // chronicle actually changed (no per-open Destroy/Instantiate hitch).
+        private int _builtCount = -1; // -1 = never built
+
+        // Entry stagger: alpha-only fade per row, each slightly behind the last.
+        private readonly List<CanvasGroup> _rowGroups = new List<CanvasGroup>();
+        private float _staggerElapsed = -1f; // < 0 = idle
+        private const float RowFadeSeconds = 0.15f;
+        private const float RowStaggerStep = 0.04f;
+        private const float RowStaggerLead = 0.4f; // delay cap so long lineages don't trail for seconds
+
         private void Awake()
         {
             if (_closeButton != null) _closeButton.onClick.AddListener(Hide);
@@ -59,7 +71,11 @@ namespace OriAscendant.UI.Screens
         {
             if (_root == null || !_root.activeSelf) return;
             if (_transition.TickAndApply(_canvasGroup, _root.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+            {
                 _root.SetActive(false);
+                return;
+            }
+            TickRowStagger();
         }
 
         public void Show()
@@ -68,6 +84,7 @@ namespace OriAscendant.UI.Screens
             if (_root != null) _root.SetActive(true);
             if (_canvasGroup != null) _canvasGroup.alpha = 0f;
             _transition.Open();
+            BeginRowStagger();
         }
 
         private void Hide()
@@ -78,24 +95,60 @@ namespace OriAscendant.UI.Screens
         private void Refresh()
         {
             if (_contentRoot == null) return;
+            if (!ServiceLocator.TryGet(out SaveManager saveManager) || saveManager.Current == null) return;
+            var save = saveManager.Current;
+
+            // Entries are append-only (one Add per succession, never edited), so the
+            // count alone tells us whether anything changed. Unchanged → keep the
+            // cached rows as-is. ponytail: count as change key
+            if (save.chronicle.Count == _builtCount) return;
 
             foreach (Transform child in _contentRoot)
                 Destroy(child.gameObject);
-
-            if (!ServiceLocator.TryGet(out SaveManager saveManager) || saveManager.Current == null) return;
-            var save = saveManager.Current;
+            _rowGroups.Clear();
 
             string[] oriNames = ResolveOriNames();
 
             if (save.chronicle.Count == 0)
             {
-                BuildPlaceholderRow("No generations recorded yet.");
+                BuildPlaceholderRow("The thread begins with you.");
+                _builtCount = 0;
                 return;
             }
 
             var nodes = ChronicleThreadMapper.MapAll(save.chronicle);
             for (int i = 0; i < nodes.Length; i++)
                 BuildThreadNode(nodes[i], save.chronicle[i], oriNames);
+            _builtCount = save.chronicle.Count;
+        }
+
+        /// <summary>Gentle entry cascade: alpha-only fade per row, each slightly behind
+        /// the last. Reduce Motion shows every row at full alpha immediately.</summary>
+        private void BeginRowStagger()
+        {
+            if (MotionHelper.IsReduceMotion())
+            {
+                for (int i = 0; i < _rowGroups.Count; i++) _rowGroups[i].alpha = 1f;
+                _staggerElapsed = -1f;
+                return;
+            }
+            for (int i = 0; i < _rowGroups.Count; i++) _rowGroups[i].alpha = 0f;
+            _staggerElapsed = 0f;
+        }
+
+        private void TickRowStagger()
+        {
+            if (_staggerElapsed < 0f) return;
+            _staggerElapsed += Time.unscaledDeltaTime;
+            bool done = true;
+            for (int i = 0; i < _rowGroups.Count; i++)
+            {
+                float delay = Mathf.Min(i * RowStaggerStep, RowStaggerLead);
+                float t = Mathf.Clamp01((_staggerElapsed - delay) / RowFadeSeconds);
+                _rowGroups[i].alpha = MotionHelper.EaseOut(t);
+                if (t < 1f) done = false;
+            }
+            if (done) _staggerElapsed = -1f;
         }
 
         private static string[] ResolveOriNames()
@@ -137,6 +190,7 @@ namespace OriAscendant.UI.Screens
             var le = rowGo.AddComponent<LayoutElement>();
             le.preferredHeight = Layout.NodeRowHeight;
             le.flexibleWidth = 1f;
+            _rowGroups.Add(rowGo.AddComponent<CanvasGroup>()); // per-row alpha for the entry stagger
 
             // Thread segment — drawn in every row so the line is never broken.
             var threadGo = new GameObject("Thread", typeof(RectTransform));

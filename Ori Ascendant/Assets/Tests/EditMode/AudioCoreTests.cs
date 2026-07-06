@@ -32,8 +32,13 @@ namespace OriAscendant.Tests.EditMode
             var fade = new AudioCrossfade();
             fade.Begin(1.0f);
             fade.Tick(0.5f);
-            Assert.AreEqual(0.5f, fade.IncomingVolume, 1e-6);
-            Assert.AreEqual(0.5f, fade.OutgoingVolume, 1e-6);
+            // Equal-power law: both tracks sit at sin(45°) ≈ 0.7071 so the summed
+            // POWER (v²) holds at 1.0 — a linear blend sags ~-3dB at this midpoint.
+            Assert.AreEqual(0.70710678f, fade.IncomingVolume, 1e-5);
+            Assert.AreEqual(fade.IncomingVolume, fade.OutgoingVolume, 1e-5);
+            Assert.AreEqual(1f,
+                fade.IncomingVolume * fade.IncomingVolume +
+                fade.OutgoingVolume * fade.OutgoingVolume, 1e-5);
             Assert.IsTrue(fade.IsFading);
         }
 
