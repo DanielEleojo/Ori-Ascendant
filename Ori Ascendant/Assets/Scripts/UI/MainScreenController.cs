@@ -14,8 +14,8 @@ namespace OriAscendant.UI
     /// Interactive MainScreen surfaces (GAMEPLAY §3.2 zones 4–6): the Advance
     /// CTA, tap-to-channel on the portrait, and the one-time channel hint. Reads
     /// state every frame (cheap struct compares). Writes go through system APIs
-    /// (TryAdvance / ChoosePath / ChannelTap) and, for the hint lifetime, directly
-    /// to the add-only channelHintShownAt / seenFlags fields on SaveData.
+    /// (TryAdvance / ChoosePath / ChannelTap) and, for the hint/coach gating,
+    /// directly to the add-only channelHintShownAt / seenFlags fields on SaveData.
     /// Progress is conveyed by the vessel fill in MainScreenSkin (issue #28).
     /// </summary>
     public class MainScreenController : MonoBehaviour
@@ -52,12 +52,28 @@ namespace OriAscendant.UI
         private string _lastCtaText;
 
         private const float HintAppearSeconds = 10f;
-        private const long HintLifetimeSeconds = 6L;
 
-        // ---- How-to-play overlay (E) — built in Start, no SerializeField needed. ----
+        // ---- How-to-play overlay (E) — a two-beat coach card, built in Start,
+        //      no SerializeField needed. Beat 1 asks for a channel tap and is
+        //      advanced by HandlePortraitTapped; Beat 2 teaches the loop + goal,
+        //      then dismisses on card tap or after the dwell. Beat state is
+        //      session-local by design — only the final dismissal persists
+        //      (SeenFlags.HowToPlay, same write path as before). ----
         private GameObject _howToPlayRoot;
         private float _howToPlayAlpha; // fade-in/out; managed by TickHowToPlay
         private Image _howToPlayBg;    // full-card backdrop
+        private TMP_Text _howToPlayCaption;
+        private TMP_Text _howToPlayBody;
+        private bool _howToPlaySecondBeat;    // false = "tap your cultivator" · true = loop + goal
+        private float _howToPlayBeat2Elapsed; // dwell clock for the Beat 2 auto-dismiss
+        private const float HowToPlayBeat2DwellSeconds = 8f;
+
+        // Beat copy — placeholder wording; the §7.10 language pass finalizes it.
+        private const string HowToPlayBeat1Line =
+            "Tap your cultivator to draw Àṣẹ into the world.";
+        private const string HowToPlayBeat2Line =
+            "Àṣẹ fills you with light — reach a stage's peak, then Advance. " +
+            "At your tier's peak, face the Crossing.";
 
         private void Awake()
         {
@@ -221,7 +237,12 @@ namespace OriAscendant.UI
                     if (_pathScreen != null) _pathScreen.Show();
                     break;
                 case AdvanceOutcome.Advanced:
-                    // The rate-line jump is the feedback; nothing else to do.
+                    // Counter-flash rides OnStageAdvanced elsewhere; here just one
+                    // quiet salute over the portrait, above the "+N" lane.
+                    // FloatingText pools its instances and is RM-safe.
+                    if (_floatingTextAnchor != null)
+                        FloatingText.Spawn(_floatingTextAnchor, new Vector2(0f, 72f),
+                            "Risen", Palette.AseGold); // copy: placeholder (§7.10)
                     break;
             }
         }
@@ -240,6 +261,9 @@ namespace OriAscendant.UI
                 FloatingText.Spawn(_floatingTextAnchor, new Vector2(0f, 40f), "+" + granted, ChannelColor);
             }
 
+            // First real channel while the coach card shows: Beat 1's job is done.
+            if (!granted.IsZero) AdvanceHowToPlayBeat();
+
             if (_hintRoot != null && _hintRoot.activeSelf) _hintRoot.SetActive(false);
             if (save != null && !save.HasSeen(SeenFlags.ChannelHint))
             {
@@ -247,11 +271,13 @@ namespace OriAscendant.UI
             }
         }
 
-        // ---- how-to-play overlay (E) — first-launch loop tutorial ----
+        // ---- how-to-play overlay (E) — first-launch two-beat coach ----
 
-        /// <summary>Builds the how-to-play card in code on the main canvas, behind
-        /// the TitleScreen (which has its own opaque background) so it is naturally
-        /// hidden until the player taps the title away. No SerializeField, no scene wiring.</summary>
+        /// <summary>Builds the coach card in code on the main canvas: a lower-third
+        /// panel that never covers the portrait, so the cultivator stays visible AND
+        /// tappable while Beat 1 asks for the tap. Sits directly below the TitleScreen
+        /// curtain (naturally hidden until the title is tapped away) but above the
+        /// gameplay zones, so the card owns its own taps. No SerializeField, no scene wiring.</summary>
         private void BuildHowToPlayOverlay()
         {
             var canvas = GetComponentInParent<Canvas>(true);
@@ -264,27 +290,31 @@ namespace OriAscendant.UI
             var root = new GameObject("HowToPlayOverlay", typeof(RectTransform), typeof(CanvasRenderer));
             var rootRt = (RectTransform)root.transform;
             rootRt.SetParent(canvas.transform, false);
-            // Below TitleScreen (sort index 0 is sky; we place just above storm tint)
-            // TitleScreen does not self-manage sibling order so a low index keeps us behind it.
-            rootRt.SetSiblingIndex(4);
+            // Just below the TitleScreen curtain (the last baked canvas child; its
+            // controller GO stays active after dismissal, so it is a stable landmark)
+            // and above every gameplay zone — the old low index (4) drew the card
+            // UNDER the portrait/CTA, which muddled both visuals and raycasts.
+            var titleScreen = UiBuilder.FindDeep(canvas.transform, "TitleScreen");
+            if (titleScreen != null) rootRt.SetSiblingIndex(titleScreen.GetSiblingIndex());
             UiBuilder.Stretch(rootRt);
             _howToPlayRoot = root;
 
-            // Semi-transparent scrim so the card floats above the sky.
-            var scrim = UiBuilder.NewChildImage(rootRt, "HowToPlayScrim");
-            scrim.color = Palette.IndigoNight.WithAlpha(OpacitySpec.Scrim * 0.6f);
-            scrim.raycastTarget = true; // blocks pass-through
+            // ponytail: no full-screen scrim — it would eat or dim the portrait taps
+            // Beat 1 is asking for. The card's own backdrop is plenty. The root has
+            // no Graphic, so everything outside the card passes raycasts through.
 
-            // Card panel — centred, not full-bleed, roomy for three lines.
+            // Card panel — lower third, clear of the portrait zone (~24–58% height
+            // from top ⇒ anchors 0.42–0.76). Temporarily covers the idle CTA band,
+            // which is disabled on a fresh save anyway.
             var card = new GameObject("HowToPlayCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             var cardRt = (RectTransform)card.transform;
             cardRt.SetParent(rootRt, false);
-            cardRt.anchorMin = new Vector2(0.08f, 0.30f);
-            cardRt.anchorMax = new Vector2(0.92f, 0.70f);
+            cardRt.anchorMin = new Vector2(0.08f, 0.10f);
+            cardRt.anchorMax = new Vector2(0.92f, 0.40f);
             cardRt.offsetMin = cardRt.offsetMax = Vector2.zero;
             _howToPlayBg = card.GetComponent<Image>();
             _howToPlayBg.color = Palette.IndigoBase.WithAlpha(0.92f);
-            _howToPlayBg.raycastTarget = true; // tap-to-dismiss
+            _howToPlayBg.raycastTarget = true; // Beat 1: skip · Beat 2: dismiss
 
             // Hairline gold border.
             var border = new GameObject("HowToPlayBorder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -295,31 +325,22 @@ namespace OriAscendant.UI
             borderImg.color = Palette.AseGold.WithAlpha(AseHeroSpec.HairlineBorderAlpha);
             borderImg.raycastTarget = false;
 
-            // "Touch to continue" caption at top.
-            AddLine(cardRt, "HTP_Prompt", "touch to begin",
-                new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.97f),
+            // Caption — blank during Beat 1 (the tap target is the cultivator, not
+            // this card); becomes "touch to continue" in Beat 2.
+            _howToPlayCaption = AddLine(cardRt, "HTP_Prompt", "",
+                new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.95f),
                 TypographicScale.Caption, Palette.TextSecondary);
 
-            // Three in-world teaching lines, spaced with SpacingScale bands.
-            AddLine(cardRt, "HTP_Line1",
-                "Tap your cultivator to draw Àṣẹ into the world.",
-                new Vector2(0.05f, 0.59f), new Vector2(0.95f, 0.82f),
+            // One beat-managed teaching line; AdvanceHowToPlayBeat swaps the copy.
+            _howToPlayBody = AddLine(cardRt, "HTP_Body", HowToPlayBeat1Line,
+                new Vector2(0.06f, 0.10f), new Vector2(0.94f, 0.78f),
                 TypographicScale.BodySm, Palette.TextPrimary);
 
-            AddLine(cardRt, "HTP_Line2",
-                "Àṣẹ fills you with light — reach a stage's peak, then Advance.",
-                new Vector2(0.05f, 0.33f), new Vector2(0.95f, 0.57f),
-                TypographicScale.BodySm, Palette.TextPrimary);
-
-            AddLine(cardRt, "HTP_Line3",
-                "At your tier's peak, face the Crossing to raise your lineage.",
-                new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.30f),
-                TypographicScale.BodySm, Palette.AseGold);
-
-            // Dismiss: tap the card.
+            // Card tap: skip ahead in Beat 1 (never dismisses the instructions on a
+            // stray tap), dismiss in Beat 2. The real Beat 1 advance is a channel.
             var btn = card.AddComponent<Button>();
             btn.targetGraphic = _howToPlayBg;
-            btn.onClick.AddListener(DismissHowToPlay);
+            btn.onClick.AddListener(HandleHowToPlayCardTapped);
 
             // Initial visibility: hide immediately if already seen.
             bool shown = HowToPlayDecision.ShouldShow(save?.seenFlags ?? 0);
@@ -327,7 +348,7 @@ namespace OriAscendant.UI
             _howToPlayAlpha = shown ? 0f : 1f; // fade in from 0 when shown
         }
 
-        private static void AddLine(
+        private static TMP_Text AddLine(
             RectTransform parent, string name,
             string text, Vector2 anchorMin, Vector2 anchorMax,
             float fontSize, Color color)
@@ -345,6 +366,29 @@ namespace OriAscendant.UI
             t.color = color;
             t.alignment = TextAlignmentOptions.Center;
             t.raycastTarget = false;
+            return t;
+        }
+
+        /// <summary>Beat 1 → Beat 2. Fired by the first successful channel while the
+        /// card shows (HandlePortraitTapped) or by a direct card tap (skip). The
+        /// transition is alpha-only, reusing the TickHowToPlay ramp — instant under
+        /// Reduce Motion.</summary>
+        private void AdvanceHowToPlayBeat()
+        {
+            if (_howToPlaySecondBeat || _howToPlayRoot == null || !_howToPlayRoot.activeSelf) return;
+            _howToPlaySecondBeat = true;
+            _howToPlayBeat2Elapsed = 0f;
+            if (_howToPlayBody != null) _howToPlayBody.text = HowToPlayBeat2Line;
+            if (_howToPlayCaption != null) _howToPlayCaption.text = "touch to continue";
+            _howToPlayAlpha = MotionHelper.IsReduceMotion() ? 1f : 0f; // re-fade the new copy in
+        }
+
+        private void HandleHowToPlayCardTapped()
+        {
+            // ponytail: a Beat 1 card tap skips ahead instead of dismissing — a stray
+            // tap can never vanish the instructions, and the card can never strand.
+            if (!_howToPlaySecondBeat) AdvanceHowToPlayBeat();
+            else DismissHowToPlay();
         }
 
         private void DismissHowToPlay()
@@ -366,19 +410,32 @@ namespace OriAscendant.UI
                 if (_howToPlayRoot.activeSelf) _howToPlayRoot.SetActive(false);
                 return;
             }
-            // Fade in (or instant if Reduce Motion).
+            // Fade in (or instant if Reduce Motion). Beat transitions reuse this
+            // ramp — AdvanceHowToPlayBeat drops the alpha and this brings it home.
             bool rm = MotionHelper.IsReduceMotion();
             float dt = Time.unscaledDeltaTime;
             if (rm)
                 _howToPlayAlpha = 1f;
             else
                 _howToPlayAlpha = Mathf.MoveTowards(_howToPlayAlpha, 1f, dt * 2f); // 0.5s fade-in
-            // Apply alpha to the card backing and scrim (children inherit via CanvasGroup if we add one,
-            // but a direct alpha nudge on the two Images is ponytail-simpler here).
+            // Apply alpha to the card backing and beat texts directly (ponytail:
+            // a direct nudge on three Graphics is simpler than a CanvasGroup).
             if (_howToPlayBg != null)
             {
                 var c = _howToPlayBg.color;
                 _howToPlayBg.color = new Color(c.r, c.g, c.b, 0.92f * _howToPlayAlpha);
+            }
+            if (_howToPlayBody != null)
+                _howToPlayBody.color = _howToPlayBody.color.WithAlpha(_howToPlayAlpha);
+            if (_howToPlayCaption != null)
+                _howToPlayCaption.color = _howToPlayCaption.color.WithAlpha(_howToPlayAlpha);
+
+            // Beat 2 dwell: once the loop line has been readable for a while, let it
+            // go by itself — a player already channelling shouldn't hunt for a tap.
+            if (_howToPlaySecondBeat)
+            {
+                _howToPlayBeat2Elapsed += dt;
+                if (_howToPlayBeat2Elapsed >= HowToPlayBeat2DwellSeconds) DismissHowToPlay();
             }
         }
 
@@ -389,29 +446,33 @@ namespace OriAscendant.UI
             var save = _saveManager?.Current;
             if (save == null || _hintRoot == null) return;
 
-            // seenFlags.ChannelHint is the "never show again" authority — set on
-            // auto-expiry or user-tap. Once set, nothing below can re-show the hint.
+            // seenFlags.ChannelHint is the "never show again" authority — set when
+            // the player actually channels (HandlePortraitTapped). Once set, nothing
+            // below can re-show the hint.
             if (save.HasSeen(SeenFlags.ChannelHint))
             {
                 if (_hintRoot.activeSelf) _hintRoot.SetActive(false);
                 return;
             }
 
+            // The coach card already teaches the same tap — keep the hint quiet and
+            // hold the appear clock, so it counts from the card's dismissal instead.
+            if (_howToPlayRoot != null && _howToPlayRoot.activeSelf)
+            {
+                if (_hintRoot.activeSelf) _hintRoot.SetActive(false);
+                return;
+            }
+
             _secondsSinceLaunch += Time.unscaledDeltaTime;
-            long nowUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             // Write the appear timestamp once, after the appear delay.
             if (save.channelHintShownAt == 0 && _secondsSinceLaunch >= HintAppearSeconds)
-                save.channelHintShownAt = nowUtc;
+                save.channelHintShownAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            // Derive visibility from persisted state — survives resume and scene reload.
-            var state = ChannelHintDecision.Evaluate(save.channelHintShownAt, nowUtc, HintLifetimeSeconds);
-            bool shouldShow = state == ChannelHintState.Active;
+            // ponytail: no auto-expiry — the old 6s window was easy to miss. Once
+            // shown, the hint persists until the first channel marks it seen above.
+            bool shouldShow = save.channelHintShownAt != 0;
             if (_hintRoot.activeSelf != shouldShow) _hintRoot.SetActive(shouldShow);
-
-            // Mark seen on auto-expiry so the hint never reappears.
-            if (state == ChannelHintState.Expired)
-                save.MarkSeen(SeenFlags.ChannelHint);
         }
     }
 }

@@ -1,9 +1,10 @@
 namespace OriAscendant.UI
 {
     /// <summary>
-    /// Hero Àṣẹ-counter flash state (issue #24). Watches the counter's displayed text; when
-    /// it changes, restarts a warm flash whose alpha follows MotionHelper.FlashAlpha. Pure —
-    /// owns the flash clock and the last-seen value, headlessly testable.
+    /// Hero Àṣẹ-counter flash state (issue #24). Watches a change-key string; when the key
+    /// changes, restarts a warm flash whose alpha follows MotionHelper.FlashAlpha. Pure —
+    /// owns the flash clock and the last-seen value, headlessly testable. The caller flips
+    /// the key on meaningful events (channel/advance/collect), so the driver stays generic.
     ///
     /// The caller lerps the counter colour (gold → core) by the returned alpha. The first
     /// observed value never flashes (the driver starts settled), matching the original

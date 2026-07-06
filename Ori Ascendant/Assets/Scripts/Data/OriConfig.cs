@@ -14,16 +14,16 @@ namespace OriAscendant.Data
         [Tooltip("Display name shown on the Ori card and the main-screen badge.")]
         public string virtueName;
 
-        [Tooltip("Short vow line shown on the selection card; pre-§7.10 placeholder.")]
+        [Tooltip("Short vow line shown on the selection card; authored, pending §7.10 review.")]
         [TextArea]
         public string vowLine;
     }
 
     /// <summary>
     /// The seed set of Ori virtues a player can vow themselves to (Àkùnlẹ̀yàn,
-    /// chosen at birth) — surfaced once per generation. Marked placeholder until
-    /// the §7.10 native-speaker review (Phase 5); final crossroads-tied content
-    /// replaces this set, but the field shape stays the same.
+    /// chosen at birth) — surfaced once per generation. Copy authored; awaiting the
+    /// §7.10 native-speaker review. Crossroads-tied content may extend this set,
+    /// but the field shape stays the same.
     /// </summary>
     [CreateAssetMenu(fileName = "OriConfig", menuName = "Ori Ascendant/Ori Config")]
     public class OriConfig : ScriptableObject
