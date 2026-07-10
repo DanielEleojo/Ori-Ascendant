@@ -10,6 +10,10 @@
 [Uu]serSettings/
 [Cc]rashlytics/
 
+# Font source archives — the SDF atlas is committed; the source .zip is not
+*.zip
+*.zip.meta
+
 # Generated IDE/solution files
 *.csproj
 *.unityproj
