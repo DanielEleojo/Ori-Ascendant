@@ -53,7 +53,7 @@ namespace OriAscendant.Save
 
         private static ICloudSaveProvider CreateProvider()
         {
-#if UNITY_IOS && !UNITY_EDITOR
+#if UNITY_IOS && !UNITY_EDITOR && APPLE_GAMEKIT
             return new GameKitCloudSaveProvider();
 #else
             return new NullCloudSaveProvider();

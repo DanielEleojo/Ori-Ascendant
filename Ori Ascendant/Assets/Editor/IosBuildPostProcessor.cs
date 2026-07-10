@@ -1,4 +1,12 @@
-#if UNITY_IOS
+// APPLE_GAMEKIT define gate: the Game Center + iCloud entitlements below are only
+// valid once the Apple.Core / Apple.GameKit packages are wired in AND the matching
+// App ID (with those capabilities + a real iCloud container) exists in the Apple
+// Developer console. Until then this hook is excluded so device builds sign cleanly
+// against a plain Apple Development profile (cloud save falls back to local — see
+// CloudSaveManager / GameKitCloudSaveProvider, gated by the same symbol).
+// NOTE for Phase D: ICloudContainer derives from BuildConfigurator.BundleId, which is
+// still the placeholder "com.oriascendant.game" — fix it to the real App ID first.
+#if UNITY_IOS && APPLE_GAMEKIT
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEditor.iOS.Xcode;
