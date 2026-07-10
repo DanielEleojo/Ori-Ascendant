@@ -21,7 +21,7 @@ namespace OriAscendant.Ads
     public sealed class RewardedAdController : MonoBehaviour
     {
         // Public ad identifier (not a secret). Fill from the LevelPlay dashboard.
-        private static readonly string RewardedAdUnitId = "YOUR_REWARDED_AD_UNIT_ID";
+        private static readonly string RewardedAdUnitId = "ib7j40263c2y6nga";
 
         private LevelPlayRewardedAd _ad;
         private bool _loaded;

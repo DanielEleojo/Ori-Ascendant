@@ -24,7 +24,7 @@ namespace OriAscendant.Ads
         // Public app identifier (not a secret). Fill from the LevelPlay dashboard.
         // static readonly (not const) so the "inert until configured" guard below
         // isn't constant-folded into an unreachable-code warning.
-        private static readonly string AppKey = "YOUR_LEVELPLAY_APP_KEY";
+        private static readonly string AppKey = "26ed323dd";
 
         /// <summary>Ad controllers gate their bootstraps on this — inert until the dashboard AppKey is filled in.</summary>
         internal static bool IsConfigured => AppKey != "YOUR_LEVELPLAY_APP_KEY";

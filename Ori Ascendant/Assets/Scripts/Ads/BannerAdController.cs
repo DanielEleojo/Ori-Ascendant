@@ -30,7 +30,7 @@ namespace OriAscendant.Ads
     public sealed class BannerAdController : MonoBehaviour
     {
         // Public ad identifier (not a secret). Fill from the LevelPlay dashboard.
-        private static readonly string BannerAdUnitId = "YOUR_BANNER_AD_UNIT_ID";
+        private static readonly string BannerAdUnitId = "6mqd9pilaiwu5fj5";
 
         private LevelPlayBannerAd _banner;
 
