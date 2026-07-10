@@ -76,6 +76,34 @@ namespace OriAscendant.Tests.EditMode
                 "Storm tint must be warm (red > blue) — never a cool or neutral grey");
         }
 
+        // ---- TensionLevel (BGM storm pressure) ----
+
+        [Test]
+        public void TensionLevel_Zero_BelowFirstTrigger()
+        {
+            Assert.AreEqual(0f, TribulationAtmosphere.TensionLevel(0.0), 0.001f);
+            Assert.AreEqual(0f, TribulationAtmosphere.TensionLevel(0.49), 0.001f);
+        }
+
+        [Test]
+        public void TensionLevel_Ramps_BetweenTriggers()
+        {
+            float t55 = TribulationAtmosphere.TensionLevel(0.55);
+            float t70 = TribulationAtmosphere.TensionLevel(0.70);
+            Assert.Greater(t55, 0f, "Tension must engage past the sky-tint fraction");
+            Assert.Greater(t70, t55, "Tension must escalate as the fraction rises");
+            Assert.Less(t70, 1f, "Full tension is reserved for the vignette fraction");
+        }
+
+        [Test]
+        public void TensionLevel_Full_AtSecondTrigger_AndClampedPast()
+        {
+            Assert.AreEqual(1f,
+                TribulationAtmosphere.TensionLevel(TribulationAtmosphere.FractionStormVignette), 0.001f);
+            Assert.AreEqual(1f, TribulationAtmosphere.TensionLevel(1.5), 0.001f,
+                "Clamped — never overshoots past the vignette fraction");
+        }
+
         // ---- Cohesion (Unit 6) ----
 
         [Test]

@@ -23,7 +23,7 @@ namespace OriAscendant.Data
 
     /// <summary>
     /// One dilemma in the seed deck. id is the persistent identity stored in
-    /// SaveData (deeds + pending state). Placeholder copy pre-§7.10.
+    /// SaveData (deeds + pending state). Copy authored; awaiting §7.10 review.
     /// </summary>
     [Serializable]
     public class CrossroadsCard

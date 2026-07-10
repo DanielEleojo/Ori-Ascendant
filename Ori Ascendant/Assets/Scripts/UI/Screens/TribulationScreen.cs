@@ -77,6 +77,10 @@ namespace OriAscendant.UI.Screens
 
         private CanvasGroup _confirmCanvasGroup;
         private OverlayTransition _confirmTransition;
+        private CanvasGroup _cardCanvasGroup;
+        private OverlayTransition _cardTransition;
+        private CanvasGroup _summaryCanvasGroup;
+        private OverlayTransition _summaryTransition;
 
         private void Awake()
         {
@@ -86,6 +90,10 @@ namespace OriAscendant.UI.Screens
             if (_continueButton != null) _continueButton.onClick.AddListener(AdvanceFromSummary);
             if (_confirmRoot != null)
                 _confirmCanvasGroup = _confirmRoot.GetComponent<CanvasGroup>() ?? _confirmRoot.AddComponent<CanvasGroup>();
+            if (_cardRoot != null)
+                _cardCanvasGroup = _cardRoot.GetComponent<CanvasGroup>() ?? _cardRoot.AddComponent<CanvasGroup>();
+            if (_summaryRoot != null)
+                _summaryCanvasGroup = _summaryRoot.GetComponent<CanvasGroup>() ?? _summaryRoot.AddComponent<CanvasGroup>();
             HideAllRoots();
             ServiceLocator.Register(this);
         }
@@ -197,7 +205,8 @@ namespace OriAscendant.UI.Screens
                 case Phase.StormWaves: TickStormWaves(); break;
                 case Phase.Silence: TickSilence(); break;
                 case Phase.Reveal: TickReveal(); break;
-                case Phase.AncestorCard: TickTimed(_config.ancestorCardSeconds, EnterSummary); break;
+                case Phase.AncestorCard: TickAncestorCard(); break;
+                case Phase.Summary: TickSummary(); break;
                 case Phase.FinalBeat: TickTimed(_config.finalBeatSeconds, Finish); break;
             }
         }
@@ -250,7 +259,9 @@ namespace OriAscendant.UI.Screens
             float total = _config.stormWaveCount * _config.stormWaveIntervalSeconds;
 
             float withinWave = Mathf.Repeat(_timer, _config.stormWaveIntervalSeconds);
-            float decay = 1f - withinWave / _config.stormWaveIntervalSeconds;
+            float decay = MotionHelper.IsReduceMotion()
+                ? 0f // Reduce Motion: no wave flashes — flash stays at base; phase timing unchanged
+                : 1f - withinWave / _config.stormWaveIntervalSeconds;
             SetCeremonyVisuals(flashAlpha: decay * 0.85f, whiteAlpha: 0f, showReveal: false);
 
             if (_timer >= total) EnterSilence();
@@ -288,7 +299,9 @@ namespace OriAscendant.UI.Screens
         private void TickAscensionFx()
         {
             if (_ascensionFxOverlay == null || _result == null || !_result.DidAscend) return;
-            float pulse = 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * 1.2f);
+            float pulse = MotionHelper.IsReduceMotion()
+                ? 0.4f // Reduce Motion: hold the glow at the pulse's centre — steady, no pulsing
+                : 0.4f + 0.3f * Mathf.Sin(_timer * Mathf.PI * MotionScale.AscensionPulseFrequency);
             var c = _ascensionFxOverlay.color;
             c.a = pulse;
             _ascensionFxOverlay.color = c;
@@ -343,6 +356,8 @@ namespace OriAscendant.UI.Screens
             _phase = Phase.AncestorCard;
             if (_ceremonyRoot != null) _ceremonyRoot.SetActive(false);
             if (_cardRoot != null) _cardRoot.SetActive(true);
+            if (_cardCanvasGroup != null) _cardCanvasGroup.alpha = 0f;
+            _cardTransition.Open();
 
             var ancestor = _result.Ancestor;
             if (_cardFrame != null)
@@ -369,11 +384,22 @@ namespace OriAscendant.UI.Screens
             }
         }
 
+        private void TickAncestorCard()
+        {
+            // Fade runs alongside the beat's timer — it never gates the phase duration.
+            Transform rootT = _cardRoot != null ? _cardRoot.transform : null;
+            _cardTransition.TickAndApply(_cardCanvasGroup, rootT,
+                Time.unscaledDeltaTime, MotionHelper.IsReduceMotion());
+            TickTimed(_config.ancestorCardSeconds, EnterSummary);
+        }
+
         private void EnterSummary()
         {
             _phase = Phase.Summary;
             if (_cardRoot != null) _cardRoot.SetActive(false);
             if (_summaryRoot != null) _summaryRoot.SetActive(true);
+            if (_summaryCanvasGroup != null) _summaryCanvasGroup.alpha = 0f;
+            _summaryTransition.Open();
 
             if (_summaryTitle != null)
                 _summaryTitle.text = $"Generation {_result.CompletedGenerationNumber} complete";
@@ -395,6 +421,14 @@ namespace OriAscendant.UI.Screens
                 _ratePreview.text =
                     $"Stage 1 rate: {_result.OldStage1Rate} → {_result.NewStage1Rate} Àṣẹ per breath";
             }
+        }
+
+        private void TickSummary()
+        {
+            // Fade-in only — Summary has no auto-advance; it waits for Continue.
+            Transform rootT = _summaryRoot != null ? _summaryRoot.transform : null;
+            _summaryTransition.TickAndApply(_summaryCanvasGroup, rootT,
+                Time.unscaledDeltaTime, MotionHelper.IsReduceMotion());
         }
 
         private void AdvanceFromSummary()

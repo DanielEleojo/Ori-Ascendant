@@ -108,7 +108,14 @@ namespace OriAscendant.UI.Screens
             _transition.Close();
         }
 
-        private void SetBgm(bool on)          => AudioPrefs.BgmEnabled = on;
+        private void SetBgm(bool on)
+        {
+            AudioPrefs.BgmEnabled = on;
+            // Apply to the live source immediately — otherwise the mute waits for the
+            // next theme change and the toggle looks broken.
+            if (ServiceLocator.TryGet(out AudioManager audio)) audio.ApplyBgmVolume();
+        }
+
         private void SetSfx(bool on)          => AudioPrefs.SfxEnabled = on;
         private void SetHaptics(bool on)      => HapticPrefs.HapticsEnabled = on;
         private void SetReduceMotion(bool on) => MotionPrefs.ReduceMotionEnabled = on;

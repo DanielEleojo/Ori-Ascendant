@@ -26,11 +26,18 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _bonusLineText;
         [SerializeField] private Button _collectButton;
 
+        private CanvasGroup _canvasGroup;
+        private OverlayTransition _transition;
+
         private void Awake()
         {
             OfflineProgressCalculator.OnOfflineProgressApplied += HandleOfflineProgress;
             if (_collectButton != null) _collectButton.onClick.AddListener(Hide);
-            if (_modalRoot != null) _modalRoot.SetActive(false);
+            if (_modalRoot != null)
+            {
+                _modalRoot.SetActive(false);
+                _canvasGroup = _modalRoot.GetComponent<CanvasGroup>() ?? _modalRoot.AddComponent<CanvasGroup>();
+            }
         }
 
         private void OnDestroy()
@@ -53,9 +60,18 @@ namespace OriAscendant.UI.Screens
             // Count-up animation (GAMEPLAY §3.4): from 0 to earned, tap-to-skip
             // via Collect. Cosmetic only — the Àṣẹ is already credited.
             _earnedTarget = earned;
-            _countUpElapsed = 0f;
-            _countingUp = true;
-            if (_earnedText != null) _earnedText.text = "+0 Àṣẹ";
+            if (MotionHelper.IsReduceMotion())
+            {
+                // Reduce Motion: land on the full amount at once, no count-up.
+                _countingUp = false;
+                if (_earnedText != null) _earnedText.text = "+" + earned + " Àṣẹ";
+            }
+            else
+            {
+                _countUpElapsed = 0f;
+                _countingUp = true;
+                if (_earnedText != null) _earnedText.text = "+0 Àṣẹ";
+            }
             RefreshBonusLine(earned);
             if (_rateContextText != null)
             {
@@ -70,7 +86,11 @@ namespace OriAscendant.UI.Screens
                 }
             }
 
+            // Fade-scale in via OverlayTransition like every other overlay
+            // (alpha-only under Reduce Motion — the struct handles it).
             if (_modalRoot != null) _modalRoot.SetActive(true);
+            if (_canvasGroup != null) _canvasGroup.alpha = 0f;
+            _transition.Open();
         }
 
         /// <summary>Ane's legibility moment (GAMEPLAY §2.3): itemize the offline
@@ -100,6 +120,13 @@ namespace OriAscendant.UI.Screens
 
         private void Update()
         {
+            if (_modalRoot == null || !_modalRoot.activeSelf) return;
+            if (_transition.TickAndApply(_canvasGroup, _modalRoot.transform, Time.unscaledDeltaTime, MotionHelper.IsReduceMotion()))
+            {
+                _modalRoot.SetActive(false);
+                return;
+            }
+
             if (!_countingUp || _earnedText == null) return;
 
             _countUpElapsed += Time.unscaledDeltaTime;
@@ -117,7 +144,8 @@ namespace OriAscendant.UI.Screens
                 _earnedText.text = "+" + _earnedTarget + " Àṣẹ";
                 _countingUp = false;
             }
-            if (_modalRoot != null) _modalRoot.SetActive(false);
+            // Fade-scale out; Update deactivates the root once fully closed.
+            _transition.Close();
         }
 
         /// <summary>"6h 12m" / "4m 03s"; exactly at the cap: "8h (cap)" — honesty

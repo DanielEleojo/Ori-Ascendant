@@ -30,8 +30,9 @@ namespace OriAscendant.Audio
             OutgoingVolume = 1f;
         }
 
-        /// <summary>Advances the fade. Linear blend (incoming up, outgoing down);
-        /// clamps and completes at the duration.</summary>
+        /// <summary>Advances the fade. Equal-power blend (incoming = sin, outgoing = cos
+        /// over a quarter period) so the summed acoustic power holds steady — a linear
+        /// blend sags ~-3dB at the midpoint; clamps and completes at the duration.</summary>
         public void Tick(float deltaSeconds)
         {
             if (!IsFading) return;
@@ -43,8 +44,8 @@ namespace OriAscendant.Audio
                 t = 1f;
                 IsFading = false;
             }
-            IncomingVolume = t;
-            OutgoingVolume = 1f - t;
+            IncomingVolume = (float)Math.Sin(t * Math.PI / 2.0);
+            OutgoingVolume = (float)Math.Cos(t * Math.PI / 2.0);
         }
     }
 }

@@ -60,6 +60,15 @@ namespace OriAscendant.UI.Screens
 
         private CanvasGroup _challengeCanvasGroup;
         private OverlayTransition _challengeTransition;
+        private CanvasGroup _revealCanvasGroup;
+        private OverlayTransition _revealTransition;
+        private CanvasGroup _summaryCanvasGroup;
+        private OverlayTransition _summaryTransition;
+
+        // Win-title pop (Reveal): brief 1.0→1.08→1.0 scale arch as VICTORY lands.
+        // Loss gets no pop — the fade alone (matches the honest "stood firm" copy).
+        private const float RevealPopSeconds = 0.35f;
+        private const float RevealPopAmplitude = 0.08f;
 
         private MarketplaceSystem _marketplace;
 
@@ -75,6 +84,12 @@ namespace OriAscendant.UI.Screens
             if (_challengeRoot != null)
                 _challengeCanvasGroup = _challengeRoot.GetComponent<CanvasGroup>()
                     ?? _challengeRoot.AddComponent<CanvasGroup>();
+            if (_revealRoot != null)
+                _revealCanvasGroup = _revealRoot.GetComponent<CanvasGroup>()
+                    ?? _revealRoot.AddComponent<CanvasGroup>();
+            if (_summaryRoot != null)
+                _summaryCanvasGroup = _summaryRoot.GetComponent<CanvasGroup>()
+                    ?? _summaryRoot.AddComponent<CanvasGroup>();
             HideAllRoots();
             ServiceLocator.Register(this);
         }
@@ -109,6 +124,7 @@ namespace OriAscendant.UI.Screens
                 case Phase.Challenge: TickChallenge(); break;
                 case Phase.ClosingChallenge: TickClosingChallenge(); break;
                 case Phase.Reveal: TickReveal(); break;
+                case Phase.Summary: TickSummary(); break;
             }
         }
 
@@ -251,11 +267,14 @@ namespace OriAscendant.UI.Screens
 
             if (_challengeRoot != null) _challengeRoot.SetActive(false);
             if (_revealRoot != null) _revealRoot.SetActive(true);
+            if (_revealCanvasGroup != null) _revealCanvasGroup.alpha = 0f;
+            _revealTransition.Open();
 
             if (_revealTitle != null)
             {
                 _revealTitle.text = RevealTitle(_outcome.Won);
                 _revealTitle.color = _outcome.Won ? PathMotif.Radiance : PathMotif.Ember;
+                _revealTitle.transform.localScale = Vector3.one; // win pop re-drives this in TickReveal
             }
 
             if (_renownDeltaText != null)
@@ -269,7 +288,21 @@ namespace OriAscendant.UI.Screens
 
         private void TickReveal()
         {
+            bool reduceMotion = MotionHelper.IsReduceMotion();
+            Transform rootT = _revealRoot != null ? _revealRoot.transform : null;
+            _revealTransition.TickAndApply(_revealCanvasGroup, rootT,
+                Time.unscaledDeltaTime, reduceMotion);
+
             _timer += Time.unscaledDeltaTime;
+
+            // Celebratory pop on a win only; TapPulseScale settles back to 1.0 after
+            // RevealPopSeconds and holds steady under Reduce Motion.
+            if (_outcome.Won && _revealTitle != null)
+            {
+                float pop = MotionHelper.TapPulseScale(_timer, RevealPopSeconds, RevealPopAmplitude, reduceMotion);
+                _revealTitle.transform.localScale = new Vector3(pop, pop, 1f);
+            }
+
             float revealSeconds = _config != null && _config.revealSeconds > 0.0
                 ? (float)_config.revealSeconds
                 : 2.0f;
@@ -284,6 +317,8 @@ namespace OriAscendant.UI.Screens
             _phase = Phase.Summary;
             if (_revealRoot != null) _revealRoot.SetActive(false);
             if (_summaryRoot != null) _summaryRoot.SetActive(true);
+            if (_summaryCanvasGroup != null) _summaryCanvasGroup.alpha = 0f;
+            _summaryTransition.Open();
 
             if (_standingText != null)
             {
@@ -293,6 +328,14 @@ namespace OriAscendant.UI.Screens
 
                 _standingText.text = MarketplaceStandingPresenter.Map(currentRenown).Line;
             }
+        }
+
+        private void TickSummary()
+        {
+            // Fade-in only — Summary has no auto-advance; it waits for Continue.
+            Transform rootT = _summaryRoot != null ? _summaryRoot.transform : null;
+            _summaryTransition.TickAndApply(_summaryCanvasGroup, rootT,
+                Time.unscaledDeltaTime, MotionHelper.IsReduceMotion());
         }
 
         // ---- Close ----

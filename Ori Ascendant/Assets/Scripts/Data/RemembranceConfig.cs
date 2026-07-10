@@ -6,7 +6,7 @@ namespace OriAscendant.Data
     /// Curated content for remembrance derivation at the Crossing (slice 4a).
     /// personalNames seeds the Title pool for ascended cultivators; faithfulFallLine
     /// is the dignified shared line for a fallen cultivator who never strayed from
-    /// their Ori. Pre-§7.10 placeholder — final copy lands at Phase 5 / issue #10.
+    /// their Ori. Copy authored — awaiting only the §7.10 native-speaker review.
     /// Config only — never written at runtime.
     /// </summary>
     [CreateAssetMenu(fileName = "RemembranceConfig", menuName = "Ori Ascendant/Remembrance Config")]

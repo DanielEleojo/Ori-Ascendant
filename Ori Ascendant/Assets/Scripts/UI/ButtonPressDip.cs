@@ -15,7 +15,6 @@ namespace OriAscendant.UI
         IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
         private const float DipTarget = 0.96f;
-        private const float RecoverDuration = 0.12f;
 
         private bool _isPressed;
         private float _releaseElapsed = float.MaxValue; // sentinel: no active release yet
@@ -24,6 +23,15 @@ namespace OriAscendant.UI
         private static bool ReduceMotion => MotionPrefs.ReduceMotionEnabled;
 
         private void Awake() => ServiceLocator.TryGet(out _audio);
+
+        private void OnDisable()
+        {
+            // Deactivated mid-press (a modal closing under the finger) skips
+            // OnPointerUp — clear the press so a re-shown button starts full-size.
+            _isPressed = false;
+            _releaseElapsed = float.MaxValue;
+            transform.localScale = Vector3.one;
+        }
 
         private void Update()
         {
@@ -36,7 +44,7 @@ namespace OriAscendant.UI
             else if (_isPressed)
                 s = DipTarget;
             else
-                s = MotionHelper.PressDipScale(_releaseElapsed, RecoverDuration, false);
+                s = MotionHelper.PressDipScale(_releaseElapsed, MotionScale.PressDipRecover, false);
 
             transform.localScale = new Vector3(s, s, 1f);
         }
