@@ -14,7 +14,7 @@ and the 1024×1024 marketing icon are **blocked on final art + the §7.10 review
   - `Cultivate Àṣẹ across lifetimes` (30)
   - `An idle dynasty of light` (24)
   - `Idle cultivation & lineage` (26)
-- **Bundle ID:** `com.oriascendant.game`
+- **Bundle ID:** `com.vallicade.oriascendant`
 - **Primary category:** Games → Simulation
 - **Secondary category:** Games → Role Playing
 - **Price:** Free (no ads, no in-app purchases in this release)

@@ -4,8 +4,6 @@
 // Developer console. Until then this hook is excluded so device builds sign cleanly
 // against a plain Apple Development profile (cloud save falls back to local — see
 // CloudSaveManager / GameKitCloudSaveProvider, gated by the same symbol).
-// NOTE for Phase D: ICloudContainer derives from BuildConfigurator.BundleId, which is
-// still the placeholder "com.oriascendant.game" — fix it to the real App ID first.
 // IosAdCompliancePostProcessor below is gated on UNITY_IOS only — ad compliance
 // (SKAdNetwork ids + app-level privacy manifest) must ship on every iOS build.
 #if UNITY_IOS

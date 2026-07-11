@@ -16,15 +16,16 @@ namespace OriAscendant.EditorTools
     public static class BuildConfigurator
     {
         public const string ProductName = "Ori Ascendant";
-        public const string BundleId = "com.oriascendant.game"; // placeholder — set the real App ID before submission
-        public const string Version = "0.1.0";
+        public const string CompanyName = "Vallicade"; // the real studio, distinct from ProductName
+        public const string BundleId = "com.vallicade.oriascendant"; // verified: the App ID from the signed on-device build (bb0c700)
+        public const string Version = "1.0.0";
         public const string MinIosVersion = "15.0";
 
         [MenuItem("Ori Ascendant/Apply Build Config")]
         public static void Apply()
         {
             PlayerSettings.productName = ProductName;
-            PlayerSettings.companyName = ProductName;
+            PlayerSettings.companyName = CompanyName;
             PlayerSettings.bundleVersion = Version;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
 

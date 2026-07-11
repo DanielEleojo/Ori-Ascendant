@@ -20,11 +20,11 @@ The path from the current code-complete MVP to a responsible App Store release. 
 
 ## 1. In-repo engineering — DONE
 
-- [x] **[repo]** Bundle id `com.oriascendant.game`, product/version, iOS 15 min, portrait lock
+- [x] **[repo]** Bundle id `com.vallicade.oriascendant`, product/version, iOS 15 min, portrait lock
   (`Assets/Editor/BuildConfigurator.cs`).
 - [x] **[repo]** Explicit IL2CPP for iOS (deterministic Cloud Build).
 - [x] **[repo]** `IosBuildPostProcessor` adds Game Center + iCloud (Documents container
-  `iCloud.com.oriascendant.game`) to the Xcode project. ⚠️ **[cloud] must be validated on the
+  `iCloud.com.vallicade.oriascendant`) to the Xcode project. ⚠️ **[cloud] must be validated on the
   first Cloud Build** — it cannot compile/run on Linux (no iOS Build Support locally). If the
   `ProjectCapabilityManager.AddiCloud` overload differs in this Unity version, adjust the call.
 - [x] **[repo]** Privacy policy (`docs/PRIVACY.md`), store listing (`docs/store/`), changelog.
@@ -35,9 +35,9 @@ The path from the current code-complete MVP to a responsible App Store release. 
 ## 2. Apple Developer setup — [you]
 
 - [ ] Enrol in the Apple Developer Program (if not already).
-- [ ] Create the **App ID** `com.oriascendant.game` with **Game Center** and **iCloud
+- [ ] Create the **App ID** `com.vallicade.oriascendant` with **Game Center** and **iCloud
   (Documents) + container** capabilities enabled. The container id must match
-  `iCloud.com.oriascendant.game` (or update the constant in `IosBuildPostProcessor`).
+  `iCloud.com.vallicade.oriascendant` (or update the constant in `IosBuildPostProcessor`).
 - [ ] Create the app record in **App Store Connect** (name, bundle id, primary language).
 - [ ] Generate a **distribution certificate** and an **App Store provisioning profile** for the
   App ID — regenerate the profile *after* enabling iCloud + Game Center so it carries the
