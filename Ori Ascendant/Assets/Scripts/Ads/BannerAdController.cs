@@ -23,39 +23,31 @@ namespace OriAscendant.Ads
     /// which is simpler and privacy-safe. Add an ATT prompt later only if you want
     /// personalized-ad revenue.
     ///
-    /// SETUP: fill AppKey + BannerAdUnitId from the LevelPlay dashboard
-    /// (App settings). Until AppKey is set, this stays fully inert — no init, no
-    /// banner — so the test gate and PlayMode tests are unaffected.
+    /// SETUP: fill BannerAdUnitId here and AppKey on AdService (which owns the
+    /// single LevelPlay init). Until the AppKey is set, this stays fully inert —
+    /// no init, no banner — so the test gate and PlayMode tests are unaffected.
     /// </summary>
     public sealed class BannerAdController : MonoBehaviour
     {
-        // Public app identifiers (not secrets). Fill from the LevelPlay dashboard.
-        // static readonly (not const) so the "inert until configured" guard below
-        // isn't constant-folded into an unreachable-code warning.
-        private static readonly string AppKey = "YOUR_LEVELPLAY_APP_KEY";
-        private static readonly string BannerAdUnitId = "YOUR_BANNER_AD_UNIT_ID";
+        // Public ad identifier (not a secret). Fill from the LevelPlay dashboard.
+        private static readonly string BannerAdUnitId = "6mqd9pilaiwu5fj5";
 
         private LevelPlayBannerAd _banner;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
-            if (AppKey == "YOUR_LEVELPLAY_APP_KEY") return; // inert until configured
+            if (!AdService.IsConfigured) return; // inert until configured
 
             var go = new GameObject(nameof(BannerAdController));
             DontDestroyOnLoad(go);
             go.AddComponent<BannerAdController>();
         }
 
-        private void Start()
-        {
-            LevelPlay.OnInitSuccess += OnInitSuccess;
-            LevelPlay.OnInitFailed += OnInitFailed;
-            LevelPlay.Init(AppKey);
-        }
+        private void Start() => AdService.OnInitialized += BuildAndLoadBanner;
 
         // Ad objects must be created only after init succeeds (LevelPlay requirement).
-        private void OnInitSuccess(LevelPlayConfiguration config)
+        private void BuildAndLoadBanner()
         {
             var cfg = new LevelPlayBannerAd.Config.Builder()
                 .SetSize(LevelPlayAdSize.BANNER)
@@ -67,8 +59,5 @@ namespace OriAscendant.Ads
             _banner.OnAdLoadFailed += error => Debug.LogWarning($"[Ads] banner load failed: {error}");
             _banner.LoadAd();
         }
-
-        private void OnInitFailed(LevelPlayInitError error)
-            => Debug.LogWarning($"[Ads] LevelPlay init failed: {error}");
     }
 }

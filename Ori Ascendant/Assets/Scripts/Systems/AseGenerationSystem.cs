@@ -138,5 +138,16 @@ namespace OriAscendant.Systems
             OnAseChanneled?.Invoke(granted);
             OnAseChanged?.Invoke(_save.GetAse());
         }
+
+        /// <summary>One-time Àṣẹ bonus grant (e.g. rewarded-ad double-offline).
+        /// Writes the TOTAL only — the cached rate is never touched here.</summary>
+        public void GrantBonusAse(BigNumber bonus)
+        {
+            if (_save == null || bonus.IsZero) return;
+
+            _save.SetAse(_save.GetAse() + bonus);
+            StateVersion++;
+            OnAseChanged?.Invoke(_save.GetAse());
+        }
     }
 }

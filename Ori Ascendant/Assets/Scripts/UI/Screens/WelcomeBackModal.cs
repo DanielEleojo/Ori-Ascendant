@@ -1,3 +1,4 @@
+using OriAscendant.Ads;
 using OriAscendant.Core;
 using OriAscendant.Data;
 using OriAscendant.Systems;
@@ -15,6 +16,8 @@ namespace OriAscendant.UI.Screens
     /// Earnings are already credited when the event fires; this modal only
     /// presents them (UI never writes game state). Below the welcomeBackMinSeconds
     /// threshold the gain stays silent (no popup spam on quick app switches).
+    /// The optional rewarded-ad "Watch to double" button raises intent only —
+    /// the grant itself goes through AseGenerationSystem.GrantBonusAse.
     /// </summary>
     public class WelcomeBackModal : MonoBehaviour
     {
@@ -25,6 +28,8 @@ namespace OriAscendant.UI.Screens
         [SerializeField] private TMP_Text _rateContextText;
         [SerializeField] private TMP_Text _bonusLineText;
         [SerializeField] private Button _collectButton;
+        [SerializeField] private Button _doubleButton;
+        [SerializeField] private TMP_Text _doubleButtonLabel;
 
         private CanvasGroup _canvasGroup;
         private OverlayTransition _transition;
@@ -33,6 +38,7 @@ namespace OriAscendant.UI.Screens
         {
             OfflineProgressCalculator.OnOfflineProgressApplied += HandleOfflineProgress;
             if (_collectButton != null) _collectButton.onClick.AddListener(Hide);
+            if (_doubleButton != null) _doubleButton.onClick.AddListener(RequestDouble);
             if (_modalRoot != null)
             {
                 _modalRoot.SetActive(false);
@@ -44,12 +50,16 @@ namespace OriAscendant.UI.Screens
         {
             OfflineProgressCalculator.OnOfflineProgressApplied -= HandleOfflineProgress;
             if (_collectButton != null) _collectButton.onClick.RemoveListener(Hide);
+            if (_doubleButton != null) _doubleButton.onClick.RemoveListener(RequestDouble);
+            UnhookReward();
         }
 
         private const float CountUpSeconds = 1.2f;
         private BigNumber _earnedTarget;
         private float _countUpElapsed;
         private bool _countingUp;
+        private RewardedAdController _rewarded; // non-null only while a show is in flight
+        private bool _doubleClaimed;
 
         private void HandleOfflineProgress(BigNumber earned, long countedSeconds)
         {
@@ -73,6 +83,7 @@ namespace OriAscendant.UI.Screens
                 if (_earnedText != null) _earnedText.text = "+0 Àṣẹ";
             }
             RefreshBonusLine(earned);
+            RefreshDoubleButton(earned);
             if (_rateContextText != null)
             {
                 // The cached rate the calculation actually used (recalc happens after).
@@ -116,6 +127,68 @@ namespace OriAscendant.UI.Screens
             bool show = line != null;
             if (_bonusLineText.gameObject.activeSelf != show) _bonusLineText.gameObject.SetActive(show);
             if (show) _bonusLineText.text = line;
+        }
+
+        /// <summary>Rewarded-ad opt-in: "Watch to double" shows only when a rewarded
+        /// ad is actually loaded (ads inert / not loaded → no button), one reward
+        /// per visit. Tapping raises intent; the grant goes through the system.</summary>
+        private void RefreshDoubleButton(BigNumber earned)
+        {
+            if (_doubleButton == null) return;
+
+            UnhookReward(); // a fresh visit drops any stale pending handler
+            _doubleClaimed = false;
+            bool ready = ServiceLocator.TryGet(out RewardedAdController rewarded) && rewarded.IsReady;
+            _doubleButton.interactable = true;
+            _doubleButton.gameObject.SetActive(ready);
+            if (ready && _doubleButtonLabel != null)
+            {
+                _doubleButtonLabel.text = "Watch to double (+" + earned + " Àṣẹ)";
+            }
+        }
+
+        private void RequestDouble()
+        {
+            if (_doubleClaimed || _rewarded != null) return; // one reward per visit; no re-entry while showing
+            if (!ServiceLocator.TryGet(out RewardedAdController rewarded) || !rewarded.IsReady) return;
+
+            _rewarded = rewarded;
+            _rewarded.OnRewardGranted += HandleRewardGranted; // one-shot: unhooked in the handler
+            if (_doubleButton != null) _doubleButton.interactable = false;
+            _rewarded.Show();
+        }
+
+        private void HandleRewardGranted()
+        {
+            UnhookReward();
+            if (_doubleClaimed) return;
+            _doubleClaimed = true;
+
+            BigNumber bonus = _earnedTarget; // the same earned the modal is showing
+            ServiceLocator.Get<AseGenerationSystem>().GrantBonusAse(bonus);
+
+            // Retarget the displayed total to the doubled amount.
+            // ponytail: replay the existing 0→target count-up as the celebration
+            // beat instead of a dedicated flash the modal doesn't have.
+            _earnedTarget = _earnedTarget + bonus;
+            if (MotionHelper.IsReduceMotion())
+            {
+                _countingUp = false;
+                if (_earnedText != null) _earnedText.text = "+" + _earnedTarget + " Àṣẹ";
+            }
+            else
+            {
+                _countUpElapsed = 0f;
+                _countingUp = true;
+            }
+            if (_doubleButton != null) _doubleButton.gameObject.SetActive(false); // one reward per visit
+        }
+
+        private void UnhookReward()
+        {
+            if (_rewarded == null) return;
+            _rewarded.OnRewardGranted -= HandleRewardGranted;
+            _rewarded = null;
         }
 
         private void Update()

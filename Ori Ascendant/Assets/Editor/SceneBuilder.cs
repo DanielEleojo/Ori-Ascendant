@@ -881,33 +881,49 @@ namespace OriAscendant.EditorTools
 
             var card = MakeImage(modalRootRt, "Card", Panel);
             var cardRt = card.rectTransform;
-            cardRt.anchorMin = new Vector2(0.08f, 0.30f);
+            // Extended downward from 0.30 to make room for the rewarded "watch to
+            // double" button (top edge unchanged at 0.70). Every band below is
+            // reweighted against the taller card so each element keeps its exact
+            // prior absolute on-screen position — zero visual change to what
+            // already shipped; the freed strip at the bottom is new.
+            cardRt.anchorMin = new Vector2(0.08f, 0.22f);
             cardRt.anchorMax = new Vector2(0.92f, 0.70f);
             cardRt.offsetMin = Vector2.zero;
             cardRt.offsetMax = Vector2.zero;
 
             var wbHeader = MakeText(cardRt, "HeaderText", "Your Orí kept watch",
                 TypographicScale.H1, TextAlignmentOptions.Center, Gold);
-            SetBand(wbHeader.rectTransform, 0.80f, 0.97f);
+            SetBand(wbHeader.rectTransform, 0.833f, 0.975f);
             var timeAway = MakeText(cardRt, "TimeAwayText", "Away —",
                 TypographicScale.Body, TextAlignmentOptions.Center, TextDim);
-            SetBand(timeAway.rectTransform, 0.66f, 0.80f);
+            SetBand(timeAway.rectTransform, 0.717f, 0.833f);
             var earned = MakeText(cardRt, "EarnedText", "+0 Àṣẹ",
                 TypographicScale.H1, TextAlignmentOptions.Center, Text);
-            SetBand(earned.rectTransform, 0.44f, 0.66f);
+            SetBand(earned.rectTransform, 0.533f, 0.717f);
             var bonusLine = MakeText(cardRt, "BonusLineText", "",
                 TypographicScale.BodySm, TextAlignmentOptions.Center, Gold);
-            SetBand(bonusLine.rectTransform, 0.33f, 0.44f);
+            SetBand(bonusLine.rectTransform, 0.442f, 0.533f);
             bonusLine.gameObject.SetActive(false);
             var rateContext = MakeText(cardRt, "RateContextText", "at 0 Àṣẹ/s",
                 TypographicScale.BodySm, TextAlignmentOptions.Center, TextDim);
-            SetBand(rateContext.rectTransform, 0.22f, 0.33f);
+            SetBand(rateContext.rectTransform, 0.350f, 0.442f);
             var collect = MakeButton(cardRt, "CollectButton", "Collect", Gold, TypographicScale.H2);
             var collectRt = (RectTransform)collect.transform;
-            collectRt.anchorMin = new Vector2(0.10f, 0.04f);
-            collectRt.anchorMax = new Vector2(0.90f, 0.19f);
+            collectRt.anchorMin = new Vector2(0.10f, 0.20f);
+            collectRt.anchorMax = new Vector2(0.90f, 0.325f);
             collectRt.offsetMin = Vector2.zero;
             collectRt.offsetMax = Vector2.zero;
+
+            // Rewarded-ad opt-in — hidden by RefreshDoubleButton until a rewarded
+            // ad is actually loaded (ads inert / unconfigured today → never shown).
+            var watchDouble = MakeButton(cardRt, "DoubleButton", "Watch to double", Gold, TypographicScale.BodySm);
+            var watchDoubleRt = (RectTransform)watchDouble.transform;
+            watchDoubleRt.anchorMin = new Vector2(0.10f, 0.02f);
+            watchDoubleRt.anchorMax = new Vector2(0.90f, 0.17f);
+            watchDoubleRt.offsetMin = Vector2.zero;
+            watchDoubleRt.offsetMax = Vector2.zero;
+            var watchDoubleLabel = watchDouble.GetComponentInChildren<TMP_Text>();
+            watchDouble.gameObject.SetActive(false);
             modalRoot.SetActive(false);
 
             // ---- Title screen (topmost) ----
@@ -975,6 +991,8 @@ namespace OriAscendant.EditorTools
             Assign(modal, "_rateContextText", rateContext);
             Assign(modal, "_bonusLineText", bonusLine);
             Assign(modal, "_collectButton", collect);
+            Assign(modal, "_doubleButton", watchDouble);
+            Assign(modal, "_doubleButtonLabel", watchDoubleLabel);
 
             var title = titleController.AddComponent<TitleScreen>();
             Assign(title, "_root", titleRoot);
