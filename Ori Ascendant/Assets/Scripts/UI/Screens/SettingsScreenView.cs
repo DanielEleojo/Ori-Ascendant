@@ -32,6 +32,9 @@ namespace OriAscendant.UI.Screens
         [Header("Motion")]
         [SerializeField] private Toggle _reduceMotionToggle;
 
+        [Header("Notifications")]
+        [SerializeField] private Toggle _notificationsToggle;
+
         [Header("Account")]
         [SerializeField] private TMP_Text _cloudStatus;
 
@@ -49,12 +52,13 @@ namespace OriAscendant.UI.Screens
 
         private void Awake()
         {
-            if (_bgmToggle != null)          _bgmToggle.onValueChanged.AddListener(SetBgm);
-            if (_sfxToggle != null)          _sfxToggle.onValueChanged.AddListener(SetSfx);
-            if (_hapticsToggle != null)      _hapticsToggle.onValueChanged.AddListener(SetHaptics);
-            if (_reduceMotionToggle != null) _reduceMotionToggle.onValueChanged.AddListener(SetReduceMotion);
-            if (_aboutButton != null)        _aboutButton.onClick.AddListener(OpenAbout);
-            if (_closeButton != null)        _closeButton.onClick.AddListener(Hide);
+            if (_bgmToggle != null)           _bgmToggle.onValueChanged.AddListener(SetBgm);
+            if (_sfxToggle != null)           _sfxToggle.onValueChanged.AddListener(SetSfx);
+            if (_hapticsToggle != null)       _hapticsToggle.onValueChanged.AddListener(SetHaptics);
+            if (_reduceMotionToggle != null)  _reduceMotionToggle.onValueChanged.AddListener(SetReduceMotion);
+            if (_notificationsToggle != null) _notificationsToggle.onValueChanged.AddListener(SetNotifications);
+            if (_aboutButton != null)         _aboutButton.onClick.AddListener(OpenAbout);
+            if (_closeButton != null)         _closeButton.onClick.AddListener(Hide);
             if (_root != null)
             {
                 _root.SetActive(false);
@@ -70,12 +74,13 @@ namespace OriAscendant.UI.Screens
 
         private void OnDestroy()
         {
-            if (_bgmToggle != null)          _bgmToggle.onValueChanged.RemoveListener(SetBgm);
-            if (_sfxToggle != null)          _sfxToggle.onValueChanged.RemoveListener(SetSfx);
-            if (_hapticsToggle != null)      _hapticsToggle.onValueChanged.RemoveListener(SetHaptics);
-            if (_reduceMotionToggle != null) _reduceMotionToggle.onValueChanged.RemoveListener(SetReduceMotion);
-            if (_aboutButton != null)        _aboutButton.onClick.RemoveListener(OpenAbout);
-            if (_closeButton != null)        _closeButton.onClick.RemoveListener(Hide);
+            if (_bgmToggle != null)           _bgmToggle.onValueChanged.RemoveListener(SetBgm);
+            if (_sfxToggle != null)           _sfxToggle.onValueChanged.RemoveListener(SetSfx);
+            if (_hapticsToggle != null)       _hapticsToggle.onValueChanged.RemoveListener(SetHaptics);
+            if (_reduceMotionToggle != null)  _reduceMotionToggle.onValueChanged.RemoveListener(SetReduceMotion);
+            if (_notificationsToggle != null) _notificationsToggle.onValueChanged.RemoveListener(SetNotifications);
+            if (_aboutButton != null)         _aboutButton.onClick.RemoveListener(OpenAbout);
+            if (_closeButton != null)         _closeButton.onClick.RemoveListener(Hide);
         }
 
         private void Update()
@@ -87,11 +92,12 @@ namespace OriAscendant.UI.Screens
 
         public void Show()
         {
-            if (_bgmToggle != null)          _bgmToggle.SetIsOnWithoutNotify(AudioPrefs.BgmEnabled);
-            if (_sfxToggle != null)          _sfxToggle.SetIsOnWithoutNotify(AudioPrefs.SfxEnabled);
-            if (_hapticsToggle != null)      _hapticsToggle.SetIsOnWithoutNotify(HapticPrefs.HapticsEnabled);
-            if (_reduceMotionToggle != null) _reduceMotionToggle.SetIsOnWithoutNotify(MotionPrefs.ReduceMotionEnabled);
-            if (_version != null)            _version.text = "v" + Application.version;
+            if (_bgmToggle != null)           _bgmToggle.SetIsOnWithoutNotify(AudioPrefs.BgmEnabled);
+            if (_sfxToggle != null)           _sfxToggle.SetIsOnWithoutNotify(AudioPrefs.SfxEnabled);
+            if (_hapticsToggle != null)       _hapticsToggle.SetIsOnWithoutNotify(HapticPrefs.HapticsEnabled);
+            if (_reduceMotionToggle != null)  _reduceMotionToggle.SetIsOnWithoutNotify(MotionPrefs.ReduceMotionEnabled);
+            if (_notificationsToggle != null) _notificationsToggle.SetIsOnWithoutNotify(NotificationPrefs.Enabled);
+            if (_version != null)             _version.text = "v" + Application.version;
             if (_cloudStatus != null)
             {
                 _cloudStatus.text = ServiceLocator.TryGet(out CloudSaveManager cloud)
@@ -116,9 +122,10 @@ namespace OriAscendant.UI.Screens
             if (ServiceLocator.TryGet(out AudioManager audio)) audio.ApplyBgmVolume();
         }
 
-        private void SetSfx(bool on)          => AudioPrefs.SfxEnabled = on;
-        private void SetHaptics(bool on)      => HapticPrefs.HapticsEnabled = on;
-        private void SetReduceMotion(bool on) => MotionPrefs.ReduceMotionEnabled = on;
+        private void SetSfx(bool on)           => AudioPrefs.SfxEnabled = on;
+        private void SetHaptics(bool on)       => HapticPrefs.HapticsEnabled = on;
+        private void SetReduceMotion(bool on)  => MotionPrefs.ReduceMotionEnabled = on;
+        private void SetNotifications(bool on) => NotificationPrefs.Enabled = on;
 
         private void OpenAbout()
         {

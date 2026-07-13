@@ -1619,6 +1619,9 @@ namespace OriAscendant.EditorTools
             var sfxToggle = MakeToggle(panelRt, "SfxToggle", "Sound effects", 0.705f, 0.785f);
             var hapticsToggle = MakeToggle(panelRt, "HapticsToggle", "Haptics", 0.615f, 0.695f);
             var reduceMotionToggle = MakeToggle(panelRt, "ReduceMotionToggle", "Reduce motion", 0.525f, 0.605f);
+            // ponytail: fits the existing gap between Version and Close rather than
+            // reflowing every row below Reduce Motion for one more toggle.
+            var notificationsToggle = MakeToggle(panelRt, "NotificationsToggle", "Notifications", 0.18f, 0.26f);
             var cloudStatus = MakeText(panelRt, "CloudStatus", "Local save only",
                 TypographicScale.Label, TextAlignmentOptions.Center, TextDim);
             SetBand(cloudStatus.rectTransform, 0.45f, 0.51f);
@@ -1647,6 +1650,7 @@ namespace OriAscendant.EditorTools
             Assign(screen, "_sfxToggle", sfxToggle);
             Assign(screen, "_hapticsToggle", hapticsToggle);
             Assign(screen, "_reduceMotionToggle", reduceMotionToggle);
+            Assign(screen, "_notificationsToggle", notificationsToggle);
             Assign(screen, "_cloudStatus", cloudStatus);
             Assign(screen, "_version", version);
             Assign(screen, "_aboutButton", about);
