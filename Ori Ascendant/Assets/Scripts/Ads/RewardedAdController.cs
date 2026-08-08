@@ -6,8 +6,9 @@ namespace OriAscendant.Ads
 {
     /// <summary>
     /// Rewarded ad via Unity LevelPlay. Self-activates after scene load and
-    /// persists across scenes — same idiom as BannerAdController. Registers in
-    /// ServiceLocator so UI can TryGet it; while ads are inert (AppKey unset on
+    /// persists across scenes — same self-boot idiom used elsewhere in this
+    /// codebase (see ProceduralAmbience). Registers in ServiceLocator so UI can
+    /// TryGet it; while ads are inert (AppKey unset on
     /// AdService) it is simply absent, so callers treat "no service" as
     /// "no rewarded ads".
     ///
@@ -21,7 +22,7 @@ namespace OriAscendant.Ads
     public sealed class RewardedAdController : MonoBehaviour
     {
         // Public ad identifier (not a secret). Fill from the LevelPlay dashboard.
-        private static readonly string RewardedAdUnitId = "ib7j40263c2y6nga";
+        private static readonly string RewardedAdUnitId = "5nety1y03c5jc1cn";
 
         private LevelPlayRewardedAd _ad;
         private bool _loaded;
