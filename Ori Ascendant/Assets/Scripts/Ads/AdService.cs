@@ -5,10 +5,10 @@ using UnityEngine;
 namespace OriAscendant.Ads
 {
     /// <summary>
-    /// Owns the single LevelPlay SDK init shared by every ad controller
-    /// (banner, rewarded). Self-activates after scene load and persists across
-    /// scenes — same idiom as BannerAdController. Owns no game state; doesn't
-    /// touch ServiceLocator.
+    /// Owns the single LevelPlay SDK init shared by every ad controller.
+    /// Self-activates after scene load and persists across scenes — same
+    /// self-boot idiom used elsewhere in this codebase (see ProceduralAmbience).
+    /// Owns no game state; doesn't touch ServiceLocator.
     ///
     /// Consumers subscribe to <see cref="OnInitialized"/> and create their ad
     /// objects there (LevelPlay requires init to succeed first). Late
@@ -24,7 +24,7 @@ namespace OriAscendant.Ads
         // Public app identifier (not a secret). Fill from the LevelPlay dashboard.
         // static readonly (not const) so the "inert until configured" guard below
         // isn't constant-folded into an unreachable-code warning.
-        private static readonly string AppKey = "26ed323dd";
+        private static readonly string AppKey = "2786b746d";
 
         /// <summary>Ad controllers gate their bootstraps on this — inert until the dashboard AppKey is filled in.</summary>
         internal static bool IsConfigured => AppKey != "YOUR_LEVELPLAY_APP_KEY";

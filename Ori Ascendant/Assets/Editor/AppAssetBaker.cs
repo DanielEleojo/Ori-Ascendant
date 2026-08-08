@@ -16,7 +16,7 @@ namespace OriAscendant.EditorTools
     {
         private const int    IconSize        = 1024;
         private const string IconOutputPath  = "Assets/AppIcon_1024.png";
-        private const string SplashImagePath = "Assets/Vellicade_Games_Splash_screen.png";
+        private const string SplashImagePath = "Assets/Vallicade_Games_Splash_screen.png";
 
         // ---- Colour palette (Editor-only copy — no runtime Palette dependency) ----
         private static Color IndigoNight => HexColor(0x07091A);
