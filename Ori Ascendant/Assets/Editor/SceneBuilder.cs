@@ -139,7 +139,7 @@ namespace OriAscendant.EditorTools
             var config = EnsureAsset<GameplayConfig>(GameplayConfigPath);
             config.baseRate = 1.0;
             config.tapChannelSeconds = 5.0;
-            config.welcomeBackMinSeconds = 60;
+            config.welcomeBackMinSeconds = 30;
             config.autosaveIntervalSeconds = 30;
             EditorUtility.SetDirty(config);
             return config;

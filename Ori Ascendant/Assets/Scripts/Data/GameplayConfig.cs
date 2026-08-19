@@ -17,7 +17,7 @@ namespace OriAscendant.Data
         public double tapChannelSeconds = 5.0;
 
         [Tooltip("Minimum offline seconds before the Welcome Back modal shows; below this the gain is credited silently.")]
-        public int welcomeBackMinSeconds = 60;
+        public int welcomeBackMinSeconds = 30;
 
         [Tooltip("Seconds between background autosaves.")]
         public int autosaveIntervalSeconds = 30;

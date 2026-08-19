@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: OriAscendant::OriAscendant.Data.GameplayConfig
   baseRate: 1
   tapChannelSeconds: 5
-  welcomeBackMinSeconds: 60
+  welcomeBackMinSeconds: 30
   autosaveIntervalSeconds: 30
   renownBonusCap: 0.25

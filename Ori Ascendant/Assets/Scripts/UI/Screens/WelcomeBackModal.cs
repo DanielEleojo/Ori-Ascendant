@@ -129,19 +129,21 @@ namespace OriAscendant.UI.Screens
             if (show) _bonusLineText.text = line;
         }
 
-        /// <summary>Rewarded-ad opt-in: "Watch to double" shows only when a rewarded
-        /// ad is actually loaded (ads inert / not loaded → no button), one reward
-        /// per visit. Tapping raises intent; the grant goes through the system.</summary>
+        /// <summary>Rewarded-ad opt-in: "Watch to double" shows whenever the
+        /// rewarded controller exists (ads inert → no button) — the ad itself
+        /// loads on demand at tap time (ShowOrLoad), so the button no longer
+        /// races the preload on a cold launch. One reward per visit. Tapping
+        /// raises intent; the grant goes through the system.</summary>
         private void RefreshDoubleButton(BigNumber earned)
         {
             if (_doubleButton == null) return;
 
             UnhookReward(); // a fresh visit drops any stale pending handler
             _doubleClaimed = false;
-            bool ready = ServiceLocator.TryGet(out RewardedAdController rewarded) && rewarded.IsReady;
+            bool available = ServiceLocator.TryGet(out RewardedAdController _);
             _doubleButton.interactable = true;
-            _doubleButton.gameObject.SetActive(ready);
-            if (ready && _doubleButtonLabel != null)
+            _doubleButton.gameObject.SetActive(available);
+            if (available && _doubleButtonLabel != null)
             {
                 _doubleButtonLabel.text = "Watch to double (+" + earned + " Àṣẹ)";
             }
@@ -149,13 +151,28 @@ namespace OriAscendant.UI.Screens
 
         private void RequestDouble()
         {
-            if (_doubleClaimed || _rewarded != null) return; // one reward per visit; no re-entry while showing
-            if (!ServiceLocator.TryGet(out RewardedAdController rewarded) || !rewarded.IsReady) return;
+            if (_doubleClaimed || _rewarded != null) return; // one reward per visit; no re-entry while pending
+            if (!ServiceLocator.TryGet(out RewardedAdController rewarded)) return;
 
             _rewarded = rewarded;
             _rewarded.OnRewardGranted += HandleRewardGranted; // one-shot: unhooked in the handler
             if (_doubleButton != null) _doubleButton.interactable = false;
-            _rewarded.Show();
+            if (_doubleButtonLabel != null) _doubleButtonLabel.text = "Preparing ad…";
+            _rewarded.ShowOrLoad(HandleAdFailed);
+        }
+
+        /// <summary>The ShowOrLoad attempt ended with no reward possible (load
+        /// timeout, failed/swallowed show, or closed without reward): restore
+        /// the button so the player can simply try again.</summary>
+        private void HandleAdFailed()
+        {
+            UnhookReward();
+            if (_doubleClaimed) return;
+            if (_doubleButton != null) _doubleButton.interactable = true;
+            if (_doubleButtonLabel != null)
+            {
+                _doubleButtonLabel.text = "Watch to double (+" + _earnedTarget + " Àṣẹ)";
+            }
         }
 
         private void HandleRewardGranted()
@@ -211,6 +228,14 @@ namespace OriAscendant.UI.Screens
 
         private void Hide()
         {
+            // Collecting while a double attempt is still waiting on its load
+            // abandons it — an ad must never pop after the modal is gone.
+            if (_rewarded != null && !_doubleClaimed)
+            {
+                _rewarded.CancelPendingShow();
+                UnhookReward();
+            }
+
             // Tap-to-skip: collecting mid-count snaps the number to full first.
             if (_countingUp && _earnedText != null)
             {

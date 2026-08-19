@@ -1,7 +1,7 @@
 {
     "name": "OriAscendant.Systems",
     "rootNamespace": "OriAscendant.Systems",
-    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save"],
+    "references": ["OriAscendant.Core", "OriAscendant.Data", "OriAscendant.Save", "Unity.Notifications.iOS"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

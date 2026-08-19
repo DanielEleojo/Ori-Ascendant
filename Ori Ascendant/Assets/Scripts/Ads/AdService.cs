@@ -60,6 +60,12 @@ namespace OriAscendant.Ads
         {
             LevelPlay.OnInitSuccess += OnInitSuccess;
             LevelPlay.OnInitFailed += OnInitFailed;
+#if ORI_ADS_TEST_SUITE
+            // Pre-approval testing: forces LevelPlay's Test Suite (test-campaign
+            // fill) while the ironSource account is pending. Must be set BEFORE
+            // Init. Never define ORI_ADS_TEST_SUITE in a release build.
+            LevelPlay.SetMetaData("is_test_suite", "enable");
+#endif
             LevelPlay.Init(AppKey);
         }
 
@@ -67,6 +73,9 @@ namespace OriAscendant.Ads
         {
             _initSucceeded = true;
             Initialized?.Invoke();
+#if ORI_ADS_TEST_SUITE
+            LevelPlay.LaunchTestSuite();
+#endif
         }
 
         private void OnInitFailed(LevelPlayInitError error)
