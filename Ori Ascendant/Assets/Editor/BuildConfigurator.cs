@@ -18,7 +18,7 @@ namespace OriAscendant.EditorTools
         public const string ProductName = "Ori Ascendant";
         public const string CompanyName = "Vallicade"; // the real studio, distinct from ProductName
         public const string BundleId = "com.vallicade.oriascendant"; // verified: the App ID from the signed on-device build (bb0c700)
-        public const string Version = "1.1.0";
+        public const string Version = "1.1";
         public const string MinIosVersion = "15.0";
 
         // CFBundleVersion. Cloud Build used to own this (auto-increment per upload,

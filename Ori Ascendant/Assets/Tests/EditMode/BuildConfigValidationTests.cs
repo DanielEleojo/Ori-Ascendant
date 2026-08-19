@@ -19,7 +19,7 @@ namespace OriAscendant.Tests.EditMode
         {
             Assert.AreEqual("Ori Ascendant", PlayerSettings.productName);
             Assert.AreEqual("Vallicade", PlayerSettings.companyName);
-            Assert.AreEqual("1.1.0", PlayerSettings.bundleVersion);
+            Assert.AreEqual("1.1", PlayerSettings.bundleVersion);
         }
 
         /// <summary>Every App Store upload needs a unique, increasing
