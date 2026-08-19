@@ -57,3 +57,9 @@ sysinfo.txt
 # Code. Local-only wiring; do not commit (symlinks would dangle on clone).
 .agents/
 **/.claude/skills/
+
+# Unity Test Framework performance-test artifacts. Regenerated into
+# Assets/Resources/ every time the test runner runs, and anything under
+# Resources/ is bundled into the shipped player — never commit or ship these.
+**/Assets/Resources/PerformanceTestRunInfo.json*
+**/Assets/Resources/PerformanceTestRunSettings.json*
