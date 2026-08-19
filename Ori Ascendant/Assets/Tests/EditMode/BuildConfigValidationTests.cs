@@ -19,7 +19,15 @@ namespace OriAscendant.Tests.EditMode
         {
             Assert.AreEqual("Ori Ascendant", PlayerSettings.productName);
             Assert.AreEqual("Vallicade", PlayerSettings.companyName);
-            Assert.AreEqual("1.0.0", PlayerSettings.bundleVersion);
+            Assert.AreEqual("1.1.0", PlayerSettings.bundleVersion);
+        }
+
+        /// <summary>Every App Store upload needs a unique, increasing
+        /// CFBundleVersion; an empty one is rejected at upload.</summary>
+        [Test]
+        public void BuildNumber_IsSet_ForIos()
+        {
+            Assert.IsFalse(string.IsNullOrWhiteSpace(PlayerSettings.iOS.buildNumber));
         }
 
         [Test]

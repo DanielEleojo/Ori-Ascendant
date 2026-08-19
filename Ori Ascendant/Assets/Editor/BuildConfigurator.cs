@@ -18,8 +18,15 @@ namespace OriAscendant.EditorTools
         public const string ProductName = "Ori Ascendant";
         public const string CompanyName = "Vallicade"; // the real studio, distinct from ProductName
         public const string BundleId = "com.vallicade.oriascendant"; // verified: the App ID from the signed on-device build (bb0c700)
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
         public const string MinIosVersion = "15.0";
+
+        // CFBundleVersion. Cloud Build used to own this (auto-increment per upload,
+        // see docs/RELEASE_CHECKLIST.md §4), but releases are archived locally from
+        // Xcode now, so it is committed and bumped by hand. Must be unique and
+        // increasing per upload — bump this for EVERY build sent to App Store
+        // Connect, even a re-upload of the same Version. 1.0 shipped as build 1.
+        public const string BuildNumber = "2";
 
         [MenuItem("Ori Ascendant/Apply Build Config")]
         public static void Apply()
@@ -27,6 +34,7 @@ namespace OriAscendant.EditorTools
             PlayerSettings.productName = ProductName;
             PlayerSettings.companyName = CompanyName;
             PlayerSettings.bundleVersion = Version;
+            PlayerSettings.iOS.buildNumber = BuildNumber;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
 
             PlayerSettings.iOS.targetOSVersionString = MinIosVersion;
