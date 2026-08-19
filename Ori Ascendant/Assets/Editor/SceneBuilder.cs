@@ -692,12 +692,20 @@ namespace OriAscendant.EditorTools
             var identity = Zone(root, "IdentityZone", 0.20f, 0.24f);
 
             // StageText — centre lane (30–70 % width), H2, so edge badges never clip it.
+            // Banded ABOVE the steadfastness sub-lane, and single-line with auto-shrink:
+            // long stage names ("Stage 1 — Ọmọ Ayé") used to wrap their second line
+            // straight onto SteadfastnessText below.
             var stageText = MakeText(identity, "StageText", "Stage 1",
                 TypographicScale.H2, TextAlignmentOptions.Center, Text);
-            stageText.rectTransform.anchorMin = new Vector2(MainScreenLayout.IdentityStageCentreXMin, 0f);
+            stageText.rectTransform.anchorMin = new Vector2(MainScreenLayout.IdentityStageCentreXMin,
+                MainScreenLayout.IdentitySteadfastnessTop);
             stageText.rectTransform.anchorMax = new Vector2(MainScreenLayout.IdentityStageCentreXMax, 1f);
             stageText.rectTransform.offsetMin = Vector2.zero;
             stageText.rectTransform.offsetMax = Vector2.zero;
+            stageText.enableWordWrapping = false;
+            stageText.enableAutoSizing = true;
+            stageText.fontSizeMax = TypographicScale.H2;
+            stageText.fontSizeMin = 12f;
 
             // PathBadge — right lane (IdentityPathBadgeXMin → 1).
             var pathBadge = MakeText(identity, "PathBadge", "",

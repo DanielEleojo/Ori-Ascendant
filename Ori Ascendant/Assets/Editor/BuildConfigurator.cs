@@ -38,6 +38,11 @@ namespace OriAscendant.EditorTools
             // Cloud Build, not committed here — see docs/RELEASE_CHECKLIST.md.
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
 
+            // iOS status bar stays visible during gameplay (clock, battery) —
+            // light icons over the game's dark palette.
+            PlayerSettings.statusBarHidden = false;
+            PlayerSettings.iOS.statusBarStyle = iOSStatusBarStyle.LightContent;
+
             // Portrait lock (idle game, single screen).
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
